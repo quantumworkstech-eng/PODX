@@ -150,7 +150,7 @@ export default function PartnerLoginPage() {
 
           <p className="mt-6 text-center text-sm text-white/60">
             Don&apos;t have a partner account?{" "}
-            <Link href="/partner-portal/signup" className="text-[#D9FC67] hover:text-[#E8FF8A] font-medium transition-colors">
+            <Link href="/partner/signup" className="text-[#D9FC67] hover:text-[#E8FF8A] font-medium transition-colors">
               Apply now
             </Link>
           </p>

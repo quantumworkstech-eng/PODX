@@ -94,7 +94,7 @@ export default function PartnerSignupPage() {
     });
     
     if (result?.error) {
-      router.push("/partner-portal/login");
+      router.push("/partner/login");
     } else {
       router.push("/partner/dashboard");
     }
@@ -244,7 +244,7 @@ export default function PartnerSignupPage() {
           {step === 4 && renderProfileStep()}
 
           <p className="mt-6 text-center text-sm text-white/60">
-            Already have an account? <Link href="/partner-portal/login" className="text-[#D9FC67] hover:text-[#E8FF8A] font-medium transition-colors">Sign in</Link>
+            Already have an account? <Link href="/partner/login" className="text-[#D9FC67] hover:text-[#E8FF8A] font-medium transition-colors">Sign in</Link>
           </p>
         </div>
 
