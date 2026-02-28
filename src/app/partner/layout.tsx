@@ -166,6 +166,8 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [policies, setPolicies] = useState<PartnerPolicies>(defaultPolicies);
 
+  const isAuthPage = pathname === "/partner/login" || pathname === "/partner/signup";
+
   useEffect(() => {
     const storedStudios = localStorage.getItem(PARTNER_STUDIOS_KEY);
     if (storedStudios) {
@@ -209,6 +211,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
 
   return (
     <div className="min-h-screen bg-[#09090b]">
+      {!isAuthPage && (
       <div className="flex">
         <aside
           className={cn(
@@ -364,6 +367,8 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
           </div>
         </main>
       </div>
+      )}
+      {isAuthPage && <div className="min-h-screen">{children}</div>}
     </div>
   );
 }
