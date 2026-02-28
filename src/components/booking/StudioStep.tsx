@@ -16,7 +16,7 @@ export function StudioStep() {
   const [studios, setStudios] = useState<Studio[]>([]);
 
   useEffect(() => {
-    setStudios(getAllStudios());
+    getAllStudios().then(setStudios);
   }, []);
 
   const isStudioAvailable = () => true;

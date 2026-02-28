@@ -13,7 +13,7 @@ export function StudioSection() {
   const [studios, setStudios] = useState<Studio[]>([]);
 
   useEffect(() => {
-    setStudios(getAllStudios());
+    getAllStudios().then(setStudios);
   }, []);
 
   if (studios.length === 0) return null;
