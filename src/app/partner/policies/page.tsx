@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getFromLocalStorage, setToLocalStorage } from "@/lib/client-utils";
 
 interface CancellationRule {
   id: string;
@@ -88,9 +89,9 @@ export default function PartnerPoliciesPage() {
   const [activeTab, setActiveTab] = useState<"cancellation" | "reschedule">("cancellation");
 
   useEffect(() => {
-    const stored = localStorage.getItem(PARTNER_POLICIES_KEY);
+    const stored = getFromLocalStorage(PARTNER_POLICIES_KEY, null);
     if (stored) {
-      setPolicies(JSON.parse(stored));
+      setPolicies(stored);
     } else {
       setPolicies(defaultPolicies);
     }
@@ -104,19 +105,15 @@ export default function PartnerPoliciesPage() {
   };
 
   const getAllStudios = (): { id: string; name: string }[] => {
-    const stored = localStorage.getItem("partner_studios");
-    if (stored) {
-      return JSON.parse(stored).map((s: any) => ({ id: s.id, name: s.name }));
-    }
-    return [];
+    const stored = getFromLocalStorage<any[]>("partner_studios", []);
+    return stored.map((s: any) => ({ id: s.id, name: s.name }));
   };
 
   const checkAffectedBookings = () => {
-    const bookingsStored = localStorage.getItem(PARTNER_BOOKINGS_KEY);
-    if (bookingsStored) {
-      const bookings: Booking[] = JSON.parse(bookingsStored);
-      const upcoming = bookings.filter(
-        (b) => b.status === "confirmed" || b.status === "pending"
+    const bookingsStored = getFromLocalStorage<any[]>(PARTNER_BOOKINGS_KEY, []);
+    if (bookingsStored.length > 0) {
+      const upcoming = bookingsStored.filter(
+        (b: any) => b.status === "confirmed" || b.status === "pending"
       );
       if (upcoming.length > 0) {
         setAffectedBookings(upcoming.slice(0, 3));
@@ -128,7 +125,7 @@ export default function PartnerPoliciesPage() {
   const savePolicies = async () => {
     setIsSaving(true);
     await new Promise((resolve) => setTimeout(resolve, 500));
-    localStorage.setItem(PARTNER_POLICIES_KEY, JSON.stringify(policies));
+    setToLocalStorage(PARTNER_POLICIES_KEY, policies);
     setIsSaving(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 2000);
