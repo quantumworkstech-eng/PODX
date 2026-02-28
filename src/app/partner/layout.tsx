@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -160,8 +159,6 @@ interface PartnerDashboardProps {
 
 export default function PartnerDashboardLayout({ children }: PartnerDashboardProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { data: session, status } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [studios, setStudios] = useState<Studio[]>([]);
@@ -169,22 +166,6 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   const [policies, setPolicies] = useState<PartnerPolicies>(defaultPolicies);
 
   const isAuthPage = pathname === "/partner/login" || pathname === "/partner/signup";
-
-  useEffect(() => {
-    // Redirect to login if not authenticated
-    if (status === "unauthenticated" && !isAuthPage) {
-      router.push("/partner/login");
-    }
-  }, [status, isAuthPage, router]);
-
-  // Show loading while checking auth
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   useEffect(() => {
     const storedStudios = localStorage.getItem(PARTNER_STUDIOS_KEY);
