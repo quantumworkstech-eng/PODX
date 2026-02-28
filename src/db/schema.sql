@@ -57,6 +57,32 @@ INSERT INTO roles (name, description) VALUES
     ('editor', 'Post-production specialist');
 
 -- ============================================
+-- CITIES TABLE
+-- ============================================
+
+CREATE TABLE cities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE,
+    image_url TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default cities
+INSERT INTO cities (name, slug, image_url, display_order) VALUES 
+    ('Mumbai', 'mumbai', 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80', 1),
+    ('Delhi', 'delhi', 'https://images.unsplash.com/photo-1585506935092-10651126cebb?w=800&q=80', 2),
+    ('Bangalore', 'bangalore', 'https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?w=800&q=80', 3),
+    ('Hyderabad', 'hyderabad', 'https://images.unsplash.com/photo-1613156730504-7b66c56f3ae8?w=800&q=80', 4),
+    ('Pune', 'pune', 'https://images.unsplash.com/photo-1557191446-6f1a73a2fcc1?w=800&q=80', 5),
+    ('Chennai', 'chennai', 'https://images.unsplash.com/photo-1580637249871-a1119e27f9d9?w=800&q=80', 6),
+    ('Kolkata', 'kolkata', 'https://images.unsplash.com/photo-1583508916039-35a4d5c78da4?w=800&q=80', 7),
+    ('Dubai', 'dubai', 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80', 8);
+
+-- ============================================
 -- 2. STUDIOS & ROOMS
 -- ============================================
 
@@ -542,6 +568,10 @@ CREATE TABLE activity_logs (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_profiles_user_id ON profiles(user_id);
 
+-- Cities
+CREATE INDEX idx_cities_active ON cities(is_active) WHERE is_active = TRUE;
+CREATE INDEX idx_cities_display_order ON cities(display_order);
+
 -- Studios
 CREATE INDEX idx_studios_owner_id ON studios(owner_id);
 CREATE INDEX idx_studios_city ON studios(city);
@@ -600,6 +630,7 @@ $$ language 'plpgsql';
 -- Apply to all tables with updated_at
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_cities_updated_at BEFORE UPDATE ON cities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_studios_updated_at BEFORE UPDATE ON studios FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

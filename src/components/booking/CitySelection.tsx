@@ -1,30 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Search, MapPin, ArrowRight, Check, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCities } from "@/lib/data";
 
 interface CitySelectionProps {
   onComplete: (city: string) => void;
 }
 
-const cities = [
-  { id: "mumbai", name: "Mumbai", image: "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80" },
-  { id: "delhi", name: "Delhi", image: "https://images.unsplash.com/photo-1585506935092-10651126cebb?w=800&q=80" },
-  { id: "bangalore", name: "Bangalore", image: "https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?w=800&q=80" },
-  { id: "hyderabad", name: "Hyderabad", image: "https://images.unsplash.com/photo-1613156730504-7b66c56f3ae8?w=800&q=80" },
-  { id: "pune", name: "Pune", image: "https://images.unsplash.com/photo-1557191446-6f1a73a2fcc1?w=800&q=80" },
-  { id: "chennai", name: "Chennai", image: "https://images.unsplash.com/photo-1580637249871-a1119e27f9d9?w=800&q=80" },
-  { id: "kolkata", name: "Kolkata", image: "https://images.unsplash.com/photo-1583508916039-35a4d5c78da4?w=800&q=80" },
-  { id: "dubai", name: "Dubai", image: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80" },
-];
+interface City {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string;
+}
 
 export function CitySelection({ onComplete }: CitySelectionProps) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadCities() {
+      try {
+        const data = await getCities();
+        setCities(data);
+      } catch (error) {
+        console.error('Error loading cities:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCities();
+  }, []);
 
   const filteredCities = cities.filter((city) =>
     city.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -86,7 +99,16 @@ export function CitySelection({ onComplete }: CitySelectionProps) {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-4xl w-full">
-          {filteredCities.map((city) => (
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : filteredCities.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-white/60">
+              No cities found
+            </div>
+          ) : (
+            filteredCities.map((city) => (
             <button
               key={city.id}
               onClick={() => setSelectedCity(city.id)}
@@ -99,7 +121,7 @@ export function CitySelection({ onComplete }: CitySelectionProps) {
             >
               <div className="aspect-[4/3]">
                 <img
-                  src={city.image}
+                  src={city.image_url}
                   alt={city.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -114,7 +136,8 @@ export function CitySelection({ onComplete }: CitySelectionProps) {
                 )}
               </div>
             </button>
-          ))}
+          ))
+          )}
         </div>
 
         <div className="mt-10">

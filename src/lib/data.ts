@@ -1,6 +1,51 @@
 import { supabase } from "./supabase";
 import { Studio } from "./types";
 
+interface City {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string;
+}
+
+function getFallbackCities(): City[] {
+  return [
+    { id: "mumbai", name: "Mumbai", slug: "mumbai", image_url: "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80" },
+    { id: "delhi", name: "Delhi", slug: "delhi", image_url: "https://images.unsplash.com/photo-1585506935092-10651126cebb?w=800&q=80" },
+    { id: "bangalore", name: "Bangalore", slug: "bangalore", image_url: "https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?w=800&q=80" },
+    { id: "hyderabad", name: "Hyderabad", slug: "hyderabad", image_url: "https://images.unsplash.com/photo-1613156730504-7b66c56f3ae8?w=800&q=80" },
+    { id: "pune", name: "Pune", slug: "pune", image_url: "https://images.unsplash.com/photo-1557191446-6f1a73a2fcc1?w=800&q=80" },
+    { id: "chennai", name: "Chennai", slug: "chennai", image_url: "https://images.unsplash.com/photo-1580637249871-a1119e27f9d9?w=800&q=80" },
+    { id: "kolkata", name: "Kolkata", slug: "kolkata", image_url: "https://images.unsplash.com/photo-1583508916039-35a4d5c78da4?w=800&q=80" },
+    { id: "dubai", name: "Dubai", slug: "dubai", image_url: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80" },
+  ];
+}
+
+export async function getCities(): Promise<City[]> {
+  if (!supabase) {
+    console.warn('Supabase client not initialized');
+    return getFallbackCities();
+  }
+
+  const { data: cities, error } = await supabase
+    .from('cities')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
+
+  if (error || !cities) {
+    console.error('Error fetching cities:', error);
+    return getFallbackCities();
+  }
+
+  return cities.map((city: any) => ({
+    id: city.slug || city.id,
+    name: city.name,
+    slug: city.slug,
+    image_url: city.image_url
+  }));
+}
+
 function getFallbackStudios(): Studio[] {
   return [
     {
