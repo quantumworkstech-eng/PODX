@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 export function AddOnsStep() {
-  const { selectedAddOns, addAddOn, removeAddOn, nextStep, prevStep, getAddOnsPrice, getTotalPrice, getStudioPrice, getPackagePrice, duration, date, timeSlot, selectedStudio, selectedPackage } = useBooking();
+  const { selectedAddOns, addAddOn, removeAddOn, nextStep, getAddOnsPrice, getSubtotal, getTax, getTotalPrice, getStudioPrice, getPackagePrice, duration, date, timeSlot, selectedStudio, selectedPackage } = useBooking();
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
@@ -229,9 +229,17 @@ export function AddOnsStep() {
               )}
             </div>
 
-            <div className="border-t border-white/10 pt-4 mb-6">
-              <div className="flex justify-between items-baseline">
-                <span className="text-white font-medium">Total</span>
+            <div className="border-t border-white/10 pt-4 mb-6 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/50">Subtotal</span>
+                <span className="text-white">₹{getSubtotal().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/50">GST (18%)</span>
+                <span className="text-white">₹{getTax().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-baseline pt-2 border-t border-white/10">
+                <span className="text-white font-semibold">Total</span>
                 <span className="text-2xl font-bold text-white">₹{getTotalPrice().toLocaleString()}</span>
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookingProvider, useBooking } from "@/context/BookingContext";
 import { StepProgress } from "@/components/booking/StepProgress";
@@ -15,14 +15,14 @@ import { AuthModal } from "@/components/booking/AuthModal";
 import { CitySelection } from "@/components/booking/CitySelection";
 import { StudioOrDatePopup } from "@/components/booking/StudioOrDatePopup";
 import Link from "next/link";
-import { ArrowLeft, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ONBOARDING_KEY = "podx_onboarding_complete";
 const SELECTION_MODE_KEY = "podx_selection_mode";
+const PENDING_BOOKING_KEY = "podx_pending_booking";
 
 function BookingContent() {
-  const router = useRouter();
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const {
@@ -42,13 +42,44 @@ function BookingContent() {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSelectionPopup, setShowSelectionPopup] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
+  // Hydrate from stored state on first mount
   useEffect(() => {
-    localStorage.removeItem(ONBOARDING_KEY);
-    localStorage.removeItem(SELECTION_MODE_KEY);
-    setShowOnboarding(true);
-  }, []);
+    setHydrated(true);
 
+    const storedOnboarding = localStorage.getItem(ONBOARDING_KEY);
+    const storedMode = localStorage.getItem(SELECTION_MODE_KEY);
+    const storedBooking = localStorage.getItem(PENDING_BOOKING_KEY);
+
+    // If there's a pending booking with a studio or date, go straight into the flow
+    if (storedBooking) {
+      try {
+        const parsed = JSON.parse(storedBooking);
+        if (parsed.selectedStudio || parsed.date) {
+          // State is restored by BookingContext; just skip onboarding
+          if (parsed.selectedCity) setSelectedCity(parsed.selectedCity);
+          if (parsed.selectionMode) setSelectionMode(parsed.selectionMode);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Fresh visit — show onboarding unless city was previously selected
+    if (storedOnboarding && storedMode) {
+      setSelectedCity(storedOnboarding);
+      setSelectionMode(storedMode as "studio" | "date");
+    } else if (storedOnboarding) {
+      setSelectedCity(storedOnboarding);
+      setShowSelectionPopup(true);
+    } else {
+      setShowOnboarding(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If user becomes authenticated while auth modal is open, proceed to payment
   useEffect(() => {
     if (status === "authenticated" && session && showAuthModal) {
       setAuthenticated(true);
@@ -62,18 +93,22 @@ function BookingContent() {
     proceedToPayment();
   };
 
-  const handleSaveBooking = () => {
-    saveBookingToStorage();
-  };
-
   const handleGoBack = () => {
+    if (showPayment) {
+      prevStep();
+      return;
+    }
     if (currentStep > 1) {
       prevStep();
-    } else if (selectionMode) {
+      return;
+    }
+    // On step 1 go back to selection popup
+    if (selectionMode) {
       setShowSelectionPopup(true);
-    } else if (showSelectionPopup) {
-      setShowSelectionPopup(false);
-      setShowOnboarding(true);
+      return;
+    }
+    if (selectedCity) {
+      setShowSelectionPopup(true);
     }
   };
 
@@ -134,6 +169,15 @@ function BookingContent() {
     }
   };
 
+  // Wait for hydration before showing onboarding state
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (showOnboarding) {
     return <CitySelection onComplete={handleCitySelect} />;
   }
@@ -151,7 +195,8 @@ function BookingContent() {
     );
   }
 
-  const showBackButton = currentStep > 1 && !showPayment;
+  const showBackButton =
+    showPayment || currentStep > 1 || (currentStep === 1 && selectionMode !== null);
 
   return (
     <div className="min-h-screen bg-black">
@@ -166,14 +211,6 @@ function BookingContent() {
                 <ChevronLeft className="w-5 h-5" />
                 <span className="hidden sm:inline">Back</span>
               </button>
-            ) : selectedCity ? (
-              <button
-                onClick={handleGoBack}
-                className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span className="hidden sm:inline">Back</span>
-              </button>
             ) : (
               <Link href="/" className="flex items-center gap-2 group">
                 <span className="text-2xl font-bold tracking-tight text-white">
@@ -181,8 +218,8 @@ function BookingContent() {
                 </span>
               </Link>
             )}
-            {selectedCity && !showBackButton && (
-              <span className="text-white/60 text-sm">
+            {selectedCity && (
+              <span className="text-white/40 text-sm hidden sm:inline">
                 {selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}
               </span>
             )}
@@ -195,17 +232,15 @@ function BookingContent() {
         </div>
       </header>
 
-      {!showPayment && <StepProgress />}
+      {!showPayment && selectionMode && <StepProgress />}
 
-      <main className="pb-16">
-        {renderStep()}
-      </main>
+      <main className="pb-16">{renderStep()}</main>
 
       <AuthModal
         isOpen={showAuthModal}
         onClose={closeAuthModal}
         onAuthSuccess={handleAuthSuccess}
-        onSaveBooking={handleSaveBooking}
+        onSaveBooking={saveBookingToStorage}
       />
     </div>
   );
@@ -214,11 +249,13 @@ function BookingContent() {
 export default function BookPage() {
   return (
     <BookingProvider>
-      <Suspense fallback={
-        <div className="min-h-screen bg-black flex items-center justify-center">
-          <div className="text-white">Loading...</div>
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+          </div>
+        }
+      >
         <BookingContent />
       </Suspense>
     </BookingProvider>

@@ -31,6 +31,7 @@ interface StoredBooking {
   currentStep: number;
   selectedCity: string | null;
   selectionMode: "studio" | "date" | null;
+  showPayment: boolean;
 }
 
 interface BookingContextType extends BookingState {
@@ -47,6 +48,8 @@ interface BookingContextType extends BookingState {
   goToStep: (step: number) => void;
   resetBooking: () => void;
   getTotalPrice: () => number;
+  getSubtotal: () => number;
+  getTax: () => number;
   getStudioPrice: () => number;
   getPackagePrice: () => number;
   getAddOnsPrice: () => number;
@@ -65,6 +68,7 @@ interface BookingContextType extends BookingState {
 }
 
 const PENDING_BOOKING_KEY = "podx_pending_booking";
+const TAX_RATE = 0.18; // 18% GST
 
 const initialState: BookingState = {
   currentStep: 1,
@@ -86,8 +90,42 @@ const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BookingState>(initialState);
+  const [initialized, setInitialized] = useState(false);
+
+  // Load from storage on mount once
+  useEffect(() => {
+    if (initialized) return;
+    setInitialized(true);
+
+    const stored = localStorage.getItem(PENDING_BOOKING_KEY);
+    if (!stored) return;
+
+    try {
+      const parsed: StoredBooking = JSON.parse(stored);
+      // Only restore if there's meaningful booking data
+      if (!parsed.selectedStudio && !parsed.date) return;
+
+      setState((prev) => ({
+        ...prev,
+        date: parsed.date ? new Date(parsed.date) : null,
+        timeSlot: parsed.timeSlot,
+        duration: parsed.duration || 1,
+        participants: parsed.participants || 1,
+        selectedStudio: parsed.selectedStudio,
+        selectedPackage: parsed.selectedPackage,
+        selectedAddOns: parsed.selectedAddOns || [],
+        currentStep: parsed.currentStep || 1,
+        selectedCity: parsed.selectedCity,
+        selectionMode: parsed.selectionMode,
+        showPayment: parsed.showPayment || false,
+      }));
+    } catch {
+      // Corrupt storage — ignore
+    }
+  }, [initialized]);
 
   const saveBookingToStorage = useCallback(() => {
+    if (typeof window === "undefined") return;
     const data: StoredBooking = {
       date: state.date ? state.date.toISOString() : null,
       timeSlot: state.timeSlot,
@@ -99,6 +137,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       currentStep: state.currentStep,
       selectedCity: state.selectedCity,
       selectionMode: state.selectionMode,
+      showPayment: state.showPayment,
     };
     localStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(data));
   }, [state]);
@@ -119,7 +158,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, [loadBookingFromStorage]);
 
   const clearBookingStorage = useCallback(() => {
-    localStorage.removeItem(PENDING_BOOKING_KEY);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(PENDING_BOOKING_KEY);
+    }
   }, []);
 
   const setDate = useCallback((date: Date | null) => {
@@ -170,11 +211,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const prevStep = useCallback(() => {
-    setState((prev) => ({ ...prev, currentStep: Math.max(prev.currentStep - 1, 1) }));
+    setState((prev) => {
+      // If on payment step, go back to checkout (step 5)
+      if (prev.showPayment) {
+        return { ...prev, showPayment: false, currentStep: 5 };
+      }
+      return { ...prev, currentStep: Math.max(prev.currentStep - 1, 1) };
+    });
   }, []);
 
   const goToStep = useCallback((step: number) => {
-    setState((prev) => ({ ...prev, currentStep: step }));
+    setState((prev) => ({ ...prev, currentStep: step, showPayment: false }));
   }, []);
 
   const resetBooking = useCallback(() => {
@@ -196,9 +243,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return state.selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0);
   }, [state.selectedAddOns]);
 
-  const getTotalPrice = useCallback(() => {
+  const getSubtotal = useCallback(() => {
     return getStudioPrice() + getPackagePrice() + getAddOnsPrice();
   }, [getStudioPrice, getPackagePrice, getAddOnsPrice]);
+
+  const getTax = useCallback(() => {
+    return Math.round(getSubtotal() * TAX_RATE);
+  }, [getSubtotal]);
+
+  const getTotalPrice = useCallback(() => {
+    return getSubtotal() + getTax();
+  }, [getSubtotal, getTax]);
 
   const canProceed = useCallback(() => {
     switch (state.currentStep) {
@@ -217,11 +272,23 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       case 4:
         return true;
       case 5:
-        return true;
+        return (
+          state.selectedStudio !== null &&
+          state.selectedPackage !== null &&
+          state.date !== null &&
+          state.timeSlot !== null
+        );
       default:
         return false;
     }
-  }, [state.currentStep, state.date, state.timeSlot, state.selectedStudio, state.selectedPackage, state.selectionMode]);
+  }, [
+    state.currentStep,
+    state.date,
+    state.timeSlot,
+    state.selectedStudio,
+    state.selectedPackage,
+    state.selectionMode,
+  ]);
 
   const openAuthModal = useCallback(() => {
     setState((prev) => ({ ...prev, showAuthModal: true }));
@@ -236,7 +303,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const proceedToPayment = useCallback(() => {
-    setState((prev) => ({ ...prev, showPayment: true }));
+    setState((prev) => ({ ...prev, showPayment: true, showAuthModal: false }));
   }, []);
 
   const setSelectedCity = useCallback((city: string | null) => {
@@ -247,35 +314,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, selectionMode: mode }));
   }, []);
 
+  // Auto-save whenever booking state changes (debounced)
   useEffect(() => {
-    const stored = loadBookingFromStorage();
-    if (stored && stored.selectedStudio) {
-      setState((prev) => ({
-        ...prev,
-        date: stored.date ? new Date(stored.date) : null,
-        timeSlot: stored.timeSlot,
-        duration: stored.duration,
-        participants: stored.participants,
-        selectedStudio: stored.selectedStudio,
-        selectedPackage: stored.selectedPackage,
-        selectedAddOns: stored.selectedAddOns,
-        currentStep: stored.currentStep ?? 5,
-        selectedCity: stored.selectedCity,
-        selectionMode: stored.selectionMode,
-        showPayment: true,
-      }));
-    }
-  }, [loadBookingFromStorage]);
-
-  useEffect(() => {
+    if (!initialized) return;
     const hasBookingData = state.selectedStudio || state.date || state.currentStep > 1;
-    if (hasBookingData && typeof window !== "undefined") {
-      const timeoutId = setTimeout(() => {
-        saveBookingToStorage();
-      }, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [state, saveBookingToStorage]);
+    if (!hasBookingData) return;
+
+    const timeoutId = setTimeout(() => {
+      saveBookingToStorage();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [state, saveBookingToStorage, initialized]);
 
   const value: BookingContextType = {
     ...state,
@@ -292,6 +341,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     goToStep,
     resetBooking,
     getTotalPrice,
+    getSubtotal,
+    getTax,
     getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,

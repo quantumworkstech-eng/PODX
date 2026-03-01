@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Calendar,
@@ -15,7 +16,6 @@ import {
   ChevronDown,
   CreditCard,
   Home,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
@@ -25,6 +25,7 @@ import { PastBookings } from "@/components/dashboard/bookings/PastBookings";
 import { BillingSection } from "@/components/dashboard/bookings/BillingSection";
 import { SettingsSection } from "@/components/dashboard/bookings/SettingsSection";
 import { DashboardOverview } from "@/components/dashboard/bookings/DashboardOverview";
+import { BookingSuccessModal } from "@/components/dashboard/BookingSuccessModal";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: Home },
@@ -129,11 +130,15 @@ const demoBookings: BookingData[] = [
 
 export default function DashboardContent() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState(3);
+  const [notifications, setNotifications] = useState(2);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [newBooking, setNewBooking] = useState<BookingData | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -146,57 +151,96 @@ export default function DashboardContent() {
 
   useEffect(() => {
     const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+    let parsed: BookingData[] = [];
     if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.length > 0) {
-        const allBookings = [...parsed, ...demoBookings];
-        const uniqueBookings = allBookings.filter(
-          (booking, index, self) => index === self.findIndex((b) => b.id === booking.id)
-        );
-        setBookings(uniqueBookings);
-      } else {
-        setBookings(demoBookings);
-      }
+      try { parsed = JSON.parse(stored); } catch { parsed = []; }
+    }
+
+    if (parsed.length > 0) {
+      const all = [...parsed, ...demoBookings];
+      const unique = all.filter(
+        (b, idx, self) => idx === self.findIndex((x) => x.id === b.id)
+      );
+      // Sort upcoming nearest-first, past most-recent-first
+      unique.sort((a, b) => {
+        const aDate = new Date(a.date).getTime();
+        const bDate = new Date(b.date).getTime();
+        const now = Date.now();
+        const aUp = aDate >= now;
+        const bUp = bDate >= now;
+        if (aUp && bUp) return aDate - bDate;
+        if (!aUp && !bUp) return bDate - aDate;
+        return aUp ? -1 : 1;
+      });
+      setBookings(unique);
     } else {
       setBookings(demoBookings);
       localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(demoBookings));
     }
   }, []);
 
-  const upcomingBookings = bookings.filter((b) => {
-    if (!b.date) return false;
-    const bookingDate = new Date(b.date);
-    return bookingDate >= new Date() && (b.status === "confirmed" || b.status === "pending");
-  });
+  // Handle ?booking=success from payment redirect
+  useEffect(() => {
+    if (searchParams.get("booking") === "success") {
+      const stored = sessionStorage.getItem("podx_new_booking");
+      if (stored) {
+        try {
+          const booking = JSON.parse(stored) as BookingData;
+          setNewBooking(booking);
+          setShowSuccessModal(true);
+          setNotifications((n) => n + 1);
+          setActiveMenu("upcoming");
+          sessionStorage.removeItem("podx_new_booking");
+        } catch { /* ignore */ }
+      }
+      router.replace("/dashboard");
+    }
+  }, [searchParams, router]);
 
-  const pastBookings = bookings.filter((b) => {
-    if (!b.date) return false;
-    const bookingDate = new Date(b.date);
-    return bookingDate < new Date() || b.status === "completed" || b.status === "cancelled";
-  });
+  const upcomingBookings = bookings
+    .filter((b) => {
+      if (!b.date) return false;
+      const bookingDate = new Date(b.date);
+      return bookingDate >= new Date() && (b.status === "confirmed" || b.status === "pending");
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // nearest first
+
+  const pastBookings = bookings
+    .filter((b) => {
+      if (!b.date) return false;
+      const bookingDate = new Date(b.date);
+      return bookingDate < new Date() || b.status === "completed" || b.status === "cancelled";
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // most recent first
 
   const handleCancelBooking = (bookingId: string) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" as const } : b))
+    const updated = bookings.map((b) =>
+      b.id === bookingId ? { ...b, status: "cancelled" as const } : b
     );
-    localStorage.setItem(
-      BOOKINGS_STORAGE_KEY,
-      JSON.stringify(bookings.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" as const } : b)))
-    );
+    setBookings(updated);
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
   };
 
   const handleRescheduleBooking = (bookingId: string, newDate: Date, newTime: string) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === bookingId ? { ...b, date: newDate.toISOString(), timeSlot: newTime } : b
-      )
+    const updated = bookings.map((b) =>
+      b.id === bookingId ? { ...b, date: newDate.toISOString(), timeSlot: newTime } : b
     );
+    setBookings(updated);
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setNewBooking(null);
   };
 
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+          <p className="text-white/40 text-sm">Loading your dashboard…</p>
+        </div>
       </div>
     );
   }
@@ -401,6 +445,11 @@ export default function DashboardContent() {
           <div className="p-6">{renderContent()}</div>
         </main>
       </div>
+
+      {/* Booking success modal */}
+      {showSuccessModal && newBooking && (
+        <BookingSuccessModal booking={newBooking} onClose={handleCloseSuccessModal} />
+      )}
     </div>
   );
 }

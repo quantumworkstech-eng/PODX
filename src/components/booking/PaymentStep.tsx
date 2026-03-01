@@ -1,11 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Check, Loader2, Calendar, Clock, Users, MapPin, Shield, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  CreditCard,
+  Check,
+  Loader2,
+  Calendar,
+  Clock,
+  Users,
+  MapPin,
+  Shield,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  ArrowLeft,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 declare global {
   interface Window {
@@ -13,7 +27,7 @@ declare global {
   }
 }
 
-interface BookingData {
+interface BookingRecord {
   id: string;
   date: string;
   timeSlot: string;
@@ -32,23 +46,26 @@ interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number }[];
   totalPrice: number;
-  status: "confirmed" | "pending" | "completed";
+  subtotal: number;
+  tax: number;
+  status: "confirmed";
   paymentId: string;
   createdAt: string;
 }
 
 const BOOKINGS_STORAGE_KEY = "podx_bookings";
 
-export function saveBookingToHistory(booking: BookingData) {
+export function saveBookingToHistory(booking: BookingRecord) {
   if (typeof window === "undefined") return;
   const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-  const bookings: BookingData[] = stored ? JSON.parse(stored) : [];
+  const bookings: BookingRecord[] = stored ? JSON.parse(stored) : [];
   bookings.unshift(booking);
   localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings.slice(0, 50)));
 }
 
 export function PaymentStep() {
   const router = useRouter();
+  const { data: session } = useSession();
   const {
     date,
     timeSlot,
@@ -60,35 +77,42 @@ export function PaymentStep() {
     getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,
+    getSubtotal,
+    getTax,
     getTotalPrice,
     resetBooking,
+    prevStep,
   } = useBooking();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const paymentInFlight = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !window.Razorpay) {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => setRazorpayLoaded(true);
-      script.onerror = () => console.error("Failed to load Razorpay SDK");
-      document.body.appendChild(script);
-    } else if (typeof window !== "undefined" && window.Razorpay) {
+    if (typeof window === "undefined") return;
+    if (window.Razorpay) {
       setRazorpayLoaded(true);
+      return;
     }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => setRazorpayLoaded(true);
+    script.onerror = () =>
+      setPaymentError("Failed to load payment system. Please refresh and try again.");
+    document.body.appendChild(script);
   }, []);
 
   const formatDate = () => {
     if (!date) return "";
-    const options: Intl.DateTimeFormatOptions = {
+    return date.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
-    };
-    return date.toLocaleDateString("en-US", options);
+    });
   };
 
   const formatTime = () => {
@@ -96,18 +120,24 @@ export function PaymentStep() {
     const [hours] = timeSlot.split(":");
     const hour = parseInt(hours);
     const endTime = hour + duration;
-    const formatHour = (h: number) => {
+    const fmt = (h: number) => {
       if (h === 12) return "12 PM";
       if (h > 12) return `${h - 12} PM`;
       return `${h} AM`;
     };
-    return `${formatHour(hour)} - ${formatHour(endTime)}`;
+    return `${fmt(hour)} – ${fmt(endTime)}`;
   };
 
   const handlePaymentSuccess = (paymentResponse: any) => {
+    paymentInFlight.current = false;
     setIsProcessing(false);
+    setPaymentError(null);
 
-    const booking: BookingData = {
+    const subtotal = getSubtotal();
+    const tax = getTax();
+    const total = getTotalPrice();
+
+    const booking: BookingRecord = {
       id: `POD-${Date.now().toString(36).toUpperCase()}`,
       date: date?.toISOString() || "",
       timeSlot: timeSlot || "",
@@ -127,139 +157,139 @@ export function PaymentStep() {
           }
         : null,
       addOns: selectedAddOns.map((a) => ({ id: a.id, name: a.name, price: a.price })),
-      totalPrice: getTotalPrice(),
+      totalPrice: total,
+      subtotal,
+      tax,
       status: "confirmed",
       paymentId: paymentResponse?.razorpay_payment_id || `PAY-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
 
     saveBookingToHistory(booking);
-    resetBooking();
 
+    // Pass new booking data to dashboard via sessionStorage
     sessionStorage.setItem("podx_new_booking", JSON.stringify(booking));
+
+    resetBooking();
     router.push("/dashboard?booking=success");
   };
 
   const handlePayment = async () => {
+    if (isProcessing || paymentInFlight.current) return;
     if (!razorpayLoaded) {
-      alert("Payment system is loading. Please try again in a moment.");
+      setPaymentError("Payment system is still loading. Please wait a moment.");
+      return;
+    }
+    if (!selectedStudio || !date || !timeSlot || !selectedPackage) {
+      setPaymentError("Booking details are incomplete. Please go back and review.");
       return;
     }
 
+    paymentInFlight.current = true;
     setIsProcessing(true);
+    setPaymentError(null);
 
     try {
       const amount = getTotalPrice();
 
-      const response = await fetch("/api/razorpay/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ amount }),
-      });
-
-      let orderData;
-      if (response.ok) {
-        orderData = await response.json();
+      let orderData: any = null;
+      try {
+        const response = await fetch("/api/razorpay/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        if (response.ok) {
+          orderData = await response.json();
+        }
+      } catch {
+        // API might not be set up — fall through to test mode
       }
 
       const options = {
-        key: orderData?.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_1234567890",
-        amount: (orderData?.amount || amount * 100),
+        key: orderData?.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
+        amount: orderData?.amount || amount * 100,
         currency: "INR",
         order_id: orderData?.orderId,
-        name: "PodX",
-        description: `Studio Booking - ${selectedStudio?.name}`,
+        name: "PodX Studio",
+        description: `${selectedStudio.name} · ${duration} hr${duration > 1 ? "s" : ""}`,
         image: "/logo.png",
-        handler: handlePaymentSuccess,
         prefill: {
-          name: "",
-          email: "",
-          contact: "",
+          name: session?.user?.name || "",
+          email: session?.user?.email || "",
         },
-        theme: {
-          color: "#D9FC67",
-        },
+        theme: { color: "#D9FC67" },
+        handler: handlePaymentSuccess,
         modal: {
-          ondismiss: function () {
+          ondismiss: () => {
+            paymentInFlight.current = false;
             setIsProcessing(false);
           },
         },
       };
 
       const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (resp: any) => {
+        paymentInFlight.current = false;
+        setIsProcessing(false);
+        setPaymentError(
+          resp?.error?.description || "Payment failed. Please try a different payment method."
+        );
+      });
       rzp.open();
-    } catch (error) {
-      console.error("Payment error:", error);
+    } catch (error: any) {
+      paymentInFlight.current = false;
       setIsProcessing(false);
-      alert("Payment failed. Please try again.");
+      setPaymentError("Something went wrong. Please try again.");
     }
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-          Complete Your Payment
-        </h1>
-        <p className="text-white/60 text-lg">
-          Secure payment powered by Razorpay
-        </p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Complete Your Payment</h1>
+        <p className="text-white/60 text-lg">Secure payment powered by Razorpay</p>
       </div>
 
       <div className="grid lg:grid-cols-5 gap-8">
-        <div className="lg:col-span-3 space-y-6">
+        {/* Left: booking details */}
+        <div className="lg:col-span-3 space-y-5">
+          {/* Session details */}
           <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-[#D9FC67]" />
-              Booking Details
+              Session Details
             </h3>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-white/60" />
+              {[
+                { icon: Calendar, label: "Date", value: formatDate() },
+                { icon: Clock, label: "Time", value: formatTime() },
+                {
+                  icon: Clock,
+                  label: "Duration",
+                  value: `${duration} hr${duration > 1 ? "s" : ""}`,
+                },
+                { icon: Users, label: "Participants", value: `${participants} people` },
+              ].map(({ icon: Icon, label, value }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-4 h-4 text-white/40" />
+                  </div>
+                  <div>
+                    <p className="text-white/40 text-xs uppercase tracking-wider mb-0.5">{label}</p>
+                    <p className="text-white font-medium text-sm">{value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-white/50 text-sm">Date</p>
-                  <p className="text-white font-medium">{formatDate()}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-white/60" />
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm">Time</p>
-                  <p className="text-white font-medium">{formatTime()}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-white/60" />
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm">Duration</p>
-                  <p className="text-white font-medium">{duration} hour{duration > 1 ? "s" : ""}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-white/60" />
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm">Participants</p>
-                  <p className="text-white font-medium">{participants} people</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
+          {/* Studio */}
           {selectedStudio && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Studio</h3>
+              <h3 className="text-base font-semibold text-white mb-4">Studio</h3>
               <div className="flex gap-4">
-                <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
                   <Image
                     src={selectedStudio.cover_image}
                     alt={selectedStudio.name}
@@ -268,28 +298,33 @@ export function PaymentStep() {
                   />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold text-lg">{selectedStudio.name}</h4>
-                  <div className="flex items-center gap-2 text-white/60 text-sm mt-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{selectedStudio.location.area}, {selectedStudio.location.city}</span>
+                  <h4 className="text-white font-semibold">{selectedStudio.name}</h4>
+                  <div className="flex items-center gap-1.5 text-white/50 text-sm mt-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>
+                      {selectedStudio.location.area}, {selectedStudio.location.city}
+                    </span>
                   </div>
-                  <p className="text-white/50 text-sm mt-2">{selectedStudio.description}</p>
+                  <p className="text-white/40 text-xs mt-2">{selectedStudio.description}</p>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Package */}
           {selectedPackage && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Package</h3>
+              <h3 className="text-base font-semibold text-white mb-3">Package</h3>
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-white font-semibold">{selectedPackage.name}</h4>
-                  <p className="text-white/50 text-sm mt-1">{selectedPackage.description}</p>
+                  <h4 className="text-white font-medium">{selectedPackage.name}</h4>
+                  <p className="text-white/40 text-sm mt-0.5">{selectedPackage.description}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right ml-4 shrink-0">
                   {selectedPackage.price_per_hour > 0 ? (
-                    <span className="text-white font-semibold">+₹{getPackagePrice().toLocaleString()}</span>
+                    <span className="text-white font-semibold">
+                      +₹{getPackagePrice().toLocaleString()}
+                    </span>
                   ) : (
                     <span className="text-[#D9FC67] text-sm font-medium">Included</span>
                   )}
@@ -298,14 +333,17 @@ export function PaymentStep() {
             </div>
           )}
 
+          {/* Add-ons */}
           {selectedAddOns.length > 0 && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Add-ons ({selectedAddOns.length})</h3>
+              <h3 className="text-base font-semibold text-white mb-4">
+                Add-ons ({selectedAddOns.length})
+              </h3>
               <div className="space-y-3">
                 {selectedAddOns.map((addon) => (
                   <div key={addon.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="relative w-12 h-12 rounded-lg overflow-hidden">
+                      <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
                         <Image
                           src={addon.thumbnail}
                           alt={addon.name}
@@ -313,56 +351,72 @@ export function PaymentStep() {
                           className="object-cover"
                         />
                       </div>
-                      <span className="text-white">{addon.name}</span>
+                      <span className="text-white text-sm">{addon.name}</span>
                     </div>
-                    <span className="text-white font-medium">₹{addon.price.toLocaleString()}</span>
+                    <span className="text-white font-medium text-sm">
+                      ₹{addon.price.toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Back button */}
+          <button
+            onClick={() => prevStep()}
+            className="flex items-center gap-2 text-white/40 hover:text-white/80 text-sm transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to review
+          </button>
         </div>
 
+        {/* Right: payment summary */}
         <div className="lg:col-span-2">
           <div className="sticky top-24 bg-white/5 rounded-2xl border border-white/10 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#D9FC67]" />
+            <h3 className="text-base font-semibold text-white mb-5 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-[#D9FC67]" />
               Payment Summary
             </h3>
 
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
-                <span className="text-white/60">Studio ({duration}h)</span>
+                <span className="text-white/60">
+                  Studio × {duration} hr{duration > 1 ? "s" : ""}
+                </span>
                 <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
               </div>
+
               {selectedPackage && selectedPackage.price_per_hour > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-white/60">{selectedPackage.name}</span>
                   <span className="text-white">₹{getPackagePrice().toLocaleString()}</span>
                 </div>
               )}
+
               {selectedAddOns.length > 0 && (
                 <div>
                   <button
                     onClick={() => setShowAddOnsDropdown(!showAddOnsDropdown)}
-                    className="w-full flex justify-between items-center text-sm py-1 hover:bg-white/5 -mx-1 px-1 rounded transition-colors"
+                    className="w-full flex justify-between items-center text-sm py-1"
                   >
                     <span className="text-white/60 flex items-center gap-1">
                       Add-ons ({selectedAddOns.length})
                       {showAddOnsDropdown ? (
-                        <ChevronUp className="w-4 h-4" />
+                        <ChevronUp className="w-3.5 h-3.5" />
                       ) : (
-                        <ChevronDown className="w-4 h-4" />
+                        <ChevronDown className="w-3.5 h-3.5" />
                       )}
                     </span>
                     <span className="text-white">₹{getAddOnsPrice().toLocaleString()}</span>
                   </button>
                   {showAddOnsDropdown && (
-                    <div className="mt-2 pl-2 space-y-1.5 border-l-2 border-white/10 ml-1">
+                    <div className="mt-2 pl-3 space-y-1.5 border-l-2 border-white/10">
                       {selectedAddOns.map((addon) => (
                         <div key={addon.id} className="flex justify-between text-xs">
-                          <span className="text-white/80">{addon.name}</span>
-                          <span className="text-white/50">₹{addon.price.toLocaleString()}</span>
+                          <span className="text-white/60">{addon.name}</span>
+                          <span className="text-white/40">₹{addon.price.toLocaleString()}</span>
                         </div>
                       ))}
                     </div>
@@ -371,23 +425,46 @@ export function PaymentStep() {
               )}
             </div>
 
-            <div className="border-t border-white/10 pt-4 mb-6">
-              <div className="flex justify-between items-baseline">
-                <span className="text-white font-medium">Total</span>
-                <span className="text-3xl font-bold text-white">₹{getTotalPrice().toLocaleString()}</span>
+            <div className="border-t border-white/10 pt-4 mb-5 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Subtotal</span>
+                <span className="text-white">₹{getSubtotal().toLocaleString()}</span>
               </div>
-              <p className="text-white/40 text-sm mt-1">Including all taxes</p>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">GST (18%)</span>
+                <span className="text-white">₹{getTax().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-baseline pt-2 border-t border-white/10">
+                <span className="text-white font-semibold">Total</span>
+                <span className="text-2xl font-bold text-white">
+                  ₹{getTotalPrice().toLocaleString()}
+                </span>
+              </div>
             </div>
+
+            {paymentError && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-red-400/90 text-xs">{paymentError}</p>
+              </div>
+            )}
+
+            {!razorpayLoaded && !paymentError && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+                <Loader2 className="w-4 h-4 text-white/40 animate-spin flex-shrink-0" />
+                <p className="text-white/40 text-xs">Loading payment system…</p>
+              </div>
+            )}
 
             <Button
               onClick={handlePayment}
               disabled={isProcessing || !razorpayLoaded}
-              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black"
+              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black disabled:opacity-50 disabled:cursor-not-allowed rounded-xl"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Processing...
+                  Processing…
                 </>
               ) : (
                 <>
@@ -397,20 +474,13 @@ export function PaymentStep() {
               )}
             </Button>
 
-            <div className="mt-4 flex items-center justify-center gap-2 text-white/40 text-xs">
-              <Shield className="w-4 h-4" />
-              <span>Secured by Razorpay</span>
+            <div className="mt-4 flex items-center justify-center gap-2 text-white/30 text-xs">
+              <Shield className="w-3.5 h-3.5" />
+              <span>Secured by Razorpay · 256-bit SSL</span>
             </div>
 
-            {!razorpayLoaded && (
-              <div className="mt-4 flex items-center gap-2 text-yellow-500/80 text-sm justify-center">
-                <AlertCircle className="w-4 h-4" />
-                <span>Loading payment system...</span>
-              </div>
-            )}
-
-            <p className="text-white/40 text-xs text-center mt-4">
-              By confirming, you agree to our terms and conditions
+            <p className="text-white/25 text-xs text-center mt-3">
+              By confirming, you agree to our cancellation policy and terms
             </p>
           </div>
         </div>
