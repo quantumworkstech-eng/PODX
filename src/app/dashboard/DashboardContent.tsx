@@ -150,19 +150,43 @@ export default function DashboardContent() {
   }, [status]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-    let parsed: BookingData[] = [];
-    if (stored) {
-      try { parsed = JSON.parse(stored); } catch { parsed = []; }
-    }
+    // Try to load from the Supabase API first, fall back to localStorage + demo
+    async function loadBookings() {
+      try {
+        const res = await fetch("/api/bookings");
+        if (res.ok) {
+          const { bookings: apiBookings } = await res.json();
+          if (apiBookings && apiBookings.length > 0) {
+            const sorted = [...apiBookings].sort((a: BookingData, b: BookingData) => {
+              const aDate = new Date(a.date).getTime();
+              const bDate = new Date(b.date).getTime();
+              const now = Date.now();
+              const aUp = aDate >= now;
+              const bUp = bDate >= now;
+              if (aUp && bUp) return aDate - bDate;
+              if (!aUp && !bUp) return bDate - aDate;
+              return aUp ? -1 : 1;
+            });
+            setBookings(sorted);
+            return;
+          }
+        }
+      } catch {
+        /* Network or API error — fall through to localStorage */
+      }
 
-    if (parsed.length > 0) {
-      const all = [...parsed, ...demoBookings];
+      // Fallback: localStorage + demo data
+      const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+      let parsed: BookingData[] = [];
+      if (stored) {
+        try { parsed = JSON.parse(stored); } catch { parsed = []; }
+      }
+
+      const all = parsed.length > 0 ? [...parsed, ...demoBookings] : [...demoBookings];
       const unique = all.filter(
-        (b, idx, self) => idx === self.findIndex((x) => x.id === b.id)
+        (b, idx, self) => idx === self.findIndex((x: BookingData) => x.id === b.id)
       );
-      // Sort upcoming nearest-first, past most-recent-first
-      unique.sort((a, b) => {
+      unique.sort((a: BookingData, b: BookingData) => {
         const aDate = new Date(a.date).getTime();
         const bDate = new Date(b.date).getTime();
         const now = Date.now();
@@ -173,10 +197,12 @@ export default function DashboardContent() {
         return aUp ? -1 : 1;
       });
       setBookings(unique);
-    } else {
-      setBookings(demoBookings);
-      localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(demoBookings));
+      if (parsed.length === 0) {
+        localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(demoBookings));
+      }
     }
+
+    loadBookings();
   }, []);
 
   // Handle ?booking=success from payment redirect
@@ -213,20 +239,52 @@ export default function DashboardContent() {
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // most recent first
 
-  const handleCancelBooking = (bookingId: string) => {
+  const handleCancelBooking = async (bookingId: string) => {
+    // Optimistic UI update
     const updated = bookings.map((b) =>
       b.id === bookingId ? { ...b, status: "cancelled" as const } : b
     );
     setBookings(updated);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
+
+    // Persist to Supabase
+    try {
+      await fetch(`/api/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+    } catch {
+      /* Already updated locally — ignore API failure */
+    }
   };
 
-  const handleRescheduleBooking = (bookingId: string, newDate: Date, newTime: string) => {
+  const handleRescheduleBooking = async (
+    bookingId: string,
+    newDate: Date,
+    newTime: string
+  ) => {
+    // Optimistic UI update
     const updated = bookings.map((b) =>
       b.id === bookingId ? { ...b, date: newDate.toISOString(), timeSlot: newTime } : b
     );
     setBookings(updated);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
+
+    // Persist to Supabase
+    try {
+      await fetch(`/api/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reschedule",
+          newDate: newDate.toISOString(),
+          newTimeSlot: newTime,
+        }),
+      });
+    } catch {
+      /* Already updated locally — ignore API failure */
+    }
   };
 
   const handleCloseSuccessModal = () => {

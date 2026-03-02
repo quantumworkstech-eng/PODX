@@ -128,17 +128,84 @@ export function PaymentStep() {
     return `${fmt(hour)} – ${fmt(endTime)}`;
   };
 
-  const handlePaymentSuccess = (paymentResponse: any) => {
-    paymentInFlight.current = false;
-    setIsProcessing(false);
+  const handlePaymentSuccess = async (paymentResponse: any) => {
     setPaymentError(null);
 
     const subtotal = getSubtotal();
     const tax = getTax();
     const total = getTotalPrice();
+    const paymentId =
+      paymentResponse?.razorpay_payment_id || `PAY-${Date.now()}`;
+    const orderId = paymentResponse?.razorpay_order_id || "";
 
+    let bookingNumber = `POD-${Date.now().toString(36).toUpperCase()}`;
+
+    try {
+      // ── Step 1: Server-side Razorpay signature verification ─────────────────
+      if (orderId && paymentResponse?.razorpay_signature) {
+        const verifyRes = await fetch("/api/payment/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            razorpay_order_id: orderId,
+            razorpay_payment_id: paymentId,
+            razorpay_signature: paymentResponse.razorpay_signature,
+          }),
+        });
+        if (!verifyRes.ok) {
+          const err = await verifyRes.json().catch(() => ({}));
+          throw new Error(err.error || "Payment verification failed");
+        }
+      }
+
+      // ── Step 2: Create booking record in Supabase ───────────────────────────
+      const createRes = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studioId: selectedStudio?.id,
+          date: date?.toISOString(),
+          timeSlot,
+          duration,
+          participants,
+          packageData: selectedPackage
+            ? {
+                id: selectedPackage.id,
+                name: selectedPackage.name,
+                price_per_hour: selectedPackage.price_per_hour,
+              }
+            : null,
+          addOns: selectedAddOns.map((a) => ({
+            id: a.id,
+            name: a.name,
+            price: a.price,
+          })),
+          totalPrice: total,
+          subtotal,
+          tax,
+          paymentId,
+          orderId,
+        }),
+      });
+
+      if (createRes.ok) {
+        const data = await createRes.json();
+        if (data.bookingNumber) bookingNumber = data.bookingNumber;
+      } else {
+        console.error("DB booking creation failed — using local record only");
+      }
+    } catch (err: any) {
+      console.error("Post-payment error:", err);
+      // Payment was captured — don't block the user. Show a soft warning.
+      setPaymentError(
+        err?.message ||
+          "Payment captured but booking confirmation had an issue. Please check your dashboard."
+      );
+    }
+
+    // ── Step 3: Build local record and persist ──────────────────────────────
     const booking: BookingRecord = {
-      id: `POD-${Date.now().toString(36).toUpperCase()}`,
+      id: bookingNumber,
       date: date?.toISOString() || "",
       timeSlot: timeSlot || "",
       duration,
@@ -156,20 +223,24 @@ export function PaymentStep() {
             price_per_hour: selectedPackage.price_per_hour,
           }
         : null,
-      addOns: selectedAddOns.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+      addOns: selectedAddOns.map((a) => ({
+        id: a.id,
+        name: a.name,
+        price: a.price,
+      })),
       totalPrice: total,
       subtotal,
       tax,
       status: "confirmed",
-      paymentId: paymentResponse?.razorpay_payment_id || `PAY-${Date.now()}`,
+      paymentId,
       createdAt: new Date().toISOString(),
     };
 
     saveBookingToHistory(booking);
-
-    // Pass new booking data to dashboard via sessionStorage
     sessionStorage.setItem("podx_new_booking", JSON.stringify(booking));
 
+    paymentInFlight.current = false;
+    setIsProcessing(false);
     resetBooking();
     router.push("/dashboard?booking=success");
   };

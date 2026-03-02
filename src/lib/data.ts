@@ -74,42 +74,55 @@ export async function getAllStudios(): Promise<Studio[]> {
     return getFallbackStudios();
   }
 
+  // Keep query simple — avoid nested joins that can fail with RLS restrictions
   const { data: studios, error } = await supabase
     .from('studios')
-    .select(`*, rooms (id, name, price_per_hour, capacity), studio_amenities (amenities (name)), studio_images (image_url)`)
+    .select(`
+      id, name, slug, description, short_description, address, city, featured_image_url, created_at,
+      rooms (id, price_per_hour, capacity, is_active),
+      studio_images (image_url, display_order)
+    `)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   if (error || !studios) {
-    console.error('Error fetching studios:', error);
+    console.error('Error fetching studios:', error?.message ?? JSON.stringify(error));
     return getFallbackStudios();
   }
 
-  const { data: equipment } = await supabase.from('equipment').select('*');
-
   return studios.map((studio: any) => {
-    const studioAmenities = studio.studio_amenities?.map((sa: any) => sa.amenities?.name).filter(Boolean) || [];
-    const rooms = studio.rooms || [];
-    const minPrice = rooms.length > 0 ? Math.min(...rooms.map((r: any) => r.price_per_hour)) : 0;
-    const maxCapacity = rooms.length > 0 ? Math.max(...rooms.map((r: any) => r.capacity)) : 0;
-    const coverImage = studio.studio_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+    const rooms: any[] = studio.rooms || [];
+    const activeRooms = rooms.filter((r: any) => r.is_active !== false);
+    const minPrice = activeRooms.length > 0
+      ? Math.min(...activeRooms.map((r: any) => r.price_per_hour ?? 0))
+      : 0;
+    const maxCapacity = activeRooms.length > 0
+      ? Math.max(...activeRooms.map((r: any) => r.capacity ?? 0))
+      : 2;
+    const sortedImages = (studio.studio_images || []).sort(
+      (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
+    );
+    const coverImage =
+      sortedImages[0]?.image_url ||
+      studio.featured_image_url ||
+      'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
 
     return {
       id: studio.id,
       name: studio.name,
       slug: studio.slug || studio.name.toLowerCase().replace(/\s+/g, '-'),
       cover_image: coverImage,
-      location: { city: studio.city || '', area: '', address: studio.address || '' },
+      location: { city: studio.city || '', area: studio.city || '', address: studio.address || '' },
       price_per_hour: minPrice,
       currency: '₹',
       capacity: maxCapacity,
-      equipment: equipment?.slice(0, 5).map((eq: any) => ({ id: eq.id, name: eq.name, icon: eq.category || 'microphone' })) || [],
+      equipment: [],
       rating: 4.5,
       review_count: 0,
       is_instant_bookable: true,
       has_video_support: true,
       description: studio.short_description || studio.description || '',
-      amenities: studioAmenities.length > 0 ? studioAmenities : ['WiFi', 'AC', 'Parking']
+      amenities: ['WiFi', 'AC', 'Parking'],
     };
   });
 }

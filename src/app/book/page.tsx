@@ -112,11 +112,19 @@ function BookingContent() {
     }
   };
 
-  const handleCitySelect = (city: string) => {
+  const handleCitySelect = (city: string, mode?: "studio" | "date") => {
     localStorage.setItem(ONBOARDING_KEY, city);
     setSelectedCity(city);
-    setShowOnboarding(false);
-    setShowSelectionPopup(true);
+    if (mode) {
+      localStorage.setItem(SELECTION_MODE_KEY, mode);
+      setSelectionMode(mode);
+      setShowOnboarding(false);
+      setShowSelectionPopup(false);
+    } else {
+      // Legacy: no mode provided — fall through to mode popup
+      setShowOnboarding(false);
+      setShowSelectionPopup(true);
+    }
   };
 
   const handleSelectStudio = () => {
