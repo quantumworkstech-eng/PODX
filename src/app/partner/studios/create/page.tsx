@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -34,18 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const CITIES = [
-  { id: "mumbai", name: "Mumbai" },
-  { id: "delhi", name: "Delhi" },
-  { id: "bangalore", name: "Bangalore" },
-  { id: "hyderabad", name: "Hyderabad" },
-  { id: "chennai", name: "Chennai" },
-  { id: "pune", name: "Pune" },
-  { id: "kolkata", name: "Kolkata" },
-  { id: "gurgaon", name: "Gurgaon" },
-  { id: "noida", name: "Noida" },
-];
+import { getCities, City } from "@/lib/data";
 
 const STUDIO_TYPES = [
   { id: "audio", name: "Audio Only", icon: Mic, description: "Perfect for podcasts & voice recordings" },
@@ -163,7 +152,12 @@ export default function CreateStudioPage() {
   const [formData, setFormData] = useState<StudioFormData>(initialFormData);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cities, setCities] = useState<City[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getCities().then(setCities).catch(console.error);
+  }, []);
 
   const updateFormData = (updates: Partial<StudioFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
