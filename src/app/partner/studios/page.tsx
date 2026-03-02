@@ -36,15 +36,12 @@ interface Studio {
   description: string;
   address: string;
   city: string;
-  area: string;
   price_per_hour: number;
   capacity: number;
-  equipment: string[];
+  equipment?: string[];
   images: string[];
   status: "active" | "inactive";
 }
-
-const PARTNER_STUDIOS_KEY = "partner_studios";
 
 const equipmentOptions = [
   "Microphones",
@@ -61,43 +58,10 @@ const equipmentOptions = [
   "Monitor",
 ];
 
-const demoStudios: Studio[] = [
-  {
-    id: "1",
-    name: "Nest Studio",
-    description: "A cozy fireside studio perfect for intimate conversations and solo recordings. Features warm lighting and comfortable seating.",
-    address: "123, SV Road",
-    city: "Mumbai",
-    area: "Andheri West",
-    price_per_hour: 1500,
-    capacity: 4,
-    equipment: ["Microphones", "Headphones", "Audio Interface", "Mixer", "Pop Filters", "Acoustic Panels"],
-    images: [
-      "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&q=80",
-      "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800&q=80",
-    ],
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Apex Studio",
-    description: "Professional-grade studio with industrial aesthetics. Perfect for roundtable discussions and video podcasts.",
-    address: "45, Business Park",
-    city: "Mumbai",
-    area: "Bandra Kurla Complex",
-    price_per_hour: 2500,
-    capacity: 8,
-    equipment: ["Microphones", "Headphones", "Audio Interface", "Mixer", "Video Camera", "Lighting Kit", "Monitor"],
-    images: [
-      "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800&q=80",
-      "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&q=80",
-    ],
-    status: "active",
-  },
-];
 
 export default function PartnerStudiosPage() {
   const [studios, setStudios] = useState<Studio[]>([]);
+  const [isFetching, setIsFetching] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudio, setEditingStudio] = useState<Studio | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -110,7 +74,6 @@ export default function PartnerStudiosPage() {
     description: "",
     address: "",
     city: "",
-    area: "",
     price_per_hour: 0,
     capacity: 2,
     equipment: [],
@@ -119,19 +82,12 @@ export default function PartnerStudiosPage() {
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem(PARTNER_STUDIOS_KEY);
-    if (stored) {
-      setStudios(JSON.parse(stored));
-    } else {
-      setStudios(demoStudios);
-      localStorage.setItem(PARTNER_STUDIOS_KEY, JSON.stringify(demoStudios));
-    }
+    fetch("/api/partner/studios")
+      .then((r) => r.json())
+      .then((d) => setStudios(d.studios || []))
+      .catch(console.error)
+      .finally(() => setIsFetching(false));
   }, []);
-
-  const saveStudios = (updated: Studio[]) => {
-    setStudios(updated);
-    localStorage.setItem(PARTNER_STUDIOS_KEY, JSON.stringify(updated));
-  };
 
   const handleOpenModal = (studio?: Studio) => {
     if (studio) {
@@ -144,7 +100,6 @@ export default function PartnerStudiosPage() {
         description: "",
         address: "",
         city: "",
-        area: "",
         price_per_hour: 0,
         capacity: 2,
         equipment: [],
@@ -163,7 +118,6 @@ export default function PartnerStudiosPage() {
       description: "",
       address: "",
       city: "",
-      area: "",
       price_per_hour: 0,
       capacity: 2,
       equipment: [],
@@ -176,47 +130,63 @@ export default function PartnerStudiosPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const saveStatus: "active" | "inactive" = formData.status === "inactive" ? "inactive" : "active";
-    
-    if (editingStudio) {
-      const updated: Studio[] = studios.map((s) => 
-        s.id === editingStudio.id 
-          ? { ...s, name: formData.name || s.name, description: formData.description || s.description, address: formData.address || s.address, city: formData.city || s.city, area: formData.area || s.area, price_per_hour: formData.price_per_hour || s.price_per_hour, capacity: formData.capacity || s.capacity, equipment: formData.equipment || s.equipment, images: formData.images || s.images, status: saveStatus }
-          : s
-      );
-      saveStudios(updated);
-    } else {
-      const newStudio: Studio = {
-        id: Date.now().toString(),
-        name: formData.name || "",
-        description: formData.description || "",
-        address: formData.address || "",
-        city: formData.city || "",
-        area: formData.area || "",
-        price_per_hour: formData.price_per_hour || 0,
-        capacity: formData.capacity || 2,
-        equipment: formData.equipment || [],
-        images: formData.images || [],
-        status: "active",
-      };
-      saveStudios([...studios, newStudio]);
+    try {
+      if (editingStudio) {
+        await fetch(`/api/partner/studios/${editingStudio.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            address: formData.address,
+            city: formData.city,
+            pricePerHour: formData.price_per_hour,
+            capacity: formData.capacity,
+            images: formData.images,
+            is_active: formData.status !== "inactive",
+          }),
+        });
+      }
+      // Refresh list from API
+      const r = await fetch("/api/partner/studios");
+      const d = await r.json();
+      setStudios(d.studios || []);
+    } catch (err) {
+      console.error("Failed to save studio:", err);
     }
 
     setIsLoading(false);
     handleCloseModal();
   };
 
-  const handleDelete = (id: string) => {
-    const updated = studios.filter((s) => s.id !== id);
-    saveStudios(updated);
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/partner/studios/${id}`, { method: "DELETE" });
+      setStudios((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error("Failed to delete studio:", err);
+    }
     setDeleteConfirm(null);
   };
 
-  const handleToggleStatus = (id: string) => {
-    const updated: Studio[] = studios.map((s) => (s.id === id ? { ...s, status: (s.status === "active" ? "inactive" : "active") as "active" | "inactive" } : s));
-    saveStudios(updated);
+  const handleToggleStatus = async (id: string) => {
+    const studio = studios.find((s) => s.id === id);
+    if (!studio) return;
+    const newActive = studio.status !== "active";
+    try {
+      await fetch(`/api/partner/studios/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: newActive }),
+      });
+      setStudios((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, status: (newActive ? "active" : "inactive") as "active" | "inactive" } : s
+        )
+      );
+    } catch (err) {
+      console.error("Failed to toggle studio status:", err);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,7 +239,11 @@ export default function PartnerStudiosPage() {
         </Link>
       </div>
 
-      {studios.length > 0 ? (
+      {isFetching ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : studios.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {studios.map((studio) => (
             <div key={studio.id} className="bg-[#141414] border border-white/5 rounded-2xl overflow-hidden hover:border-white/10 transition-all group">
@@ -315,7 +289,7 @@ export default function PartnerStudiosPage() {
 
                 <div className="flex items-center gap-1 text-white/40 text-sm mb-3">
                   <MapPin className="w-4 h-4" />
-                  {studio.area}, {studio.city}
+                  {studio.address ? `${studio.address}, ` : ""}{studio.city}
                 </div>
 
                 <p className="text-white/60 text-sm line-clamp-2 mb-4">{studio.description}</p>
@@ -378,14 +352,9 @@ export default function PartnerStudiosPage() {
                   <Input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="e.g., Mumbai" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
                 </div>
                 <div>
-                  <label className="text-white/60 text-sm mb-2 block">Area *</label>
-                  <Input value={formData.area} onChange={(e) => setFormData({ ...formData, area: e.target.value })} placeholder="e.g., Andheri West" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
+                  <label className="text-white/60 text-sm mb-2 block">Address</label>
+                  <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-white/60 text-sm mb-2 block">Address</label>
-                <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

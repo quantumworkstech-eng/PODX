@@ -83,22 +83,35 @@ export default function PartnerSignupPage() {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    const result = await signIn("credentials", {
-      email,
-      password,
-      name,
-      role: "partner",
-      redirect: false,
-    });
-    
-    if (result?.error) {
-      router.push("/partner/login");
-    } else {
-      router.push("/partner/dashboard");
+    setError("");
+
+    try {
+      const res = await fetch("/api/partner/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name, businessName, phone: mobile }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to create account");
+        return;
+      }
+
+      const result = await signIn("credentials", { email, password, redirect: false });
+
+      if (result?.error) {
+        setError("Account created. Please sign in.");
+        router.push("/partner/login");
+      } else {
+        router.push("/partner/dashboard");
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const renderStepIndicator = () => (

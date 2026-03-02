@@ -225,41 +225,28 @@ export default function CreateStudioPage() {
 
   const handleSubmit = async () => {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const studioId = Date.now().toString();
-    
-    const newStudio = {
-      id: studioId,
-      name: formData.name,
-      description: formData.shortDescription,
-      address: formData.address,
-      city: formData.city,
-      area: formData.address.split(",")[0] || formData.city,
-      price_per_hour: formData.pricePerHour,
-      capacity: formData.capacity,
-      equipment: formData.equipment,
-      images: formData.images,
-      status: "active" as const,
-    };
-
-    const existingStudios = localStorage.getItem("partner_studios");
-    const studios = existingStudios ? JSON.parse(existingStudios) : [];
-    studios.push(newStudio);
-    localStorage.setItem("partner_studios", JSON.stringify(studios));
-
-    if (formData.useCustomPolicies) {
-      const existingPolicies = localStorage.getItem("partner_policies");
-      let policies = existingPolicies ? JSON.parse(existingPolicies) : { defaultPolicies: { cancellation: [], reschedule: [] }, studioPolicies: {} };
-      
-      policies.studioPolicies[studioId] = {
-        cancellation: formData.cancellationRules,
-        reschedule: formData.rescheduleRules,
-      };
-      
-      localStorage.setItem("partner_policies", JSON.stringify(policies));
+    try {
+      const res = await fetch("/api/partner/studios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.shortDescription,
+          address: formData.address,
+          city: formData.city,
+          pricePerHour: formData.pricePerHour,
+          capacity: formData.capacity,
+          equipment: formData.equipment,
+          images: formData.images,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Failed to create studio:", err);
+      }
+    } catch (err) {
+      console.error("Error creating studio:", err);
     }
-
     setIsLoading(false);
     router.push("/partner/studios");
   };

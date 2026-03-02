@@ -2,6 +2,14 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
+
+function verifyPassword(password: string, storedHash: string): boolean {
+  const [salt, hash] = storedHash.split(":");
+  if (!salt || !hash) return false;
+  const verify = crypto.pbkdf2Sync(password, salt, 100000, 64, "sha256").toString("hex");
+  return hash === verify;
+}
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -36,14 +44,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-        return {
-          id: `dev-${Date.now()}`,
-          email: credentials.email as string,
-          name: (credentials.email as string).split("@")[0],
-        };
+        if (!credentials?.email || !credentials?.password) return null;
+        if (!supabaseAdmin) return null;
+
+        const { data: user } = await supabaseAdmin
+          .from("users")
+          .select("id, email, password_hash")
+          .eq("email", credentials.email)
+          .eq("auth_provider", "credentials")
+          .maybeSingle();
+
+        if (!user?.password_hash) return null;
+        if (!verifyPassword(credentials.password as string, user.password_hash)) return null;
+
+        return { id: user.id, email: user.email, name: user.email.split("@")[0] };
       },
     }),
   ],

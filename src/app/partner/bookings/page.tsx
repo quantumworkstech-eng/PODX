@@ -29,6 +29,7 @@ import {
 
 interface Booking {
   id: string;
+  dbId?: string;
   studio: { name: string };
   customer: { name: string; email: string; phone?: string };
   date: string;
@@ -40,99 +41,9 @@ interface Booking {
   status: "confirmed" | "pending" | "cancelled" | "completed";
 }
 
-interface PartnerPolicies {
-  cancellation: {
-    windowDays: number;
-    refundPercent: number;
-    deductionPercent: number;
-  };
-  reschedule: {
-    windowDays: number;
-    windowHours: number;
-    deductionPercent: number;
-  };
-}
-
-const PARTNER_BOOKINGS_KEY = "partner_bookings";
-const PARTNER_POLICIES_KEY = "partner_policies";
-
-const demoBookings: Booking[] = [
-  {
-    id: "POD-ABC123",
-    studio: { name: "Nest Studio" },
-    customer: { name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210" },
-    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "14:00",
-    duration: 2,
-    packageName: "Recording + Live Mix",
-    addOns: ["YouTube Thumbnail", "Episode Editing"],
-    totalPrice: 11000,
-    status: "confirmed",
-  },
-  {
-    id: "POD-DEF456",
-    studio: { name: "Apex Studio" },
-    customer: { name: "Priya Patel", email: "priya@example.com", phone: "+91 98765 43211" },
-    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "10:00",
-    duration: 1,
-    packageName: "Recording + Professional Edit",
-    totalPrice: 5700,
-    status: "pending",
-  },
-  {
-    id: "POD-GHI789",
-    studio: { name: "Eden Studio" },
-    customer: { name: "Amit Kumar", email: "amit@example.com", phone: "+91 98765 43212" },
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "16:00",
-    duration: 3,
-    packageName: "Recording",
-    addOns: ["Reels"],
-    totalPrice: 11500,
-    status: "completed",
-  },
-  {
-    id: "POD-JKL012",
-    studio: { name: "Nest Studio" },
-    customer: { name: "Sneha Gupta", email: "sneha@example.com", phone: "+91 98765 43213" },
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "11:00",
-    duration: 2,
-    packageName: "Recording + Live Mix",
-    totalPrice: 8000,
-    status: "cancelled",
-  },
-  {
-    id: "POD-MNO345",
-    studio: { name: "Apex Studio" },
-    customer: { name: "Vikram Singh", email: "vikram@example.com", phone: "+91 98765 43214" },
-    date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "09:00",
-    duration: 4,
-    packageName: "Full Production",
-    addOns: ["YouTube Thumbnail", "Episode Editing", "Reels"],
-    totalPrice: 22000,
-    status: "confirmed",
-  },
-];
-
-const defaultPolicies: PartnerPolicies = {
-  cancellation: {
-    windowDays: 3,
-    refundPercent: 100,
-    deductionPercent: 0,
-  },
-  reschedule: {
-    windowDays: 1,
-    windowHours: 24,
-    deductionPercent: 10,
-  },
-};
-
 export default function PartnerBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [policies, setPolicies] = useState<PartnerPolicies>(defaultPolicies);
+  const [isFetching, setIsFetching] = useState(true);
   const [filter, setFilter] = useState<"all" | "confirmed" | "pending" | "completed" | "cancelled">("all");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -142,26 +53,22 @@ export default function PartnerBookingsPage() {
   const [newTime, setNewTime] = useState("");
 
   useEffect(() => {
-    const storedBookings = localStorage.getItem(PARTNER_BOOKINGS_KEY);
-    if (storedBookings) {
-      setBookings(JSON.parse(storedBookings));
-    } else {
-      setBookings(demoBookings);
-      localStorage.setItem(PARTNER_BOOKINGS_KEY, JSON.stringify(demoBookings));
-    }
-
-    const storedPolicies = localStorage.getItem(PARTNER_POLICIES_KEY);
-    if (storedPolicies) {
-      setPolicies(JSON.parse(storedPolicies));
-    } else {
-      setPolicies(defaultPolicies);
-      localStorage.setItem(PARTNER_POLICIES_KEY, JSON.stringify(defaultPolicies));
-    }
+    fetch("/api/partner/bookings")
+      .then((r) => r.json())
+      .then((d) => setBookings(d.bookings || []))
+      .catch(console.error)
+      .finally(() => setIsFetching(false));
   }, []);
 
-  const saveBookings = (updated: Booking[]) => {
-    setBookings(updated);
-    localStorage.setItem(PARTNER_BOOKINGS_KEY, JSON.stringify(updated));
+  const updateBookingStatus = async (dbId: string | undefined, status: Booking["status"], localId: string) => {
+    if (dbId) {
+      await fetch("/api/partner/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingDbId: dbId, status }),
+      }).catch(console.error);
+    }
+    setBookings((prev) => prev.map((b) => (b.id === localId ? { ...b, status } : b)));
   };
 
   const filteredBookings = bookings.filter((b) => {
@@ -182,30 +89,28 @@ export default function PartnerBookingsPage() {
     }
   };
 
-  const handleApprove = (id: string) => {
-    const updated = bookings.map((b) => (b.id === id ? { ...b, status: "confirmed" as const } : b));
-    saveBookings(updated);
+  const handleApprove = (booking: Booking) => {
+    updateBookingStatus(booking.dbId, "confirmed", booking.id);
   };
 
-  const handleReject = (id: string) => {
-    const updated = bookings.map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b));
-    saveBookings(updated);
+  const handleReject = (booking: Booking) => {
+    updateBookingStatus(booking.dbId, "cancelled", booking.id);
   };
 
   const handleCancel = () => {
     if (!selectedBooking) return;
-    const refundAmount = selectedBooking.totalPrice * (policies.cancellation.refundPercent / 100);
-    const updated = bookings.map((b) => (b.id === selectedBooking.id ? { ...b, status: "cancelled" as const } : b));
-    saveBookings(updated);
+    updateBookingStatus(selectedBooking.dbId, "cancelled", selectedBooking.id);
     setShowCancelModal(false);
     setSelectedBooking(null);
   };
 
   const handleReschedule = () => {
     if (!selectedBooking || !newDate || !newTime) return;
-    const deductionAmount = selectedBooking.totalPrice * (policies.reschedule.deductionPercent / 100);
-    const updated = bookings.map((b) => (b.id === selectedBooking.id ? { ...b, date: new Date(newDate).toISOString(), timeSlot: newTime } : b));
-    saveBookings(updated);
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === selectedBooking.id ? { ...b, date: new Date(newDate).toISOString(), timeSlot: newTime } : b
+      )
+    );
     setShowRescheduleModal(false);
     setSelectedBooking(null);
     setNewDate("");
@@ -255,6 +160,12 @@ export default function PartnerBookingsPage() {
           </button>
         ))}
       </div>
+
+      {isFetching && (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
 
       <div className="bg-[#141414] border border-white/5 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
@@ -312,10 +223,10 @@ export default function PartnerBookingsPage() {
                       </Button>
                       {booking.status === "pending" && (
                         <>
-                          <Button variant="ghost" size="icon" onClick={() => handleApprove(booking.id)} className="text-green-400 hover:text-green-300">
+                          <Button variant="ghost" size="icon" onClick={() => handleApprove(booking)} className="text-green-400 hover:text-green-300">
                             <CheckCircle className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleReject(booking.id)} className="text-red-400 hover:text-red-300">
+                          <Button variant="ghost" size="icon" onClick={() => handleReject(booking)} className="text-red-400 hover:text-red-300">
                             <XCircle className="w-4 h-4" />
                           </Button>
                         </>
@@ -420,7 +331,7 @@ export default function PartnerBookingsPage() {
               </div>
               <div className="p-4 bg-yellow-400/10 border border-yellow-400/20 rounded-xl">
                 <p className="text-yellow-400 text-sm">
-                  Cancellation Policy: {policies.cancellation.refundPercent}% refund if cancelled {policies.cancellation.windowDays}+ days before
+                  Cancellation notice: booking will be marked as cancelled.
                 </p>
               </div>
             </div>
@@ -461,7 +372,7 @@ export default function PartnerBookingsPage() {
               </div>
               <div className="p-4 bg-yellow-400/10 border border-yellow-400/20 rounded-xl">
                 <p className="text-yellow-400 text-sm">
-                  Reschedule Policy: {policies.reschedule.deductionPercent}% deduction applies for rescheduling
+                  The customer will be notified of the updated schedule.
                 </p>
               </div>
             </div>
