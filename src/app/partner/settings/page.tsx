@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -22,14 +22,25 @@ import { cn } from "@/lib/utils";
 export default function PartnerSettingsPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "notifications" | "payment">("profile");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [profile, setProfile] = useState({
-    name: "Partner Account",
-    email: "partner@podx.com",
-    phone: "+91 98765 43210",
-    businessName: "PodX Studios",
+    name: "",
+    email: "",
+    phone: "",
+    businessName: "",
   });
+
+  useEffect(() => {
+    fetch("/api/partner/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setProfile(d);
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const [notifications, setNotifications] = useState({
     newBookings: true,
@@ -41,10 +52,18 @@ export default function PartnerSettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      await fetch("/api/partner/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profile.name, phone: profile.phone, businessName: profile.businessName }),
+      });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+    }
     setIsSaving(false);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
   };
 
   const tabs = [
@@ -90,6 +109,11 @@ export default function PartnerSettingsPage() {
         <div className="flex-1">
           {activeTab === "profile" && (
             <div className="bg-[#141414] border border-white/5 rounded-2xl p-6 space-y-6">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : null}
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Profile Information</h3>
                 <div className="relative">
@@ -132,8 +156,8 @@ export default function PartnerSettingsPage() {
                     <Input
                       type="email"
                       value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                      readOnly
+                      className="pl-10 bg-white/5 border-white/10 text-white/60 cursor-not-allowed"
                     />
                   </div>
                 </div>
