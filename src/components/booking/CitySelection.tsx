@@ -9,6 +9,8 @@ import { getCities } from "@/lib/data";
 interface CitySelectionProps {
   /** Called when both city AND mode have been selected */
   onComplete: (city: string, mode?: "studio" | "date") => void;
+  /** Pre-select a city (from a previous session) */
+  initialCity?: string;
 }
 
 interface City {
@@ -18,10 +20,10 @@ interface City {
   image_url: string;
 }
 
-export function CitySelection({ onComplete }: CitySelectionProps) {
+export function CitySelection({ onComplete, initialCity }: CitySelectionProps) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(initialCity ?? null);
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const modeRef = useRef<HTMLDivElement>(null);

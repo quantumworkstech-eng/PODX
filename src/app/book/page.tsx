@@ -43,6 +43,8 @@ function BookingContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSelectionPopup, setShowSelectionPopup] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // Pre-fill city in CitySelection when returning user hasn't made real progress
+  const [initialCity, setInitialCity] = useState<string | undefined>(undefined);
 
   // Hydrate from stored state on first mount
   useEffect(() => {
@@ -52,31 +54,24 @@ function BookingContent() {
     const storedMode = localStorage.getItem(SELECTION_MODE_KEY);
     const storedBooking = localStorage.getItem(PENDING_BOOKING_KEY);
 
-    // If there's a pending booking with a studio or date, go straight into the flow
+    // Only skip city selection when user has made real booking progress:
+    // both a studio AND a date are already selected (mid-booking resume).
     if (storedBooking) {
       try {
         const parsed = JSON.parse(storedBooking);
-        if (parsed.selectedStudio || parsed.date) {
-          // State is restored by BookingContext; just skip onboarding
+        if (parsed.selectedStudio && parsed.date) {
           if (parsed.selectedCity) setSelectedCity(parsed.selectedCity);
           if (parsed.selectionMode) setSelectionMode(parsed.selectionMode);
-          return;
+          return; // resume mid-booking — skip city selection
         }
       } catch {
-        // ignore
+        // ignore malformed storage
       }
     }
 
-    // Fresh visit — show onboarding unless city was previously selected
-    if (storedOnboarding && storedMode) {
-      setSelectedCity(storedOnboarding);
-      setSelectionMode(storedMode as "studio" | "date");
-    } else if (storedOnboarding) {
-      setSelectedCity(storedOnboarding);
-      setShowSelectionPopup(true);
-    } else {
-      setShowOnboarding(true);
-    }
+    // Always show city selection. Pre-fill city if previously chosen.
+    if (storedOnboarding) setInitialCity(storedOnboarding);
+    setShowOnboarding(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // If user becomes authenticated while auth modal is open, proceed to payment
@@ -102,14 +97,9 @@ function BookingContent() {
       prevStep();
       return;
     }
-    // On step 1 go back to selection popup
-    if (selectionMode) {
-      setShowSelectionPopup(true);
-      return;
-    }
-    if (selectedCity) {
-      setShowSelectionPopup(true);
-    }
+    // Step 1 → back to city + mode selection
+    setShowOnboarding(true);
+    setShowSelectionPopup(false);
   };
 
   const handleCitySelect = (city: string, mode?: "studio" | "date") => {
@@ -120,11 +110,9 @@ function BookingContent() {
       setSelectionMode(mode);
       setShowOnboarding(false);
       setShowSelectionPopup(false);
-    } else {
-      // Legacy: no mode provided — fall through to mode popup
-      setShowOnboarding(false);
-      setShowSelectionPopup(true);
     }
+    // If no mode yet (shouldn't happen with new CitySelection but guard anyway)
+    // just keep showing onboarding so user can pick mode
   };
 
   const handleSelectStudio = () => {
@@ -187,9 +175,10 @@ function BookingContent() {
   }
 
   if (showOnboarding) {
-    return <CitySelection onComplete={handleCitySelect} />;
+    return <CitySelection onComplete={handleCitySelect} initialCity={initialCity} />;
   }
 
+  // showSelectionPopup kept as fallback (legacy) — shouldn't trigger anymore
   if (showSelectionPopup) {
     return (
       <StudioOrDatePopup
@@ -203,8 +192,8 @@ function BookingContent() {
     );
   }
 
-  const showBackButton =
-    showPayment || currentStep > 1 || (currentStep === 1 && selectionMode !== null);
+  // Back button shown on every booking step so user can always go back to city selection
+  const showBackButton = true;
 
   return (
     <div className="min-h-screen bg-black">
