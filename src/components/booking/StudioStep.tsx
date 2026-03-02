@@ -53,6 +53,7 @@ export function StudioStep() {
     nextStep,
     canProceed,
     selectionMode,
+    selectedCity,
   } = useBooking();
 
   const [videoStudio, setVideoStudio] = useState<{ name: string } | null>(null);
@@ -67,10 +68,17 @@ export function StudioStep() {
     setError(null);
     getAllStudios()
       .then((data) => {
-        setStudios(data);
+        // Filter by selected city (case-insensitive match on city slug or name)
+        const filtered = selectedCity
+          ? data.filter((s) => {
+              const cityField = s.location.city.toLowerCase();
+              const slug = selectedCity.toLowerCase();
+              return cityField === slug || cityField.startsWith(slug);
+            })
+          : data;
+        setStudios(filtered);
         setLoading(false);
-        // Fetch today's availability for all studios concurrently
-        fetchAvailability(data);
+        fetchAvailability(filtered);
       })
       .catch(() => {
         setError("Failed to load studios. Please try again.");
@@ -78,7 +86,7 @@ export function StudioStep() {
       });
   };
 
-  useEffect(() => { loadStudios(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadStudios(); }, [selectedCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAvailability = async (studioList: Studio[]) => {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
@@ -117,7 +125,11 @@ export function StudioStep() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Choose Your Studio</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+          {selectedCity
+            ? `Studios in ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}`
+            : "Choose Your Studio"}
+        </h1>
         <p className="text-white/60 text-lg">Select a studio that fits your needs</p>
       </div>
 

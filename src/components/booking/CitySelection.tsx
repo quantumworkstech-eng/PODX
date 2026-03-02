@@ -4,20 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, MapPin, Check, ChevronLeft, Building2, CalendarDays, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCities } from "@/lib/data";
+import { getCities, City } from "@/lib/data";
 
 interface CitySelectionProps {
   /** Called when both city AND mode have been selected */
   onComplete: (city: string, mode?: "studio" | "date") => void;
   /** Pre-select a city (from a previous session) */
   initialCity?: string;
-}
-
-interface City {
-  id: string;
-  name: string;
-  slug: string;
-  image_url: string;
 }
 
 export function CitySelection({ onComplete, initialCity }: CitySelectionProps) {

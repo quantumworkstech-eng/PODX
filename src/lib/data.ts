@@ -9,28 +9,13 @@ export interface City {
 }
 
 export async function getCities(): Promise<City[]> {
-  if (!supabase) {
-    console.warn('Supabase client not initialized');
+  try {
+    const res = await fetch('/api/cities');
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
     return [];
   }
-
-  const { data: cities, error } = await supabase
-    .from('cities')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
-
-  if (error || !cities) {
-    console.error('Error fetching cities:', error);
-    return [];
-  }
-
-  return cities.map((city: any) => ({
-    id: city.slug || city.id,
-    name: city.name,
-    slug: city.slug,
-    image_url: city.image_url
-  }));
 }
 
 function getFallbackStudios(): Studio[] {
