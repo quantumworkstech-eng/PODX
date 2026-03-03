@@ -33,7 +33,6 @@ function getFallbackStudios(): Studio[] {
       rating: 4.9,
       review_count: 127,
       is_instant_bookable: true,
-      has_video_support: true,
       description: "Premium podcast studio",
       amenities: ["WiFi", "AC", "Parking"]
     }
@@ -92,7 +91,6 @@ export async function getAllStudios(): Promise<Studio[]> {
       rating: 4.5,
       review_count: 0,
       is_instant_bookable: true,
-      has_video_support: true,
       description: studio.short_description || studio.description || '',
       amenities: ['WiFi', 'AC', 'Parking'],
     };
@@ -125,7 +123,6 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
     rating: 4.5,
     review_count: 0,
     is_instant_bookable: true,
-    has_video_support: true,
     description: studio.short_description || studio.description || '',
     amenities: studio.studio_amenities?.map((sa: any) => sa.amenities?.name).filter(Boolean) || []
   };
@@ -160,7 +157,6 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
       rating: 4.5,
       review_count: 0,
       is_instant_bookable: true,
-      has_video_support: true,
       description: studio.short_description || '',
       amenities: ['WiFi', 'AC', 'Parking']
     };

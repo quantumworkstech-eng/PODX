@@ -15,7 +15,6 @@ export interface Studio {
   rating: number;
   review_count: number;
   is_instant_bookable: boolean;
-  has_video_support: boolean;
   description: string;
   amenities: string[];
 }
@@ -40,7 +39,6 @@ export interface FilterState {
   priceRange: [number, number];
   capacity: number | null;
   equipment: string[];
-  hasVideoSupport: boolean | null;
   isInstantBookable: boolean | null;
 }
 

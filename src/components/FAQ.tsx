@@ -14,7 +14,7 @@ const faqs = [
   },
   {
     question: "How much does it cost to record at PodX?",
-    answer: "Our studio rates start from ₹1,800 per hour depending on the location and studio type. This includes all gear, microphones, cameras, lighting, a studio operator, and your raw audio and video files. Premium studios with advanced equipment may have higher rates."
+    answer: "Our studio rates start from ₹1,800 per hour depending on the location. This includes all gear, microphones, cameras, lighting, a studio operator, and your raw audio and video files. Premium studios with advanced equipment may have higher rates."
   },
   {
     question: "What is included in a standard recording session?",
