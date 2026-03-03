@@ -24,7 +24,7 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('studios')
     .select(`
-      id, name, slug, description, short_description, address, city, is_active, created_at,
+      id, name, slug, description, short_description, address, city, is_active, review_status, latitude, longitude, created_at,
       rooms(id, price_per_hour, capacity, is_active),
       studio_images(image_url, display_order)
     `)
@@ -50,6 +50,9 @@ export async function GET() {
       address: s.address || '',
       city: s.city || '',
       is_active: s.is_active,
+      review_status: s.review_status || 'pending_review',
+      latitude: s.latitude,
+      longitude: s.longitude,
       price_per_hour: price,
       capacity,
       images: sortedImages.map((i: any) => i.image_url),
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
   if (!partnerId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const body = await request.json();
-  const { name, description, address, city, pricePerHour, capacity, equipment, images } = body;
+  const { name, description, fullDescription, address, city, pricePerHour, capacity, equipment, images, latitude, longitude } = body;
 
   if (!name || !city) {
     return NextResponse.json({ error: 'Name and city are required' }, { status: 400 });
@@ -86,11 +89,14 @@ export async function POST(request: NextRequest) {
     .insert({
       name,
       slug,
-      description: description || '',
+      description: fullDescription || description || '',
       short_description: (description || '').slice(0, 150),
       address: address || '',
       city,
-      is_active: true,
+      is_active: false,
+      review_status: 'pending_review',
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
       owner_id: partnerId,
     })
     .select()

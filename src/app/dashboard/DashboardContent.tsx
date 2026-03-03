@@ -9,7 +9,6 @@ import {
   Clock,
   Settings,
   LogOut,
-  Bell,
   User,
   Plus,
   LayoutDashboard,
@@ -17,6 +16,7 @@ import {
   CreditCard,
   Home,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -135,8 +135,6 @@ export default function DashboardContent() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState(2);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [newBooking, setNewBooking] = useState<BookingData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -214,7 +212,6 @@ export default function DashboardContent() {
           const booking = JSON.parse(stored) as BookingData;
           setNewBooking(booking);
           setShowSuccessModal(true);
-          setNotifications((n) => n + 1);
           setActiveMenu("upcoming");
           sessionStorage.removeItem("podx_new_booking");
         } catch { /* ignore */ }
@@ -444,50 +441,7 @@ export default function DashboardContent() {
 
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <button
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {notifications > 0 && (
-                      <span className="absolute top-1 right-1 w-4 h-4 bg-[#D9FC67] text-black text-[10px] font-bold rounded-full flex items-center justify-center">
-                        {notifications}
-                      </span>
-                    )}
-                  </button>
-
-                  {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-                      <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                        <h3 className="font-semibold text-white">Notifications</h3>
-                        <button
-                          onClick={() => {
-                            setNotifications(0);
-                            setShowNotifications(false);
-                          }}
-                          className="text-xs text-white/40 hover:text-white"
-                        >
-                          Mark all read
-                        </button>
-                      </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        <div className="p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer">
-                          <p className="text-white text-sm font-medium">Booking Confirmed</p>
-                          <p className="text-white/40 text-xs mt-1">
-                            Your booking at Nest Studio is confirmed
-                          </p>
-                          <p className="text-white/30 text-xs mt-2">2 hours ago</p>
-                        </div>
-                        <div className="p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer">
-                          <p className="text-white text-sm font-medium">Reminder</p>
-                          <p className="text-white/40 text-xs mt-1">
-                            Your session is in 2 days
-                          </p>
-                          <p className="text-white/30 text-xs mt-2">1 day ago</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <NotificationBell userEmail={session?.user?.email} />
                 </div>
 
                 <div className="flex items-center gap-2 pl-3 border-l border-white/10">

@@ -8,14 +8,12 @@ import {
   ArrowRight,
   Check,
   ChevronLeft,
-  ChevronRight,
   Upload,
   X,
   MapPin,
   DollarSign,
   Users,
   Clock,
-  Camera,
   Mic,
   Video,
   Lightbulb,
@@ -26,21 +24,16 @@ import {
   Coffee,
   Monitor,
   Building2,
-  Sparkles,
   CheckCircle,
   Shield,
   Trash2,
   Plus,
+  Navigation,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCities, City } from "@/lib/data";
-
-const STUDIO_TYPES = [
-  { id: "audio", name: "Audio Only", icon: Mic, description: "Perfect for podcasts & voice recordings" },
-  { id: "video", name: "Video", icon: Video, description: "For video podcasts & content creation" },
-  { id: "hybrid", name: "Hybrid", icon: Sparkles, description: "Full audio & video production" },
-];
 
 const EQUIPMENT_OPTIONS = [
   { id: "microphones", name: "Professional Microphones", icon: Mic },
@@ -87,12 +80,13 @@ interface StudioFormData {
   name: string;
   shortDescription: string;
   fullDescription: string;
-  studioType: "audio" | "video" | "hybrid";
   capacity: number;
   address: string;
   city: string;
   state: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
   pricePerHour: number;
   discountPercent: number;
   workingHours: { start: string; end: string };
@@ -109,7 +103,6 @@ const initialFormData: StudioFormData = {
   name: "",
   shortDescription: "",
   fullDescription: "",
-  studioType: "hybrid",
   capacity: 2,
   address: "",
   city: "",
@@ -146,6 +139,23 @@ const STEPS = [
   { id: 7, name: "Review", short: "Review" },
 ];
 
+async function geocodeAddress(address: string, city: string, country: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const query = `${address}, ${city}, ${country}`;
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`,
+      { headers: { "Accept-Language": "en" } }
+    );
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CreateStudioPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -153,11 +163,26 @@ export default function CreateStudioPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getCities().then(setCities).catch(console.error);
   }, []);
+
+  const handleGeocode = async () => {
+    if (!formData.address || !formData.city) return;
+    setIsGeocoding(true);
+    setGeocodeError("");
+    const result = await geocodeAddress(formData.address, formData.city, formData.country);
+    if (result) {
+      updateFormData({ latitude: result.lat, longitude: result.lon });
+    } else {
+      setGeocodeError("Location not found. Try a more specific address.");
+    }
+    setIsGeocoding(false);
+  };
 
   const updateFormData = (updates: Partial<StudioFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -232,12 +257,15 @@ export default function CreateStudioPage() {
         body: JSON.stringify({
           name: formData.name,
           description: formData.shortDescription,
+          fullDescription: formData.fullDescription,
           address: formData.address,
           city: formData.city,
           pricePerHour: formData.pricePerHour,
           capacity: formData.capacity,
           equipment: formData.equipment,
           images: formData.images,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
         }),
       });
       if (!res.ok) {
@@ -286,17 +314,17 @@ export default function CreateStudioPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Basic Studio Information</h2>
-        <p className="text-white/60">Tell us about your studio</p>
+        <p className="text-white/60">Tell us about your video content studio</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div>
           <label className="text-white/80 text-sm font-medium mb-2 block">Studio Name *</label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => updateFormData({ name: e.target.value })}
-            placeholder="e.g., Nest Studio, Apex Recording"
+            placeholder="e.g., Nest Studio, Apex Studio"
             className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors text-lg"
           />
         </div>
@@ -307,9 +335,10 @@ export default function CreateStudioPage() {
             type="text"
             value={formData.shortDescription}
             onChange={(e) => updateFormData({ shortDescription: e.target.value })}
-            placeholder="e.g., Cozy fireside studio for intimate podcasts"
+            placeholder="e.g., Professional video studio for content creators"
             className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
           />
+          <p className="text-white/30 text-xs mt-1">{formData.shortDescription.length}/150 characters</p>
         </div>
 
         <div>
@@ -317,58 +346,36 @@ export default function CreateStudioPage() {
           <textarea
             value={formData.fullDescription}
             onChange={(e) => updateFormData({ fullDescription: e.target.value })}
-            placeholder="Describe your studio in detail..."
-            rows={4}
+            placeholder="Describe your studio in detail — equipment, ambiance, what makes it unique..."
+            rows={5}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors resize-none"
           />
         </div>
 
         <div>
-          <label className="text-white/80 text-sm font-medium mb-3 block">Studio Type *</label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {STUDIO_TYPES.map((type) => (
-              <button
-                key={type.id}
-                type="button"
-                onClick={() => updateFormData({ studioType: type.id as "audio" | "video" | "hybrid" })}
-                className={cn(
-                  "p-4 rounded-xl border transition-all text-left",
-                  formData.studioType === type.id
-                    ? "border-[#D9FC67] bg-[#D9FC67]/10"
-                    : "border-white/10 bg-white/5 hover:border-white/20"
-                )}
-              >
-                <type.icon className={cn("w-6 h-6 mb-2", formData.studioType === type.id ? "text-[#D9FC67]" : "text-white/60")} />
-                <p className="text-white font-medium">{type.name}</p>
-                <p className="text-white/40 text-xs mt-1">{type.description}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-white/80 text-sm font-medium mb-2 block">Capacity (number of seats) *</label>
-          <div className="flex items-center gap-4">
+          <label className="text-white/80 text-sm font-medium mb-3 block">Seating Capacity *</label>
+          <div className="flex items-center gap-6">
             <button
               type="button"
               onClick={() => updateFormData({ capacity: Math.max(1, formData.capacity - 1) })}
-              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white hover:border-white/30 transition-colors"
+              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white text-xl hover:border-[#D9FC67] hover:text-[#D9FC67] transition-colors"
             >
-              -
+              −
             </button>
             <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-white/60" />
-              <span className="text-2xl font-bold text-white w-12 text-center">{formData.capacity}</span>
-              <span className="text-white/60">guests</span>
+              <Users className="w-5 h-5 text-[#D9FC67]" />
+              <span className="text-3xl font-bold text-white w-12 text-center">{formData.capacity}</span>
+              <span className="text-white/60 text-sm">seats</span>
             </div>
             <button
               type="button"
               onClick={() => updateFormData({ capacity: Math.min(20, formData.capacity + 1) })}
-              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white hover:border-white/30 transition-colors"
+              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white text-xl hover:border-[#D9FC67] hover:text-[#D9FC67] transition-colors"
             >
               +
             </button>
           </div>
+          <p className="text-white/30 text-xs mt-2">Maximum number of people who can be accommodated</p>
         </div>
       </div>
     </div>
@@ -378,7 +385,7 @@ export default function CreateStudioPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Location & Address</h2>
-        <p className="text-white/60">Where is your studio located?</p>
+        <p className="text-white/60">Enter your exact studio address so clients can find you</p>
       </div>
 
       <div className="space-y-4">
@@ -386,7 +393,7 @@ export default function CreateStudioPage() {
           <label className="text-white/80 text-sm font-medium mb-2 block">City *</label>
           <select
             value={formData.city}
-            onChange={(e) => updateFormData({ city: e.target.value })}
+            onChange={(e) => { updateFormData({ city: e.target.value, latitude: undefined, longitude: undefined }); setGeocodeError(""); }}
             className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors appearance-none cursor-pointer"
             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.5em" }}
           >
@@ -404,11 +411,12 @@ export default function CreateStudioPage() {
             <input
               type="text"
               value={formData.address}
-              onChange={(e) => updateFormData({ address: e.target.value })}
-              placeholder="Street address, area, landmark"
+              onChange={(e) => { updateFormData({ address: e.target.value, latitude: undefined, longitude: undefined }); setGeocodeError(""); }}
+              placeholder="Building name, street, area, landmark"
               className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
             />
           </div>
+          <p className="text-white/30 text-xs mt-1">Enter the full street address including building/floor details</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -434,14 +442,51 @@ export default function CreateStudioPage() {
           </div>
         </div>
 
-        <div className="mt-8 p-6 bg-white/5 rounded-2xl border border-white/10">
-          <div className="aspect-video bg-white/5 rounded-xl flex items-center justify-center">
-            <div className="text-center">
-              <MapPin className="w-12 h-12 text-white/20 mx-auto mb-2" />
-              <p className="text-white/40">Map preview will appear here</p>
-              <p className="text-white/20 text-sm">{formData.address || "Enter address above"}</p>
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={handleGeocode}
+            disabled={isGeocoding || !formData.address || !formData.city}
+            className="w-full h-12 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl text-white hover:border-[#D9FC67] hover:text-[#D9FC67] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isGeocoding ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Finding location on map...</>
+            ) : formData.latitude ? (
+              <><Navigation className="w-4 h-4 text-[#D9FC67]" /> <span className="text-[#D9FC67]">Location found — click to re-verify</span></>
+            ) : (
+              <><Navigation className="w-4 h-4" /> Verify & Pin on Map</>
+            )}
+          </button>
+          {geocodeError && (
+            <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
+              <span>⚠</span> {geocodeError}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl overflow-hidden border border-white/10">
+          {formData.latitude && formData.longitude ? (
+            <>
+              <iframe
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${formData.longitude - 0.006}%2C${formData.latitude - 0.006}%2C${formData.longitude + 0.006}%2C${formData.latitude + 0.006}&layer=mapnik&marker=${formData.latitude}%2C${formData.longitude}`}
+                className="w-full h-64 border-0"
+                loading="lazy"
+                title="Studio location map"
+              />
+              <div className="p-3 bg-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#D9FC67]" />
+                  <span className="text-white/60 text-xs">{formData.address}, {formData.city}</span>
+                </div>
+                <span className="text-[#D9FC67] text-xs font-medium">Pinned</span>
+              </div>
+            </>
+          ) : (
+            <div className="h-52 bg-white/5 flex flex-col items-center justify-center gap-3">
+              <MapPin className="w-10 h-10 text-white/20" />
+              <p className="text-white/30 text-sm">Enter address and click "Verify & Pin on Map"</p>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -867,8 +912,7 @@ export default function CreateStudioPage() {
           <div className="space-y-2 text-sm">
             <p><span className="text-white/40">Name:</span> <span className="text-white">{formData.name}</span></p>
             <p><span className="text-white/40">Description:</span> <span className="text-white">{formData.shortDescription}</span></p>
-            <p><span className="text-white/40">Type:</span> <span className="text-white capitalize">{formData.studioType}</span></p>
-            <p><span className="text-white/40">Capacity:</span> <span className="text-white">{formData.capacity} guests</span></p>
+            <p><span className="text-white/40">Capacity:</span> <span className="text-white">{formData.capacity} seats</span></p>
           </div>
         </div>
 
@@ -880,6 +924,11 @@ export default function CreateStudioPage() {
           <div className="space-y-2 text-sm">
             <p><span className="text-white/40">City:</span> <span className="text-white">{formData.city}</span></p>
             <p><span className="text-white/40">Address:</span> <span className="text-white">{formData.address}</span></p>
+            {formData.latitude && formData.longitude ? (
+              <p className="flex items-center gap-1"><span className="text-white/40">Map:</span> <span className="text-green-400 text-xs">Location pinned ({formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)})</span></p>
+            ) : (
+              <p className="flex items-center gap-1"><span className="text-white/40">Map:</span> <span className="text-yellow-400 text-xs">Not pinned — go back to Location step to verify</span></p>
+            )}
           </div>
         </div>
 
@@ -1024,7 +1073,7 @@ export default function CreateStudioPage() {
               disabled={isLoading}
               className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold"
             >
-              {isLoading ? "Creating..." : "Create Studio"}
+              {isLoading ? "Submitting..." : "Submit for Review"}
               {!isLoading && <CheckCircle className="w-4 h-4 ml-2" />}
             </Button>
           )}

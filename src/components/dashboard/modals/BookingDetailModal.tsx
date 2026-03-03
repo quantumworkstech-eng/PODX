@@ -1,8 +1,10 @@
 "use client";
 
-import { X, Calendar, Clock, MapPin, Users, Package, IndianRupee, AlertCircle, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { X, Calendar, Clock, MapPin, Users, Package, IndianRupee, AlertCircle, RefreshCw, Navigation, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
+import { ReviewModal } from "@/components/reviews/ReviewModal";
 
 interface BookingDetailModalProps {
   booking: BookingData;
@@ -19,6 +21,7 @@ export function BookingDetailModal({
   onCancel,
   isPastBooking = false,
 }: BookingDetailModalProps) {
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", {
@@ -122,6 +125,34 @@ export function BookingDetailModal({
             </div>
           </div>
 
+          <div className="bg-white/5 rounded-xl overflow-hidden mb-6">
+            <div className="p-4 flex items-center justify-between border-b border-white/5">
+              <h4 className="text-white font-semibold flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#D9FC67]" />
+                Studio Location
+              </h4>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${booking.studio.location.area}, ${booking.studio.location.city}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-medium text-[#D9FC67] hover:text-[#E8FF8A] transition-colors bg-[#D9FC67]/10 px-3 py-1.5 rounded-full"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                Get Directions
+              </a>
+            </div>
+            <iframe
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${booking.studio.location.area}, ${booking.studio.location.city}`)}&t=m&z=15&output=embed&hl=en`}
+              className="w-full h-48 border-0"
+              loading="lazy"
+              title="Studio location"
+            />
+            <div className="px-4 py-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-white/40 flex-shrink-0" />
+              <span className="text-white/60 text-sm">{booking.studio.location.area}, {booking.studio.location.city}</span>
+            </div>
+          </div>
+
           <div className="bg-white/5 rounded-xl p-6 mb-6">
             <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-white/50" />
@@ -185,8 +216,27 @@ export function BookingDetailModal({
               </Button>
             </div>
           )}
+
+          {isPastBooking && booking.status === "completed" && (
+            <Button
+              onClick={() => setShowReviewModal(true)}
+              className="w-full bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold"
+            >
+              <Star className="w-4 h-4 mr-2" />
+              Leave a Review
+            </Button>
+          )}
         </div>
       </div>
+
+      {showReviewModal && (
+        <ReviewModal
+          bookingId={booking.id}
+          studioId={booking.studio.id}
+          studioName={booking.studio.name}
+          onClose={() => setShowReviewModal(false)}
+        />
+      )}
     </div>
   );
 }

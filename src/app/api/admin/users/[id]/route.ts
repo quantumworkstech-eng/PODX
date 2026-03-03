@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { supabaseAdmin } from '@/lib/supabase';
+
+async function requireAdmin(email: string): Promise<{ ok: boolean; adminId?: string }> {
+  if (!supabaseAdmin) return { ok: false };
+  const { data: user } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
+  if (!user) return { ok: false };
+  const { data: roleData } = await supabaseAdmin.from('user_roles').select('roles(name)').eq('user_id', user.id);
+  const isAdmin = (roleData || []).some((r: any) => r.roles?.name === 'admin');
+  return { ok: isAdmin, adminId: user.id };
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { ok } = await requireAdmin(session.user.email);
+  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+
+  const body = await request.json();
+  const { action, role } = body;
+
+  if (action === 'ban') {
+    // We store ban state by updating a metadata field - for now mark as unverified
+    await supabaseAdmin.from('users').update({ email_verified: false }).eq('id', id);
+    return NextResponse.json({ success: true, message: 'User banned' });
+  }
+
+  if (action === 'unban') {
+    await supabaseAdmin.from('users').update({ email_verified: true }).eq('id', id);
+    return NextResponse.json({ success: true, message: 'User unbanned' });
+  }
+
+  if (action === 'change_role' && role) {
+    // Find role ID
+    const { data: roleRow } = await supabaseAdmin
+      .from('roles')
+      .select('id')
+      .eq('name', role)
+      .maybeSingle();
+
+    if (!roleRow) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
+
+    // Remove existing roles, add new one
+    await supabaseAdmin.from('user_roles').delete().eq('user_id', id);
+    await supabaseAdmin.from('user_roles').insert({ user_id: id, role_id: roleRow.id });
+
+    return NextResponse.json({ success: true, message: 'Role updated' });
+  }
+
+  return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { ok } = await requireAdmin(session.user.email);
+  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+
+  const [{ data: user }, { data: bookings }] = await Promise.all([
+    supabaseAdmin
+      .from('users')
+      .select('id, email, auth_provider, email_verified, created_at, profiles(full_name, avatar_url, phone), user_roles(roles(name))')
+      .eq('id', id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('bookings')
+      .select('id, booking_number, status, total_price, start_time, created_at, studios(name)')
+      .eq('user_id', id)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
+
+  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+  return NextResponse.json({
+    user: {
+      ...user,
+      roles: (user.user_roles || []).map((r: any) => r.roles?.name).filter(Boolean),
+    },
+    bookings: bookings || [],
+  });
+}

@@ -9,14 +9,15 @@ import {
   DollarSign,
   Settings,
   LogOut,
-  Bell,
   Plus,
   ChevronDown,
   Menu,
   X,
   BarChart3,
   Shield,
+  Star,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
@@ -25,6 +26,7 @@ const menuItems = [
   { id: "dashboard", label: "Dashboard Overview", icon: BarChart3, href: "/partner/dashboard" },
   { id: "studios", label: "My Studios", icon: Building2, href: "/partner/studios" },
   { id: "bookings", label: "Bookings", icon: Calendar, href: "/partner/bookings" },
+  { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
   { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },
   { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings" },
   { id: "settings", label: "Settings", icon: Settings, href: "/partner/settings" },
@@ -39,9 +41,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   const router = useRouter();
   const { data: session, status } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [activeStudios, setActiveStudios] = useState(0);
-  const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
 
   const isAuthPage = pathname === "/partner/login" || pathname === "/partner/signup";
 
@@ -56,23 +56,11 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   useEffect(() => {
     if (status !== "authenticated" || isAuthPage) return;
 
-    Promise.all([
-      fetch("/api/partner/studios").then((r) => r.json()),
-      fetch("/api/partner/bookings").then((r) => r.json()),
-    ])
-      .then(([sd, bd]) => {
+    fetch("/api/partner/studios")
+      .then((r) => r.json())
+      .then((sd) => {
         const studios: any[] = sd.studios || [];
         setActiveStudios(studios.filter((s) => s.status === "active").length);
-
-        const bookings: any[] = bd.bookings || [];
-        const now = new Date();
-        setUpcomingBookings(
-          bookings.filter(
-            (b) =>
-              new Date(b.date) >= now &&
-              (b.status === "confirmed" || b.status === "pending")
-          )
-        );
       })
       .catch(console.error);
   }, [status, isAuthPage]);
@@ -210,49 +198,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                     </span>
                   </div>
 
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowNotifications(!showNotifications)}
-                      className="relative p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
-                    >
-                      <Bell className="w-5 h-5" />
-                      {upcomingBookings.length > 0 && (
-                        <span className="absolute top-1 right-1 w-4 h-4 bg-[#D9FC67] text-black text-[10px] font-bold rounded-full flex items-center justify-center">
-                          {upcomingBookings.length}
-                        </span>
-                      )}
-                    </button>
-
-                    {showNotifications && (
-                      <div className="absolute right-0 mt-2 w-80 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-                        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                          <h3 className="font-semibold text-white">Upcoming Bookings</h3>
-                          <button
-                            onClick={() => setShowNotifications(false)}
-                            className="text-xs text-white/40 hover:text-white"
-                          >
-                            Close
-                          </button>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto">
-                          {upcomingBookings.slice(0, 3).map((b: any) => (
-                            <div key={b.id} className="p-4 border-b border-white/5 hover:bg-white/5">
-                              <p className="text-white text-sm font-medium">{b.studio.name}</p>
-                              <p className="text-white/40 text-xs mt-1">
-                                {b.customer.name} •{" "}
-                                {new Date(b.date).toLocaleDateString()}
-                              </p>
-                            </div>
-                          ))}
-                          {upcomingBookings.length === 0 && (
-                            <div className="p-4 text-center text-white/40 text-sm">
-                              No upcoming bookings
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <NotificationBell userEmail={session?.user?.email} />
 
                   <div className="flex items-center gap-2 pl-3 border-l border-white/10">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D9FC67] to-[#B8E050] flex items-center justify-center">

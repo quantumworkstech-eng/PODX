@@ -41,6 +41,7 @@ interface Studio {
   equipment?: string[];
   images: string[];
   status: "active" | "inactive";
+  review_status?: string;
 }
 
 const equipmentOptions = [
@@ -273,24 +274,39 @@ export default function PartnerStudiosPage() {
                   </div>
                 )}
                 <div className="absolute top-3 right-3 flex gap-2">
-                  <button onClick={() => handleToggleStatus(studio.id)} className={cn("p-2 rounded-lg backdrop-blur-sm transition-colors", studio.status === "active" ? "bg-green-400/20 text-green-400" : "bg-white/10 text-white/40")}>
-                    {studio.status === "active" ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
+                  {studio.review_status !== "pending_review" && (
+                    <button onClick={() => handleToggleStatus(studio.id)} className={cn("p-2 rounded-lg backdrop-blur-sm transition-colors", studio.status === "active" ? "bg-green-400/20 text-green-400" : "bg-white/10 text-white/40")}>
+                      {studio.status === "active" ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  )}
                 </div>
               </div>
 
               <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-lg font-semibold text-white">{studio.name}</h3>
-                  <span className={cn("text-xs px-2 py-1 rounded-full", studio.status === "active" ? "bg-green-400/10 text-green-400" : "bg-white/10 text-white/40")}>
-                    {studio.status}
-                  </span>
+                  {studio.review_status === "pending_review" ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-400/10 text-yellow-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block" />
+                      In Review
+                    </span>
+                  ) : (
+                    <span className={cn("text-xs px-2 py-1 rounded-full", studio.status === "active" ? "bg-green-400/10 text-green-400" : "bg-white/10 text-white/40")}>
+                      {studio.status === "active" ? "Active" : "Inactive"}
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-1 text-white/40 text-sm mb-3">
+                <div className="flex items-center gap-1 text-white/40 text-sm mb-2">
                   <MapPin className="w-4 h-4" />
                   {studio.address ? `${studio.address}, ` : ""}{studio.city}
                 </div>
+
+                {studio.review_status === "pending_review" && (
+                  <p className="text-yellow-400/70 text-xs mb-2 bg-yellow-400/5 border border-yellow-400/10 rounded-lg px-3 py-2">
+                    Awaiting admin approval before going live
+                  </p>
+                )}
 
                 <p className="text-white/60 text-sm line-clamp-2 mb-4">{studio.description}</p>
 
