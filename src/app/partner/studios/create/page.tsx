@@ -161,6 +161,7 @@ export default function CreateStudioPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<StudioFormData>(initialFormData);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -250,6 +251,7 @@ export default function CreateStudioPage() {
 
   const handleSubmit = async () => {
     setIsLoading(true);
+    setSubmitError("");
     try {
       const res = await fetch("/api/partner/studios", {
         method: "POST",
@@ -270,13 +272,16 @@ export default function CreateStudioPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        console.error("Failed to create studio:", err);
+        setSubmitError(err.error || "Failed to create studio. Please try again.");
+        setIsLoading(false);
+        return;
       }
+      router.push("/partner/studios");
     } catch (err) {
       console.error("Error creating studio:", err);
+      setSubmitError("Network error. Please check your connection and try again.");
     }
     setIsLoading(false);
-    router.push("/partner/studios");
   };
 
   const renderStepIndicator = () => (
@@ -1068,14 +1073,19 @@ export default function CreateStudioPage() {
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold"
-            >
-              {isLoading ? "Submitting..." : "Submit for Review"}
-              {!isLoading && <CheckCircle className="w-4 h-4 ml-2" />}
-            </Button>
+            <div className="flex flex-col items-end gap-2">
+              {submitError && (
+                <p className="text-red-400 text-sm text-right">{submitError}</p>
+              )}
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold"
+              >
+                {isLoading ? "Submitting..." : "Submit for Review"}
+                {!isLoading && <CheckCircle className="w-4 h-4 ml-2" />}
+              </Button>
+            </div>
           )}
         </div>
       </main>

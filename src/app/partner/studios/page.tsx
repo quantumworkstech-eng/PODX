@@ -147,6 +147,20 @@ export default function PartnerStudiosPage() {
             is_active: formData.status !== "inactive",
           }),
         });
+      } else {
+        await fetch("/api/partner/studios", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            address: formData.address,
+            city: formData.city,
+            pricePerHour: formData.price_per_hour,
+            capacity: formData.capacity,
+            images: formData.images,
+          }),
+        });
       }
       // Refresh list from API
       const r = await fetch("/api/partner/studios");

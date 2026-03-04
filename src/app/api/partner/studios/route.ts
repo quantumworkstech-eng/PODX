@@ -125,5 +125,22 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('studio_images').insert(imageRows);
   }
 
+  // Notify all admin users about the new studio pending review
+  const { data: adminRoles } = await supabaseAdmin
+    .from('user_roles')
+    .select('user_id, roles!inner(name)')
+    .eq('roles.name', 'admin');
+
+  if (adminRoles && adminRoles.length > 0) {
+    const notifications = adminRoles.map((ar: any) => ({
+      user_id: ar.user_id,
+      type: 'new_partner_signup',
+      title: 'New Studio Pending Review',
+      message: `"${name}" has been submitted and is awaiting approval.`,
+      action_url: '/admin/studios',
+    }));
+    await supabaseAdmin.from('notifications').insert(notifications);
+  }
+
   return NextResponse.json({ studioId: studio.id }, { status: 201 });
 }
