@@ -15,7 +15,7 @@ function generateOTP(): string {
 
 async function sendOTPEmail(email: string, code: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.EMAIL_FROM || "noreply@podx.com";
+  const fromEmail = process.env.SUPPORT_EMAIL || "onboarding@resend.dev";
 
   if (!apiKey || apiKey === "re_...") {
     // Dev fallback: log OTP to console
@@ -49,6 +49,11 @@ async function sendOTPEmail(email: string, code: string): Promise<boolean> {
       `,
     }),
   });
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    console.error("Resend error:", errBody);
+  }
 
   return res.ok;
 }
