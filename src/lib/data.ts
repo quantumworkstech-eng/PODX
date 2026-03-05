@@ -18,31 +18,10 @@ export async function getCities(): Promise<City[]> {
   }
 }
 
-function getFallbackStudios(): Studio[] {
-  return [
-    {
-      id: "1",
-      name: "Nest",
-      slug: "nest-studio",
-      cover_image: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90",
-      location: { city: "Mumbai", area: "Andheri West", address: "501, Business Hub" },
-      price_per_hour: 2500,
-      currency: "₹",
-      capacity: 4,
-      equipment: [],
-      rating: 4.9,
-      review_count: 127,
-      is_instant_bookable: true,
-      description: "Premium podcast studio",
-      amenities: ["WiFi", "AC", "Parking"]
-    }
-  ];
-}
-
 export async function getAllStudios(): Promise<Studio[]> {
   if (!supabase) {
     console.warn('Supabase client not initialized');
-    return getFallbackStudios();
+    return [];
   }
 
   // Keep query simple — avoid nested joins that can fail with RLS restrictions
@@ -58,7 +37,7 @@ export async function getAllStudios(): Promise<Studio[]> {
 
   if (error || !studios) {
     console.error('Error fetching studios:', error?.message ?? JSON.stringify(error));
-    return getFallbackStudios();
+    return [];
   }
 
   return studios.map((studio: any) => {
@@ -129,7 +108,7 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
 }
 
 export async function getStudiosByCity(city: string): Promise<Studio[]> {
-  if (!supabase) return getFallbackStudios();
+  if (!supabase) return [];
 
   const { data: studios, error } = await supabase
     .from('studios')
@@ -137,7 +116,7 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
     .eq('city', city)
     .eq('is_active', true);
 
-  if (error || !studios) return getFallbackStudios();
+  if (error || !studios) return [];
 
   return studios.map((studio: any) => {
     const rooms = studio.rooms || [];

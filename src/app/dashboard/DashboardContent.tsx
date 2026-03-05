@@ -62,72 +62,6 @@ interface BookingData {
 
 const BOOKINGS_STORAGE_KEY = "podx_bookings";
 
-const demoBookings: BookingData[] = [
-  {
-    id: "POD-ABC123",
-    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "14:00",
-    duration: 2,
-    participants: 3,
-    studio: {
-      id: "1",
-      name: "Nest Studio",
-      location: { area: "Andheri West", city: "Mumbai" },
-      cover_image: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&q=80",
-      description: "Fireside, Cozy, Light & Airy",
-    },
-    package: { id: "recording-mix", name: "Recording + Live Mix", price_per_hour: 500 },
-    addOns: [
-      { id: "thumbnail", name: "YouTube Thumbnail", price: 1500 },
-      { id: "episode-edit", name: "Episode Editing", price: 3500 },
-    ],
-    totalPrice: 11000,
-    status: "confirmed",
-    paymentId: "PAY-XYZ789",
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "POD-DEF456",
-    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "10:00",
-    duration: 1,
-    participants: 2,
-    studio: {
-      id: "2",
-      name: "Apex Studio",
-      location: { area: "Bandra Kurla Complex", city: "Mumbai" },
-      cover_image: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800&q=80",
-      description: "Versatile, Industrial, Roundtables",
-    },
-    package: { id: "recording-edit", name: "Recording + Professional Edit", price_per_hour: 1200 },
-    addOns: [],
-    totalPrice: 5700,
-    status: "pending",
-    paymentId: "PAY-PENDING",
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "POD-GHI789",
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    timeSlot: "16:00",
-    duration: 3,
-    participants: 4,
-    studio: {
-      id: "3",
-      name: "Eden Studio",
-      location: { area: "Connaught Place", city: "Delhi" },
-      cover_image: "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&q=80",
-      description: "Urban Jungle, Moody, RGB Lighting",
-    },
-    package: { id: "recording", name: "Recording", price_per_hour: 0 },
-    addOns: [{ id: "reels", name: "Reels", price: 2500 }],
-    totalPrice: 11500,
-    status: "completed",
-    paymentId: "PAY-COMP123",
-    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 export default function DashboardContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -173,30 +107,23 @@ export default function DashboardContent() {
         /* Network or API error — fall through to localStorage */
       }
 
-      // Fallback: localStorage + demo data
+      // Fallback: localStorage only (no demo data)
       const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-      let parsed: BookingData[] = [];
       if (stored) {
-        try { parsed = JSON.parse(stored); } catch { parsed = []; }
-      }
-
-      const all = parsed.length > 0 ? [...parsed, ...demoBookings] : [...demoBookings];
-      const unique = all.filter(
-        (b, idx, self) => idx === self.findIndex((x: BookingData) => x.id === b.id)
-      );
-      unique.sort((a: BookingData, b: BookingData) => {
-        const aDate = new Date(a.date).getTime();
-        const bDate = new Date(b.date).getTime();
-        const now = Date.now();
-        const aUp = aDate >= now;
-        const bUp = bDate >= now;
-        if (aUp && bUp) return aDate - bDate;
-        if (!aUp && !bUp) return bDate - aDate;
-        return aUp ? -1 : 1;
-      });
-      setBookings(unique);
-      if (parsed.length === 0) {
-        localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(demoBookings));
+        try {
+          const parsed = JSON.parse(stored) as BookingData[];
+          parsed.sort((a: BookingData, b: BookingData) => {
+            const aDate = new Date(a.date).getTime();
+            const bDate = new Date(b.date).getTime();
+            const now = Date.now();
+            const aUp = aDate >= now;
+            const bUp = bDate >= now;
+            if (aUp && bUp) return aDate - bDate;
+            if (!aUp && !bUp) return bDate - aDate;
+            return aUp ? -1 : 1;
+          });
+          setBookings(parsed);
+        } catch { /* ignore malformed data */ }
       }
     }
 

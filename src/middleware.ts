@@ -4,17 +4,15 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Admin routes — verify session exists (role check handled in admin layout)
-  if (pathname.startsWith('/admin')) {
+  // Admin routes — verify session exists (skip for login page to avoid redirect loop)
+  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
 
     if (!token) {
-      const loginUrl = new URL('/auth/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL('/admin/login', request.url));
     }
   }
 
