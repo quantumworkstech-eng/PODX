@@ -83,7 +83,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!isAdmin) return null;
+  if (isAdmin === false) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 font-medium mb-2">Access Denied</p>
+          <p className="text-white/40 text-sm mb-4">This account does not have admin privileges.</p>
+          <a href="/admin/login" className="text-white/60 hover:text-white text-sm underline">Back to Admin Login</a>
+        </div>
+      </div>
+    );
+  }
 
   const currentPage = menuItems.find((m) =>
     m.href === "/admin" ? pathname === "/admin" : pathname.startsWith(m.href)

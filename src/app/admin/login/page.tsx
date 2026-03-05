@@ -17,32 +17,19 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const hasChecked = useRef(false);
 
-  // After Google OAuth redirect back to this page, verify admin role
+  // If user is already signed in, send them to /admin (layout will check role)
   useEffect(() => {
-    if (status !== "authenticated" || !session || hasChecked.current) return;
-    hasChecked.current = true;
-    setLoading(true);
-    fetch("/api/admin/check-role")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.isAdmin) {
-          router.push("/admin");
-        } else {
-          setError("Access denied. This account does not have admin privileges.");
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        setError("Failed to verify admin role. Please try again.");
-        setLoading(false);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session]);
+    if (status === "authenticated" && !hasChecked.current) {
+      hasChecked.current = true;
+      router.push("/admin");
+    }
+  }, [status, router]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
-    await signIn("google", { callbackUrl: "/admin/login" });
+    // Redirect straight to /admin — admin layout handles role check
+    await signIn("google", { callbackUrl: "/admin" });
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
