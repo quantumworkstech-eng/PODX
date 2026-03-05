@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Shield, Mail, ArrowRight, RotateCcw } from "lucide-react";
@@ -15,27 +15,29 @@ export default function AdminLoginPage() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const hasChecked = useRef(false);
 
   // After Google OAuth redirect back to this page, verify admin role
   useEffect(() => {
-    if (status === "authenticated" && session) {
-      setLoading(true);
-      fetch("/api/admin/check-role")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.isAdmin) {
-            router.push("/admin");
-          } else {
-            setError("Access denied. This account does not have admin privileges.");
-            setLoading(false);
-          }
-        })
-        .catch(() => {
-          setError("Failed to verify admin role. Please try again.");
+    if (status !== "authenticated" || !session || hasChecked.current) return;
+    hasChecked.current = true;
+    setLoading(true);
+    fetch("/api/admin/check-role")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.isAdmin) {
+          router.push("/admin");
+        } else {
+          setError("Access denied. This account does not have admin privileges.");
           setLoading(false);
-        });
-    }
-  }, [status, session, router]);
+        }
+      })
+      .catch(() => {
+        setError("Failed to verify admin role. Please try again.");
+        setLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);

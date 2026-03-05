@@ -12,16 +12,21 @@ export async function GET() {
     return NextResponse.json({ isAdmin: false }, { status: 500 });
   }
 
-  // Get user ID
+  // Get user with role column
   const { data: user } = await supabaseAdmin
     .from('users')
-    .select('id')
+    .select('id, role')
     .eq('email', session.user.email)
     .maybeSingle();
 
   if (!user) return NextResponse.json({ isAdmin: false });
 
-  // Check admin role
+  // Primary check: users.role column
+  if (user.role === 'admin') {
+    return NextResponse.json({ isAdmin: true });
+  }
+
+  // Fallback: user_roles join table
   const { data: roleData } = await supabaseAdmin
     .from('user_roles')
     .select('roles(name)')
@@ -30,5 +35,5 @@ export async function GET() {
   const roles = (roleData || []).map((r: any) => r.roles?.name).filter(Boolean);
   const isAdmin = roles.includes('admin');
 
-  return NextResponse.json({ isAdmin, roles });
+  return NextResponse.json({ isAdmin });
 }
