@@ -2,14 +2,6 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
-
-function verifyPassword(password: string, storedHash: string): boolean {
-  const [salt, hash] = storedHash.split(":");
-  if (!salt || !hash) return false;
-  const verify = crypto.pbkdf2Sync(password, salt, 100000, 64, "sha256").toString("hex");
-  return hash === verify;
-}
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -17,19 +9,10 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log("🔧 Auth Initialization:", {
-  hasGoogleClientId: !!GOOGLE_CLIENT_ID,
-  hasGoogleClientSecret: !!GOOGLE_CLIENT_SECRET,
-  hasNextAuthSecret: !!NEXTAUTH_SECRET,
-  hasSupabaseUrl: !!SUPABASE_URL,
-  hasServiceKey: !!SUPABASE_SERVICE_KEY,
-});
-
-const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-  : null;
-
-console.log("🔧 Supabase Admin initialized:", !!supabaseAdmin);
+const supabaseAdmin =
+  SUPABASE_URL && SUPABASE_SERVICE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    : null;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -38,92 +21,77 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientSecret: GOOGLE_CLIENT_SECRET ?? "",
     }),
     Credentials({
-      name: "credentials",
+      name: "otp",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        token: { label: "Verification Token", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.token) return null;
         if (!supabaseAdmin) return null;
 
-        const { data: user } = await supabaseAdmin
-          .from("users")
-          .select("id, email, password_hash")
+        // Verify the OTP session token (generated after OTP code is confirmed)
+        const { data: otpRow } = await supabaseAdmin
+          .from("email_otps")
+          .select("id, email, expires_at, used")
           .eq("email", credentials.email)
-          .eq("auth_provider", "credentials")
+          .eq("verification_token", credentials.token)
           .maybeSingle();
 
-        if (!user?.password_hash) return null;
-        if (!verifyPassword(credentials.password as string, user.password_hash)) return null;
+        if (!otpRow) return null;
+
+        // Token must not be used for session creation more than once
+        // and OTP must not be expired (we use a 15-min window from OTP expiry)
+        const tokenWindow = new Date(otpRow.expires_at);
+        tokenWindow.setMinutes(tokenWindow.getMinutes() + 15);
+        if (tokenWindow < new Date()) return null;
+
+        // Find the user
+        const { data: user } = await supabaseAdmin
+          .from("users")
+          .select("id, email")
+          .eq("email", credentials.email)
+          .maybeSingle();
+
+        if (!user) return null;
 
         return { id: user.id, email: user.email, name: user.email.split("@")[0] };
       },
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      console.log("🔍 SignIn callback:", { provider: account?.provider, email: user?.email });
-      
+    async signIn({ user, account }) {
       if (account?.provider === "google" && user?.email) {
-        console.log("🔍 Processing Google sign in for:", user.email);
-        
-        if (!supabaseAdmin) {
-          console.error("❌ Supabase admin is null - service key not configured");
-          return true;
-        }
+        if (!supabaseAdmin) return true;
 
         try {
-          // Check if user already exists
-          const { data: existingUser, error: checkError } = await supabaseAdmin
+          const { data: existingUser } = await supabaseAdmin
             .from("users")
             .select("id, email")
             .eq("email", user.email)
             .maybeSingle();
 
-          if (checkError) {
-            console.error("❌ Error checking existing user:", checkError);
-          }
-
-          if (existingUser) {
-            console.log("✅ User already exists in DB:", existingUser.id);
-            return true;
-          }
-
-          // Create new user
-          console.log("📝 Creating new user for:", user.email);
-          const { data: newUser, error: insertError } = await supabaseAdmin
-            .from("users")
-            .insert({
-              email: user.email,
-              auth_provider: "google",
-              email_verified: true,
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error("❌ Error inserting user:", insertError);
-          } else if (newUser) {
-            console.log("✅ User created:", newUser.id);
-
-            // Create profile
-            const { error: profileError } = await supabaseAdmin
-              .from("profiles")
+          if (!existingUser) {
+            const { data: newUser, error: insertError } = await supabaseAdmin
+              .from("users")
               .insert({
+                email: user.email,
+                auth_provider: "google",
+                email_verified: true,
+              })
+              .select()
+              .single();
+
+            if (!insertError && newUser) {
+              await supabaseAdmin.from("profiles").insert({
                 user_id: newUser.id,
                 full_name: user.name,
                 avatar_url: user.image,
               });
-
-            if (profileError) {
-              console.error("❌ Error creating profile:", profileError);
-            } else {
-              console.log("✅ Profile created");
             }
           }
         } catch (error) {
-          console.error("❌ Exception in signIn:", error);
+          console.error("Error in Google signIn callback:", error);
         }
       }
       return true;
@@ -142,8 +110,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   pages: {
-    signIn: "/partner/login",
-    error: "/partner/login",
+    signIn: "/auth/login",
+    error: "/auth/login",
   },
   session: {
     strategy: "jwt",
