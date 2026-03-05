@@ -44,6 +44,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Skip auth check on login page
+    if (pathname === '/admin/login') return;
+
     if (status === "unauthenticated") {
       router.push("/admin/login");
       return;
@@ -65,7 +68,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           router.push("/");
         });
     }
-  }, [status, router]);
+  }, [status, router, pathname]);
+
+  // Render login page without the admin sidebar/header wrapper
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   if (status === "loading" || isAdmin === null) {
     return (
