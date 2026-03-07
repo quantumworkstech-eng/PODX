@@ -97,8 +97,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true;
     },
     async jwt({ token, user, account }) {
-      // On first sign-in, fetch role from DB and store in token
-      if ((user || account) && supabaseAdmin) {
+      // Fetch role on first sign-in OR if role is missing from an existing token
+      if (supabaseAdmin && (user || account || !token.role)) {
         const email = user?.email || token.email;
         if (email) {
           const { data: dbUser } = await supabaseAdmin

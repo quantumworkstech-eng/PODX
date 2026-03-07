@@ -17,13 +17,17 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const hasChecked = useRef(false);
 
-  // If user is already signed in, send them to /admin (layout will check role)
+  // If already signed in WITH admin role in token → go straight to dashboard
   useEffect(() => {
     if (status === "authenticated" && !hasChecked.current) {
       hasChecked.current = true;
-      router.push("/admin");
+      const role = (session?.user as any)?.role;
+      if (role === "admin") {
+        router.push("/admin");
+      }
+      // No admin role in token → stay on login page, user signs in fresh to get new JWT
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
