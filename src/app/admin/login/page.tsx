@@ -62,12 +62,11 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ email, password, action: "set_password" }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
-      // Password set — now sign in
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
+      // Password set — now sign in (doSignIn handles its own errors + redirect)
       await doSignIn();
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -77,6 +76,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError("");
     await doSignIn();
+    // Only reached if doSignIn failed (on success, page navigates away)
     setLoading(false);
   };
 
@@ -90,7 +90,8 @@ export default function AdminLoginPage() {
       setError("Incorrect password. Please try again.");
       return;
     }
-    router.push("/admin");
+    // Hard redirect so the browser sends the fresh session cookie to middleware
+    window.location.href = "/admin";
   };
 
   return (
