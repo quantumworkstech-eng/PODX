@@ -23,7 +23,6 @@ export async function GET() {
     { data: monthRevenueData },
     { count: pendingApprovals },
     { count: pendingRefunds },
-    { count: pendingReschedule },
   ] = await Promise.all([
     supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
     supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('role', 'partner'),
@@ -34,8 +33,14 @@ export async function GET() {
     supabaseAdmin.from('payments').select('amount').eq('status', 'succeeded').gte('created_at', monthStart.toISOString()),
     supabaseAdmin.from('studios').select('*', { count: 'exact', head: true }).eq('review_status', 'pending_review'),
     supabaseAdmin.from('refunds').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabaseAdmin.from('booking_reschedule_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending').throwOnError().then(r => ({ count: r.count })).catch(() => ({ count: 0 })),
   ]);
+
+  // Fetch separately — table may not exist before migration
+  let pendingReschedule = 0;
+  try {
+    const { count } = await supabaseAdmin.from('booking_reschedule_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    pendingReschedule = count || 0;
+  } catch { /* table may not exist yet */ }
 
   const totalRevenue = (revenueData || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
   const revenueToday = (todayRevenueData || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
