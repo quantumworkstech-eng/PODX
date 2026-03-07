@@ -81,17 +81,19 @@ export default function AdminLoginPage() {
   };
 
   const doSignIn = async () => {
-    const result = await signIn("admin-password", {
-      email,
-      password,
-      redirect: false,
+    // Verify password via API first so we can show friendly errors in the UI
+    const checkRes = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, action: "verify" }),
     });
-    if (result?.error || !result?.ok) {
-      setError("Incorrect password. Please try again.");
+    if (!checkRes.ok) {
+      const data = await checkRes.json();
+      setError(data.error || "Incorrect password.");
       return;
     }
-    // Hard redirect so the browser sends the fresh session cookie to middleware
-    window.location.href = "/admin";
+    // Password correct — let NextAuth handle session + redirect natively
+    await signIn("admin-password", { email, password, callbackUrl: "/admin" });
   };
 
   return (
