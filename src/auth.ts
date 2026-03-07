@@ -96,15 +96,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
+    async jwt({ token, user, account }) {
+      // On first sign-in, fetch role from DB and store in token
+      if ((user || account) && supabaseAdmin) {
+        const email = user?.email || token.email;
+        if (email) {
+          const { data: dbUser } = await supabaseAdmin
+            .from("users")
+            .select("id, role")
+            .eq("email", email)
+            .maybeSingle();
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role || "user";
+          } else if (user?.id) {
+            token.id = user.id;
+          }
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.id) {
+      if (session.user) {
         (session.user as any).id = token.id as string;
+        (session.user as any).role = token.role as string;
       }
       return session;
     },

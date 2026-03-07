@@ -4,11 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 async function requireAdmin(email: string): Promise<{ ok: boolean; adminId?: string }> {
   if (!supabaseAdmin) return { ok: false };
-  const { data: user } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
-  if (!user) return { ok: false };
-  const { data: roleData } = await supabaseAdmin.from('user_roles').select('roles(name)').eq('user_id', user.id);
-  const isAdmin = (roleData || []).some((r: any) => r.roles?.name === 'admin');
-  return { ok: isAdmin, adminId: user.id };
+  const { data: user } = await supabaseAdmin.from('users').select('id, role').eq('email', email).maybeSingle();
+  return { ok: user?.role === 'admin', adminId: user?.id };
 }
 
 export async function PATCH(
@@ -37,19 +34,9 @@ export async function PATCH(
   }
 
   if (action === 'change_role' && role) {
-    // Find role ID
-    const { data: roleRow } = await supabaseAdmin
-      .from('roles')
-      .select('id')
-      .eq('name', role)
-      .maybeSingle();
-
-    if (!roleRow) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
-
-    // Remove existing roles, add new one
-    await supabaseAdmin.from('user_roles').delete().eq('user_id', id);
-    await supabaseAdmin.from('user_roles').insert({ user_id: id, role_id: roleRow.id });
-
+    const validRoles = ['user', 'partner', 'admin'];
+    if (!validRoles.includes(role)) return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    await supabaseAdmin.from('users').update({ role }).eq('id', id);
     return NextResponse.json({ success: true, message: 'Role updated' });
   }
 
@@ -70,7 +57,7 @@ export async function GET(
   const [{ data: user }, { data: bookings }] = await Promise.all([
     supabaseAdmin
       .from('users')
-      .select('id, email, auth_provider, email_verified, created_at, profiles(full_name, avatar_url, phone), user_roles(roles(name))')
+      .select('id, email, auth_provider, email_verified, created_at, role, profiles(full_name, avatar_url, phone)')
       .eq('id', id)
       .maybeSingle(),
     supabaseAdmin
@@ -86,7 +73,7 @@ export async function GET(
   return NextResponse.json({
     user: {
       ...user,
-      roles: (user.user_roles || []).map((r: any) => r.roles?.name).filter(Boolean),
+      roles: user.role ? [user.role] : [],
     },
     bookings: bookings || [],
   });

@@ -4,10 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 async function requireAdmin(email: string): Promise<boolean> {
   if (!supabaseAdmin) return false;
-  const { data: user } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
-  if (!user) return false;
-  const { data: roleData } = await supabaseAdmin.from('user_roles').select('roles(name)').eq('user_id', user.id);
-  return (roleData || []).some((r: any) => r.roles?.name === 'admin');
+  const { data: user } = await supabaseAdmin.from('users').select('id, role').eq('email', email).maybeSingle();
+  return user?.role === 'admin';
 }
 
 export async function GET(request: NextRequest) {
@@ -26,9 +24,8 @@ export async function GET(request: NextRequest) {
   let query = supabaseAdmin
     .from('users')
     .select(`
-      id, email, auth_provider, email_verified, created_at,
-      profiles(full_name, avatar_url, phone),
-      user_roles(roles(name))
+      id, email, auth_provider, email_verified, created_at, role,
+      profiles(full_name, avatar_url, phone)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -53,10 +50,9 @@ export async function GET(request: NextRequest) {
     full_name: u.profiles?.full_name || null,
     avatar_url: u.profiles?.avatar_url || null,
     phone: u.profiles?.phone || null,
-    roles: (u.user_roles || []).map((r: any) => r.roles?.name).filter(Boolean),
+    roles: u.role ? [u.role] : [],
   }));
 
-  // Filter by role client-side since joining is complex
   const filtered = role ? users.filter((u) => u.roles.includes(role)) : users;
 
   return NextResponse.json({ users: filtered, total: count || 0, page, limit });

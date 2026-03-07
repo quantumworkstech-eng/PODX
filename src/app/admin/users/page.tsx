@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import { Search, Shield, Ban, RefreshCw, ChevronDown, Eye, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const ROLES = ["all", "podcaster", "studio_owner", "admin", "editor"];
+const ROLES = ["all", "user", "partner", "admin"];
 
 const roleColors: Record<string, string> = {
   admin: "bg-red-500/10 text-red-400 border-red-500/20",
-  studio_owner: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  podcaster: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  editor: "bg-[#D9FC67]/10 text-[#D9FC67] border-[#D9FC67]/20",
+  partner: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  user: "bg-blue-500/10 text-blue-400 border-blue-500/20",
 };
 
 export default function AdminUsersPage() {
@@ -217,7 +216,7 @@ export default function AdminUsersPage() {
           <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
             <h3 className="text-white font-semibold mb-4">Change User Role</h3>
             <div className="space-y-2">
-              {["podcaster", "studio_owner", "admin", "editor"].map((role) => (
+              {["user", "partner", "admin"].map((role) => (
                 <button
                   key={role}
                   onClick={() => handleAction(showRoleModal, "change_role", role)}

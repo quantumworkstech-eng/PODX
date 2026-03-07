@@ -52,23 +52,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     if (status === "authenticated") {
-      // Verify admin role
-      fetch("/api/admin/check-role")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.isAdmin) {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-            router.push("/");
-          }
-        })
-        .catch(() => {
-          setIsAdmin(false);
-          router.push("/");
-        });
+      const role = (session?.user as any)?.role;
+      if (role === "admin") {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
     }
-  }, [status, router, pathname]);
+  }, [status, session, router, pathname]);
 
   // Render login page without the admin sidebar/header wrapper
   if (pathname === '/admin/login') {
