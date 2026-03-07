@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -58,6 +59,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return { id: user.id, email: user.email, name: user.email.split("@")[0] };
       },
     }),
+    // Admin password login — only for emails in admin_credentials table
+    Credentials({
+      id: "admin-password",
+      name: "admin-password",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        if (!supabaseAdmin) return null;
+
+        const { data: admin } = await supabaseAdmin
+          .from("admin_credentials")
+          .select("id, email, password_hash")
+          .eq("email", (credentials.email as string).toLowerCase().trim())
+          .maybeSingle();
+
+        if (!admin?.password_hash) return null;
+
+        const valid = await bcrypt.compare(credentials.password as string, admin.password_hash);
+        if (!valid) return null;
+
+        return { id: admin.id, email: admin.email, name: "Admin" };
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user, account }) {
@@ -97,6 +124,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true;
     },
     async jwt({ token, user, account }) {
+      // Admin password login — mark as admin directly
+      if (account?.provider === "admin-password") {
+        token.role = "admin";
+        token.id = user?.id;
+        return token;
+      }
       // Fetch role on first sign-in OR if role is missing from an existing token
       if (supabaseAdmin && (user || account || !token.role)) {
         const email = user?.email || token.email;
