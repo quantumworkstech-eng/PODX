@@ -4,7 +4,7 @@ import { signIn } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
 
-export async function adminSignIn(email: string, password: string): Promise<{ error: string } | never> {
+export async function adminSignIn(email: string, password: string): Promise<{ error: string } | void> {
   if (!supabaseAdmin) return { error: "DB not configured." };
 
   const { data: admin } = await supabaseAdmin
