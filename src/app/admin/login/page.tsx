@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Shield, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { adminSignIn } from "./actions";
 
 type Step = "email" | "set_password" | "enter_password";
 
@@ -81,19 +82,10 @@ export default function AdminLoginPage() {
   };
 
   const doSignIn = async () => {
-    // Verify password via API first so we can show friendly errors in the UI
-    const checkRes = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, action: "verify" }),
-    });
-    if (!checkRes.ok) {
-      const data = await checkRes.json();
-      setError(data.error || "Incorrect password.");
-      return;
-    }
-    // Password correct — let NextAuth handle session + redirect natively
-    await signIn("admin-password", { email, password, callbackUrl: "/admin" });
+    // Server action verifies password + calls server-side signIn → redirects to /admin
+    const result = await adminSignIn(email, password);
+    // If we get here, sign-in returned an error (success causes server-side redirect)
+    if (result?.error) setError(result.error);
   };
 
   return (

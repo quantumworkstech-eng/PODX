@@ -59,7 +59,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return { id: user.id, email: user.email, name: user.email.split("@")[0] };
       },
     }),
-    // Admin password login — only for emails in admin_credentials table
+    // Admin password login — credentials already verified by the server action before this runs
     Credentials({
       id: "admin-password",
       name: "admin-password",
@@ -71,6 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
         if (!supabaseAdmin) return null;
 
+        // Re-verify here as a security measure (server action already verified once)
         const { data: admin } = await supabaseAdmin
           .from("admin_credentials")
           .select("id, email, password_hash")
