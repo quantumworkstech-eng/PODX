@@ -4,7 +4,12 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Admin routes — verify session exists (skip for login page to avoid redirect loop)
+  // Pass pathname to server layouts via header
+  const response = NextResponse.next({
+    request: { headers: new Headers({ ...Object.fromEntries(request.headers), 'x-pathname': pathname }) },
+  });
+
+  // Admin routes — verify session exists (skip login page to avoid redirect loop)
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const token = await getToken({
       req: request,
@@ -16,7 +21,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
