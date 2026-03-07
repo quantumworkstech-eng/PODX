@@ -8,7 +8,7 @@ import {
   Star, UserCheck, BarChart3, Settings, LogOut, Menu, X, Shield, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { signOut } from "next-auth/react";
+import { adminSignOut } from "./login/actions";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
@@ -93,7 +93,7 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
           {/* Sign out */}
           <div className="p-4 border-t border-white/5">
             <button
-              onClick={() => signOut({ callbackUrl: "/admin/login" })}
+              onClick={() => adminSignOut()}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 transition-colors"
             >
               <LogOut className="w-5 h-5" />

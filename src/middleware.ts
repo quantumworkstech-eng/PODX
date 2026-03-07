@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { jwtVerify } from 'jose';
+
+const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'admin-fallback-secret');
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Pass pathname to server layouts via header
-  const response = NextResponse.next({
-    request: { headers: new Headers({ ...Object.fromEntries(request.headers), 'x-pathname': pathname }) },
-  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
 
-  // Admin routes — verify session exists (skip login page to avoid redirect loop)
+  // Admin routes — verify admin_session cookie (skip login page)
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
+    const adminToken = request.cookies.get('admin_session')?.value;
 
-    if (!token) {
+    if (!adminToken) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    try {
+      const { payload } = await jwtVerify(adminToken, secret);
+      if (payload.role !== 'admin') throw new Error('Not admin');
+    } catch {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
   }
 
-  return response;
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
