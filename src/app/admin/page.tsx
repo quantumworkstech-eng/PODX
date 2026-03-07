@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Building2, Calendar, DollarSign, Clock, AlertCircle, TrendingUp, CheckCircle } from "lucide-react";
+import {
+  Users, Building2, Calendar, DollarSign, Clock, AlertCircle,
+  TrendingUp, CheckCircle, UserCheck, RefreshCw, RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 
 interface Stats {
   totalUsers: number;
+  totalPartners: number;
   totalStudios: number;
   totalBookings: number;
   totalRevenue: number;
+  revenueToday: number;
+  revenueThisMonth: number;
   pendingApprovals: number;
   pendingRefunds: number;
+  pendingReschedule: number;
 }
 
 function StatCard({
@@ -72,6 +79,13 @@ export default function AdminDashboard() {
       href: "/admin/users",
     },
     {
+      icon: UserCheck,
+      label: "Total Partners",
+      value: stats?.totalPartners?.toLocaleString() ?? "—",
+      color: "bg-violet-500/10 text-violet-400",
+      href: "/admin/partners",
+    },
+    {
       icon: Building2,
       label: "Total Studios",
       value: stats?.totalStudios?.toLocaleString() ?? "—",
@@ -87,11 +101,19 @@ export default function AdminDashboard() {
     },
     {
       icon: DollarSign,
+      label: "Revenue Today",
+      value: `₹${(stats?.revenueToday ?? 0).toLocaleString("en-IN")}`,
+      sub: `₹${((stats?.revenueThisMonth ?? 0) / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} this month`,
+      color: "bg-green-500/10 text-green-400",
+      href: "/admin/payments",
+    },
+    {
+      icon: DollarSign,
       label: "Total Revenue",
       value: `₹${((stats?.totalRevenue ?? 0) / 100000).toFixed(1)}L`,
       sub: `₹${(stats?.totalRevenue ?? 0).toLocaleString("en-IN")} total`,
-      color: "bg-green-500/10 text-green-400",
-      href: "/admin/payments",
+      color: "bg-emerald-500/10 text-emerald-400",
+      href: "/admin/analytics",
     },
     {
       icon: Clock,
@@ -102,8 +124,16 @@ export default function AdminDashboard() {
       href: "/admin/studios?status=pending_review",
     },
     {
+      icon: RotateCcw,
+      label: "Reschedule Requests",
+      value: stats?.pendingReschedule ?? "—",
+      sub: "Awaiting admin approval",
+      color: "bg-cyan-500/10 text-cyan-400",
+      href: "/admin/bookings?tab=reschedule",
+    },
+    {
       icon: AlertCircle,
-      label: "Active Refund Requests",
+      label: "Refund Requests",
       value: stats?.pendingRefunds ?? "—",
       sub: "Refunds pending",
       color: "bg-red-500/10 text-red-400",
@@ -132,7 +162,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions + Platform Health */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-[#18181b] border border-white/5 rounded-2xl p-6">
           <h3 className="text-white font-semibold mb-4">Quick Actions</h3>
@@ -140,6 +170,10 @@ export default function AdminDashboard() {
             <Link href="/admin/studios?status=pending_review" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-white/60 hover:text-white transition-colors text-sm">
               <Clock className="w-4 h-4 text-orange-400" />
               Review pending studios ({stats?.pendingApprovals ?? 0})
+            </Link>
+            <Link href="/admin/bookings?tab=reschedule" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-white/60 hover:text-white transition-colors text-sm">
+              <RotateCcw className="w-4 h-4 text-cyan-400" />
+              Reschedule requests ({stats?.pendingReschedule ?? 0})
             </Link>
             <Link href="/admin/payments" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-white/60 hover:text-white transition-colors text-sm">
               <AlertCircle className="w-4 h-4 text-red-400" />
@@ -164,6 +198,7 @@ export default function AdminDashboard() {
               { label: "Payment Gateway (Razorpay)", status: "Operational", color: "bg-green-400" },
               { label: "Auth Service", status: "Operational", color: "bg-green-400" },
               { label: "Notification Service", status: "Operational", color: "bg-green-400" },
+              { label: "Storage (Supabase)", status: "Operational", color: "bg-green-400" },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                 <span className="text-white/60 text-sm">{item.label}</span>

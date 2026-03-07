@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Calendar, CreditCard,
   Star, UserCheck, BarChart3, Settings, LogOut, Menu, X, Shield, ChevronDown,
+  Package, Bell, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminSignOut } from "./login/actions";
@@ -13,12 +14,15 @@ import { adminSignOut } from "./login/actions";
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
   { id: "users", label: "Users", icon: Users, href: "/admin/users" },
+  { id: "partners", label: "Partners", icon: UserCheck, href: "/admin/partners" },
   { id: "studios", label: "Studios", icon: Building2, href: "/admin/studios" },
   { id: "bookings", label: "Bookings", icon: Calendar, href: "/admin/bookings" },
   { id: "payments", label: "Payments", icon: CreditCard, href: "/admin/payments" },
   { id: "reviews", label: "Reviews", icon: Star, href: "/admin/reviews" },
-  { id: "partners", label: "Partners", icon: UserCheck, href: "/admin/partners" },
+  { id: "addons", label: "Add-ons", icon: Package, href: "/admin/addons" },
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
+  { id: "notifications", label: "Notifications", icon: Bell, href: "/admin/notifications" },
+  { id: "admins", label: "Admins", icon: ShieldCheck, href: "/admin/admins" },
   { id: "settings", label: "Settings", icon: Settings, href: "/admin/settings" },
 ];
 
