@@ -151,41 +151,38 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate }
             <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                <Calendar className="w-4 h-4 text-green-400" />
-              </div>
-              <div>
-                <p className="text-white text-sm">Booking confirmed</p>
-                <p className="text-white/40 text-xs mt-1">
-                  Nest Studio • {new Date().toLocaleDateString()}
-                </p>
-              </div>
+          {upcomingBookings.length === 0 && pastBookings.length === 0 ? (
+            <p className="text-white/40 text-sm text-center py-8">No activity yet</p>
+          ) : (
+            <div className="space-y-4">
+              {upcomingBookings.slice(0, 2).map((b) => (
+                <div key={b.id} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-white text-sm">Booking confirmed</p>
+                    <p className="text-white/40 text-xs mt-1">
+                      {b.studio.name} • {new Date(b.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {pastBookings.slice(0, 2).map((b) => (
+                <div key={b.id} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-white text-sm">Session completed</p>
+                    <p className="text-white/40 text-xs mt-1">
+                      {b.studio.name} • ₹{b.totalPrice.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <IndianRupee className="w-4 h-4 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-white text-sm">Payment received</p>
-                <p className="text-white/40 text-xs mt-1">₹11,000 • 2 days ago</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <Clock className="w-4 h-4 text-purple-400" />
-              </div>
-              <div>
-                <p className="text-white text-sm">Session completed</p>
-                <p className="text-white/40 text-xs mt-1">
-                  Eden Studio • 10 days ago
-                </p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
