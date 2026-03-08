@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Search, CheckCircle, XCircle, PauseCircle, RefreshCw, Building2,
   Pencil, Trash2, Play, X, Save, Check, Mic, Music, Video, Lightbulb,
-  Volume2, Monitor, Wifi, Car, Coffee, MapPin, Plus,
+  Volume2, Monitor, MapPin, Plus,
 } from "lucide-react";
 
 const STATUS_FILTERS = [
@@ -25,7 +25,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   deleted: { label: "Deleted", color: "bg-white/5 text-white/30 border-white/10" },
 };
 
-const EQUIPMENT_OPTIONS = [
+const EQUIPMENT_DISPLAY = [
   { id: "microphones", name: "Professional Microphones", icon: Mic },
   { id: "headphones", name: "Studio Headphones", icon: Music },
   { id: "cameras", name: "Video Cameras", icon: Video },
@@ -34,13 +34,6 @@ const EQUIPMENT_OPTIONS = [
   { id: "soundproofing", name: "Soundproofing", icon: Volume2 },
   { id: "teleprompter", name: "Teleprompter", icon: Monitor },
   { id: "monitor", name: "Reference Monitors", icon: Monitor },
-];
-
-const AMENITIES_OPTIONS = [
-  { id: "wifi", name: "Free WiFi", icon: Wifi },
-  { id: "ac", name: "Air Conditioning", icon: Building2 },
-  { id: "parking", name: "Parking", icon: Car },
-  { id: "refreshments", name: "Refreshments", icon: Coffee },
 ];
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -61,8 +54,8 @@ interface StudioDetail {
   policies: any[];
 }
 
-function InputField({ label, value, onChange, type = "text", disabled = false }: {
-  label: string; value: any; onChange: (v: string) => void; type?: string; disabled?: boolean;
+function InputField({ label, value, onChange, type = "text" }: {
+  label: string; value: any; onChange: (v: string) => void; type?: string;
 }) {
   return (
     <div>
@@ -71,8 +64,7 @@ function InputField({ label, value, onChange, type = "text", disabled = false }:
         type={type}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20 disabled:opacity-50"
+        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
       />
     </div>
   );
@@ -109,11 +101,11 @@ export default function AdminStudiosPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editData, setEditData] = useState<StudioDetail | null>(null);
   const [activeSection, setActiveSection] = useState("basic");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Edit form state
   const [editFields, setEditFields] = useState<Record<string, any>>({});
-  const [editEquipment, setEditEquipment] = useState<string[]>([]);
-  const [editAmenities, setEditAmenities] = useState<string[]>([]);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]); // UUIDs
   const [editAvailableDays, setEditAvailableDays] = useState<string[]>([]);
   const [editWorkingHours, setEditWorkingHours] = useState({ start: "09:00", end: "21:00" });
   const [editPolicies, setEditPolicies] = useState<{ cancellation: any[]; reschedule: any[] }>({ cancellation: [], reschedule: [] });
@@ -158,6 +150,7 @@ export default function AdminStudiosPage() {
     setEditOpen(true);
     setEditLoading(true);
     setActiveSection("basic");
+    setSaveError(null);
     const res = await fetch(`/api/admin/studios/${studioId}`);
     const data: StudioDetail = await res.json();
     setEditData(data);
@@ -167,7 +160,7 @@ export default function AdminStudiosPage() {
       name: s.name || "",
       description: s.description || "",
       short_description: s.short_description || "",
-      capacity: s.capacity || "",
+      capacity: s.capacity || s.rooms?.[0]?.capacity || "",
       address: s.address || "",
       city: s.city || "",
       state: s.state || "",
@@ -175,57 +168,30 @@ export default function AdminStudiosPage() {
       latitude: s.latitude || "",
       longitude: s.longitude || "",
       price_per_hour: s.price_per_hour || (data.rooms?.[0]?.price_per_hour) || "",
-      discount_percent: s.discount_percent || "",
     });
 
-    // Equipment from rooms or studio
-    const equipmentFromRooms = (data.rooms || []).flatMap((r: any) =>
-      (r.room_equipment || []).map((re: any) => re.equipment?.name?.toLowerCase() || "")
-    );
-    const studioEquipment = s.equipment || [];
-    setEditEquipment(
-      [...new Set([...studioEquipment, ...equipmentFromRooms])].filter(Boolean)
-    );
-
-    // Amenities
-    const studioAmenityNames = (data.studioAmenities || []).map((a: any) =>
-      (a.name || "").toLowerCase()
-    );
-    setEditAmenities(s.amenities || studioAmenityNames || []);
+    // Amenities — UUIDs from DB
+    setSelectedAmenities((data.studioAmenities || []).map((a: any) => a.id).filter(Boolean));
 
     // Working hours & available days from studio_hours
+    const dayMap: Record<number, string> = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
     const activeHours = (data.hours || []).filter((h: any) => !h.is_closed);
     if (activeHours.length > 0) {
-      setEditWorkingHours({
-        start: activeHours[0]?.open_time || "09:00",
-        end: activeHours[0]?.close_time || "21:00",
-      });
+      setEditWorkingHours({ start: activeHours[0]?.open_time || "09:00", end: activeHours[0]?.close_time || "21:00" });
     } else {
-      setEditWorkingHours({ start: s.working_hours_start || "09:00", end: s.working_hours_end || "21:00" });
+      setEditWorkingHours({ start: "09:00", end: "21:00" });
     }
-
-    // Map day_of_week (0=Sun) to day names
-    const dayMap: Record<number, string> = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
-    const activeDays = (data.hours || [])
-      .filter((h: any) => !h.is_closed)
-      .map((h: any) => dayMap[h.day_of_week])
-      .filter(Boolean);
-    setEditAvailableDays(activeDays.length > 0 ? activeDays : (s.available_days || DAYS.slice(0, 5)));
+    const activeDays = (data.hours || []).filter((h: any) => !h.is_closed).map((h: any) => dayMap[h.day_of_week]).filter(Boolean);
+    setEditAvailableDays(activeDays.length > 0 ? activeDays : ["Mon", "Tue", "Wed", "Thu", "Fri"]);
 
     // Policies
     const hasPolicies = (data.policies || []).length > 0;
     setUseCustomPolicies(hasPolicies);
     setEditPolicies({
       cancellation: hasPolicies
-        ? data.policies.map((p: any) => ({
-            id: p.id || crypto.randomUUID(),
-            type: (p.hours_before || 0) >= 24 ? "hours" : "hours",
-            value: p.hours_before || 0,
-            refundPercent: p.refund_percentage || 0,
-            deductionPercent: 100 - (p.refund_percentage || 0),
-          }))
-        : [{ id: crypto.randomUUID(), type: "hours", value: 48, refundPercent: 100, deductionPercent: 0 }],
-      reschedule: s.reschedule_rules || [{ id: crypto.randomUUID(), type: "hours", value: 24, deductionPercent: 0 }],
+        ? data.policies.map((p: any) => ({ id: p.id || crypto.randomUUID(), type: "hours", value: p.hours_before || 0, refundPercent: p.refund_percentage || 0 }))
+        : [{ id: crypto.randomUUID(), type: "hours", value: 48, refundPercent: 100 }],
+      reschedule: [{ id: crypto.randomUUID(), type: "hours", value: 24, deductionPercent: 0 }],
     });
 
     setEditLoading(false);
@@ -234,8 +200,9 @@ export default function AdminStudiosPage() {
   const saveEdit = async () => {
     if (!editData) return;
     setEditSaving(true);
+    setSaveError(null);
 
-    // Map available days back to studio_hours format
+    // Map available days to studio_hours format
     const dayNameToNum: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
     const hoursData = Object.entries(dayNameToNum).map(([name, num]) => ({
       day_of_week: num,
@@ -244,7 +211,6 @@ export default function AdminStudiosPage() {
       is_closed: !editAvailableDays.includes(name),
     }));
 
-    // Map policies
     const policyUpdates = useCustomPolicies
       ? editPolicies.cancellation.map((p) => ({
           hours_before: Number(p.value),
@@ -253,35 +219,44 @@ export default function AdminStudiosPage() {
         }))
       : [];
 
-    await fetch(`/api/admin/studios/${editData.studio.id}`, {
+    const res = await fetch(`/api/admin/studios/${editData.studio.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         studioFields: {
-          ...editFields,
+          name: editFields.name,
+          short_description: editFields.short_description,
+          description: editFields.description,
+          address: editFields.address,
+          city: editFields.city,
+          state: editFields.state,
+          country: editFields.country,
+          latitude: editFields.latitude ? Number(editFields.latitude) : null,
+          longitude: editFields.longitude ? Number(editFields.longitude) : null,
           price_per_hour: Number(editFields.price_per_hour) || 0,
-          discount_percent: Number(editFields.discount_percent) || 0,
           capacity: Number(editFields.capacity) || 0,
-          equipment: editEquipment,
-          amenities: editAmenities,
-          available_days: editAvailableDays,
-          working_hours_start: editWorkingHours.start,
-          working_hours_end: editWorkingHours.end,
         },
+        amenityIds: selectedAmenities,
         hoursData,
         policyUpdates,
       }),
     });
+
+    const result = await res.json();
     setEditSaving(false);
+
+    if (!res.ok) {
+      setSaveError(result.error || "Failed to save");
+      return;
+    }
+
     setEditOpen(false);
     fetchStudios();
   };
 
   const setField = (key: string, value: any) => setEditFields((f) => ({ ...f, [key]: value }));
-  const toggleEquipment = (id: string) =>
-    setEditEquipment((eq) => eq.includes(id) ? eq.filter((e) => e !== id) : [...eq, id]);
   const toggleAmenity = (id: string) =>
-    setEditAmenities((am) => am.includes(id) ? am.filter((a) => a !== id) : [...am, id]);
+    setSelectedAmenities((ids) => ids.includes(id) ? ids.filter((a) => a !== id) : [...ids, id]);
   const toggleDay = (day: string) =>
     setEditAvailableDays((days) => days.includes(day) ? days.filter((d) => d !== day) : [...days, day]);
 
@@ -289,7 +264,6 @@ export default function AdminStudiosPage() {
     { id: "basic", label: "Basic Info" },
     { id: "location", label: "Location" },
     { id: "pricing", label: "Pricing & Availability" },
-    { id: "equipment", label: "Equipment" },
     { id: "amenities", label: "Amenities" },
     { id: "photos", label: "Photos" },
     { id: "policies", label: "Policies" },
@@ -374,12 +348,8 @@ export default function AdminStudiosPage() {
                         <p className="text-white/60 text-sm">{studio.owner_name || studio.owner_email}</p>
                         <p className="text-white/30 text-xs">{studio.owner_email}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-white/50 text-sm">{studio.city}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-white font-medium text-sm">₹{studio.price_per_hour}/hr</span>
-                      </td>
+                      <td className="px-6 py-4"><span className="text-white/50 text-sm">{studio.city}</span></td>
+                      <td className="px-6 py-4"><span className="text-white font-medium text-sm">₹{studio.price_per_hour}/hr</span></td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs border ${cfg.color}`}>{cfg.label}</span>
                       </td>
@@ -394,7 +364,7 @@ export default function AdminStudiosPage() {
                             </button>
                           )}
                           {studio.review_status === "approved" && (
-                            <button onClick={() => handleAction(studio.id, "pause")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Pause Listing">
+                            <button onClick={() => handleAction(studio.id, "pause")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Pause">
                               {actionLoading === `${studio.id}-pause` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
                             </button>
                           )}
@@ -414,7 +384,7 @@ export default function AdminStudiosPage() {
                             </button>
                           )}
                           {studio.review_status !== "deleted" && (
-                            <button onClick={() => setDeleteId(studio.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Delete Studio">
+                            <button onClick={() => setDeleteId(studio.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Delete">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}
@@ -470,6 +440,12 @@ export default function AdminStudiosPage() {
                   </div>
                 </div>
 
+                {saveError && (
+                  <div className="mx-6 mt-4 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                    {saveError}
+                  </div>
+                )}
+
                 {/* Section tabs */}
                 <div className="px-6 py-3 border-b border-white/5 flex gap-1 overflow-x-auto">
                   {EDIT_SECTIONS.map((s) => (
@@ -477,9 +453,7 @@ export default function AdminStudiosPage() {
                       key={s.id}
                       onClick={() => setActiveSection(s.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                        activeSection === s.id
-                          ? "bg-white/10 text-white"
-                          : "text-white/40 hover:text-white hover:bg-white/5"
+                        activeSection === s.id ? "bg-white/10 text-white" : "text-white/40 hover:text-white hover:bg-white/5"
                       }`}
                     >
                       {s.label}
@@ -522,10 +496,7 @@ export default function AdminStudiosPage() {
                   {/* ── PRICING & AVAILABILITY ── */}
                   {activeSection === "pricing" && (
                     <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Price per Hour (₹)" value={editFields.price_per_hour} onChange={(v) => setField("price_per_hour", v)} type="number" />
-                        <InputField label="Discount (%)" value={editFields.discount_percent} onChange={(v) => setField("discount_percent", v)} type="number" />
-                      </div>
+                      <InputField label="Price per Hour (₹)" value={editFields.price_per_hour} onChange={(v) => setField("price_per_hour", v)} type="number" />
 
                       <div className="border-t border-white/5 pt-4 mt-4">
                         <label className="text-white/40 text-xs uppercase tracking-wider block mb-3">Working Hours</label>
@@ -574,75 +545,42 @@ export default function AdminStudiosPage() {
                     </>
                   )}
 
-                  {/* ── EQUIPMENT ── */}
-                  {activeSection === "equipment" && (
-                    <>
-                      <p className="text-white/40 text-xs mb-3">Select equipment available at this studio</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        {EQUIPMENT_OPTIONS.map((eq) => {
-                          const selected = editEquipment.includes(eq.id);
-                          return (
-                            <button
-                              key={eq.id}
-                              onClick={() => toggleEquipment(eq.id)}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
-                                selected
-                                  ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
-                                  : "bg-white/[0.02] border-white/5 hover:border-white/10"
-                              }`}
-                            >
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                selected ? "bg-[#D9FC67]/20" : "bg-white/5"
-                              }`}>
-                                <eq.icon className={`w-4 h-4 ${selected ? "text-[#D9FC67]" : "text-white/30"}`} />
-                              </div>
-                              <div>
-                                <p className={`text-sm font-medium ${selected ? "text-[#D9FC67]" : "text-white/50"}`}>{eq.name}</p>
-                              </div>
-                              {selected && (
-                                <div className="ml-auto">
-                                  <Check className="w-4 h-4 text-[#D9FC67]" />
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-
-                  {/* ── AMENITIES ── */}
+                  {/* ── AMENITIES — uses DB amenities with UUIDs ── */}
                   {activeSection === "amenities" && (
                     <>
-                      <p className="text-white/40 text-xs mb-3">Select amenities available at this studio</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        {AMENITIES_OPTIONS.map((am) => {
-                          const selected = editAmenities.includes(am.id);
-                          return (
-                            <button
-                              key={am.id}
-                              onClick={() => toggleAmenity(am.id)}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
-                                selected
-                                  ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
-                                  : "bg-white/[0.02] border-white/5 hover:border-white/10"
-                              }`}
-                            >
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                selected ? "bg-[#D9FC67]/20" : "bg-white/5"
-                              }`}>
-                                <am.icon className={`w-4 h-4 ${selected ? "text-[#D9FC67]" : "text-white/30"}`} />
-                              </div>
-                              <p className={`text-sm font-medium ${selected ? "text-[#D9FC67]" : "text-white/50"}`}>{am.name}</p>
-                              {selected && (
-                                <div className="ml-auto">
-                                  <Check className="w-4 h-4 text-[#D9FC67]" />
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {(editData.allAmenities || []).length === 0 ? (
+                        <p className="text-white/40 text-sm py-8 text-center">No amenities configured in the system</p>
+                      ) : (
+                        <>
+                          <p className="text-white/40 text-xs mb-3">Select amenities available at this studio</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(editData.allAmenities || []).map((a: any) => {
+                              const selected = selectedAmenities.includes(a.id);
+                              return (
+                                <button
+                                  key={a.id}
+                                  onClick={() => toggleAmenity(a.id)}
+                                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                                    selected
+                                      ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
+                                      : "bg-white/[0.02] border-white/5 hover:border-white/10"
+                                  }`}
+                                >
+                                  <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                                    selected ? "bg-[#D9FC67] border-[#D9FC67]" : "border-white/20"
+                                  }`}>
+                                    {selected && <Check className="w-3 h-3 text-black" />}
+                                  </div>
+                                  <div>
+                                    <p className={`text-sm font-medium ${selected ? "text-[#D9FC67]" : "text-white/50"}`}>{a.name}</p>
+                                    {a.category && <p className="text-white/30 text-xs capitalize">{a.category}</p>}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
 
@@ -655,11 +593,10 @@ export default function AdminStudiosPage() {
                       ) : (
                         <div className="grid grid-cols-3 gap-3">
                           {editData.images.map((img: any, idx: number) => (
-                            <div key={img.id} className="relative group rounded-xl overflow-hidden border border-white/5">
+                            <div key={img.id} className="relative rounded-xl overflow-hidden border border-white/5">
                               <img src={img.image_url} alt={img.caption || `Image ${idx + 1}`} className="w-full h-32 object-cover" />
                               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                                 <p className="text-white text-xs truncate">{img.caption || `Image ${idx + 1}`}</p>
-                                <p className="text-white/40 text-[10px]">Order: {img.display_order}</p>
                               </div>
                             </div>
                           ))}
@@ -671,9 +608,9 @@ export default function AdminStudiosPage() {
                   {/* ── POLICIES ── */}
                   {activeSection === "policies" && (
                     <div className="space-y-4">
-                      {/* Custom policies toggle */}
                       <label className="flex items-center gap-3 cursor-pointer">
-                        <div className={`w-10 h-5 rounded-full relative transition-colors ${useCustomPolicies ? "bg-[#D9FC67]" : "bg-white/10"}`}
+                        <div
+                          className={`w-10 h-5 rounded-full relative transition-colors ${useCustomPolicies ? "bg-[#D9FC67]" : "bg-white/10"}`}
                           onClick={() => setUseCustomPolicies(!useCustomPolicies)}
                         >
                           <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${useCustomPolicies ? "translate-x-5" : "translate-x-0.5"}`} />
@@ -681,145 +618,55 @@ export default function AdminStudiosPage() {
                         <span className="text-white/60 text-sm">Use custom cancellation policies</span>
                       </label>
 
-                      {useCustomPolicies && (
-                        <>
-                          {/* Cancellation Rules */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium">Cancellation Rules</h4>
-                              <button
-                                onClick={() => setEditPolicies((p) => ({
-                                  ...p,
-                                  cancellation: [...p.cancellation, { id: crypto.randomUUID(), type: "hours", value: 0, refundPercent: 0, deductionPercent: 100 }],
-                                }))}
-                                className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-lg text-xs transition-colors"
-                              >
-                                <Plus className="w-3 h-3" /> Add Rule
-                              </button>
-                            </div>
-                            {editPolicies.cancellation.map((rule, idx) => (
-                              <div key={rule.id} className="bg-white/[0.03] rounded-xl p-4 border border-white/5 space-y-3">
-                                <div className="grid grid-cols-4 gap-3 items-end">
-                                  <div>
-                                    <label className="text-white/40 text-xs block mb-1">Time Unit</label>
-                                    <select
-                                      value={rule.type}
-                                      onChange={(e) => {
-                                        const updated = [...editPolicies.cancellation];
-                                        updated[idx] = { ...updated[idx], type: e.target.value };
-                                        setEditPolicies((p) => ({ ...p, cancellation: updated }));
-                                      }}
-                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
-                                    >
-                                      <option value="hours">Hours</option>
-                                      <option value="days">Days</option>
-                                    </select>
-                                  </div>
-                                  <InputField
-                                    label="Before Booking"
-                                    value={rule.value}
-                                    onChange={(v) => {
-                                      const updated = [...editPolicies.cancellation];
-                                      updated[idx] = { ...updated[idx], value: Number(v) };
-                                      setEditPolicies((p) => ({ ...p, cancellation: updated }));
-                                    }}
-                                    type="number"
-                                  />
-                                  <InputField
-                                    label="Refund %"
-                                    value={rule.refundPercent}
-                                    onChange={(v) => {
-                                      const updated = [...editPolicies.cancellation];
-                                      updated[idx] = { ...updated[idx], refundPercent: Number(v), deductionPercent: 100 - Number(v) };
-                                      setEditPolicies((p) => ({ ...p, cancellation: updated }));
-                                    }}
-                                    type="number"
-                                  />
-                                  <button
-                                    onClick={() => setEditPolicies((p) => ({
-                                      ...p,
-                                      cancellation: p.cancellation.filter((_, i) => i !== idx),
-                                    }))}
-                                    className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-colors self-end"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                      {useCustomPolicies ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium">Cancellation Rules</h4>
+                            <button
+                              onClick={() => setEditPolicies((p) => ({ ...p, cancellation: [...p.cancellation, { id: crypto.randomUUID(), type: "hours", value: 0, refundPercent: 0 }] }))}
+                              className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-lg text-xs transition-colors"
+                            >
+                              <Plus className="w-3 h-3" /> Add Rule
+                            </button>
                           </div>
-
-                          {/* Reschedule Rules */}
-                          <div className="space-y-3 border-t border-white/5 pt-4">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium">Reschedule Rules</h4>
-                              <button
-                                onClick={() => setEditPolicies((p) => ({
-                                  ...p,
-                                  reschedule: [...p.reschedule, { id: crypto.randomUUID(), type: "hours", value: 0, deductionPercent: 0 }],
-                                }))}
-                                className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-lg text-xs transition-colors"
-                              >
-                                <Plus className="w-3 h-3" /> Add Rule
-                              </button>
-                            </div>
-                            {editPolicies.reschedule.map((rule, idx) => (
-                              <div key={rule.id} className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
-                                <div className="grid grid-cols-4 gap-3 items-end">
-                                  <div>
-                                    <label className="text-white/40 text-xs block mb-1">Time Unit</label>
-                                    <select
-                                      value={rule.type}
-                                      onChange={(e) => {
-                                        const updated = [...editPolicies.reschedule];
-                                        updated[idx] = { ...updated[idx], type: e.target.value };
-                                        setEditPolicies((p) => ({ ...p, reschedule: updated }));
-                                      }}
-                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
-                                    >
-                                      <option value="hours">Hours</option>
-                                      <option value="days">Days</option>
-                                    </select>
-                                  </div>
-                                  <InputField
-                                    label="Before Booking"
-                                    value={rule.value}
-                                    onChange={(v) => {
-                                      const updated = [...editPolicies.reschedule];
-                                      updated[idx] = { ...updated[idx], value: Number(v) };
-                                      setEditPolicies((p) => ({ ...p, reschedule: updated }));
+                          {editPolicies.cancellation.map((rule, idx) => (
+                            <div key={rule.id} className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                              <div className="grid grid-cols-4 gap-3 items-end">
+                                <div>
+                                  <label className="text-white/40 text-xs block mb-1">Unit</label>
+                                  <select
+                                    value={rule.type}
+                                    onChange={(e) => {
+                                      const u = [...editPolicies.cancellation]; u[idx] = { ...u[idx], type: e.target.value };
+                                      setEditPolicies((p) => ({ ...p, cancellation: u }));
                                     }}
-                                    type="number"
-                                  />
-                                  <InputField
-                                    label="Deduction %"
-                                    value={rule.deductionPercent}
-                                    onChange={(v) => {
-                                      const updated = [...editPolicies.reschedule];
-                                      updated[idx] = { ...updated[idx], deductionPercent: Number(v) };
-                                      setEditPolicies((p) => ({ ...p, reschedule: updated }));
-                                    }}
-                                    type="number"
-                                  />
-                                  <button
-                                    onClick={() => setEditPolicies((p) => ({
-                                      ...p,
-                                      reschedule: p.reschedule.filter((_, i) => i !== idx),
-                                    }))}
-                                    className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-colors self-end"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
                                   >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                    <option value="hours">Hours</option>
+                                    <option value="days">Days</option>
+                                  </select>
                                 </div>
+                                <InputField label="Before Booking" value={rule.value} onChange={(v) => {
+                                  const u = [...editPolicies.cancellation]; u[idx] = { ...u[idx], value: v };
+                                  setEditPolicies((p) => ({ ...p, cancellation: u }));
+                                }} type="number" />
+                                <InputField label="Refund %" value={rule.refundPercent} onChange={(v) => {
+                                  const u = [...editPolicies.cancellation]; u[idx] = { ...u[idx], refundPercent: v };
+                                  setEditPolicies((p) => ({ ...p, cancellation: u }));
+                                }} type="number" />
+                                <button
+                                  onClick={() => setEditPolicies((p) => ({ ...p, cancellation: p.cancellation.filter((_, i) => i !== idx) }))}
+                                  className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-colors self-end"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-
-                      {!useCustomPolicies && (
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
                         <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
-                          <p className="text-white/40 text-sm">Using platform default cancellation policies:</p>
+                          <p className="text-white/40 text-sm">Using platform default policies:</p>
                           <ul className="mt-2 space-y-1 text-white/50 text-xs">
                             <li>• 48+ hours before: Full refund</li>
                             <li>• 24-48 hours before: 50% refund</li>
@@ -841,9 +688,7 @@ export default function AdminStudiosPage() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-sm p-6">
             <h3 className="text-white font-semibold mb-2">Delete Studio</h3>
-            <p className="text-white/50 text-sm mb-6">
-              This will deactivate the studio and notify the owner. This action is irreversible.
-            </p>
+            <p className="text-white/50 text-sm mb-6">This will deactivate the studio and notify the owner. Irreversible.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm transition-colors">Cancel</button>
               <button

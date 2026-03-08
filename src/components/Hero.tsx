@@ -72,17 +72,25 @@ export function Hero() {
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-4">
-              <Link href="#studios">
-                <Button 
-                  size="lg" 
+              <Link href="/studios">
+                <Button
+                  size="lg"
                   className="px-10 py-6 text-base font-semibold bg-[#D9FC67] hover:bg-[#E8FF8A] border-0 rounded-full text-black shadow-lg shadow-[#D9FC67]/25 hover:shadow-[#D9FC67]/40 transition-all hover:scale-105"
                 >
-                  Book Your Studio
+                  Browse Studios
                 </Button>
               </Link>
-              <Link href="#contact">
-                <Button 
-                  variant="outline" 
+              <Link href="/book">
+                <Button
+                  size="lg"
+                  className="px-10 py-6 text-base font-semibold bg-white text-black hover:bg-white/90 border-0 rounded-full transition-all hover:scale-105"
+                >
+                  Book a Session
+                </Button>
+              </Link>
+              <Link href="/contact">
+                <Button
+                  variant="outline"
                   size="lg"
                   className="px-10 py-6 text-base font-semibold bg-white/5 backdrop-blur-sm border border-white/30 text-white hover:bg-white/15 hover:border-white/50 rounded-full transition-all"
                 >

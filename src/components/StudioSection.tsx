@@ -120,8 +120,8 @@ export function StudioSection() {
 
               {/* Book Now Button */}
               <div className="absolute bottom-8 right-8">
-                <Link href={`/studio/${currentStudio.slug}`}>
-                  <Button 
+                <Link href="/book">
+                  <Button
                     size="lg"
                     className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 rounded-full text-black"
                   >

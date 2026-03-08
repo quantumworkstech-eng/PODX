@@ -26,21 +26,21 @@ export function Footer() {
             We have answers. Tell us what you want to know!
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="#contact">
-              <Button 
+            <Link href="/contact">
+              <Button
                 size="lg"
                 className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 rounded-full text-black"
               >
                 Contact Us
               </Button>
             </Link>
-            <Link href="#studios">
-              <Button 
+            <Link href="/studios">
+              <Button
                 variant="outline"
                 size="lg"
                 className="px-10 py-6 text-base font-semibold bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white rounded-full"
               >
-                Book a Studio
+                Browse Studios
               </Button>
             </Link>
           </div>

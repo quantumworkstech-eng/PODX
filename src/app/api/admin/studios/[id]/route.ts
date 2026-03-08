@@ -29,7 +29,7 @@ export async function GET(
       .single(),
     supabaseAdmin
       .from('rooms')
-      .select('*, room_equipment(quantity, equipment(id, name, category, brand, model))')
+      .select('id, name, price_per_hour, capacity, is_active, description')
       .eq('studio_id', id)
       .order('created_at'),
     supabaseAdmin
@@ -61,15 +61,20 @@ export async function GET(
     return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
   }
 
+  // Get the primary room for price/capacity
+  const primaryRoom = (rooms || [])[0] || null;
+
   return NextResponse.json({
     studio: {
       ...studio,
       owner_email: studio.users?.email || '',
       owner_name: studio.users?.profiles?.full_name || '',
+      price_per_hour: primaryRoom?.price_per_hour || 0,
+      capacity: primaryRoom?.capacity || 0,
     },
     rooms: rooms || [],
     images: images || [],
-    studioAmenities: (studioAmenities || []).map((sa: any) => sa.amenities),
+    studioAmenities: (studioAmenities || []).map((sa: any) => sa.amenities).filter(Boolean),
     allAmenities: allAmenities || [],
     hours: hours || [],
     policies: policies || [],
@@ -109,7 +114,6 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: 'Failed to update studio' }, { status: 500 });
 
-    // Notify studio owner
     const { data: studio } = await supabaseAdmin
       .from('studios')
       .select('owner_id, name')
@@ -118,36 +122,15 @@ export async function PATCH(
 
     if (studio?.owner_id) {
       const messages: Record<string, { type: string; title: string; content: string }> = {
-        approve: {
-          type: 'studio_approved',
-          title: 'Studio Approved!',
-          content: `Your studio "${studio.name}" has been approved and is now live.`,
-        },
-        reject: {
-          type: 'studio_rejected',
-          title: 'Studio Rejected',
-          content: `Your studio "${studio.name}" was not approved. Please contact support for details.`,
-        },
-        suspend: {
-          type: 'studio_suspended',
-          title: 'Studio Suspended',
-          content: `Your studio "${studio.name}" has been suspended. Contact support for more info.`,
-        },
-        pause: {
-          type: 'studio_paused',
-          title: 'Studio Paused',
-          content: `Your studio "${studio.name}" listing has been temporarily paused by admin.`,
-        },
+        approve: { type: 'studio_approved', title: 'Studio Approved!', content: `Your studio "${studio.name}" has been approved and is now live.` },
+        reject: { type: 'studio_rejected', title: 'Studio Rejected', content: `Your studio "${studio.name}" was not approved. Please contact support.` },
+        suspend: { type: 'studio_suspended', title: 'Studio Suspended', content: `Your studio "${studio.name}" has been suspended.` },
+        pause: { type: 'studio_paused', title: 'Studio Paused', content: `Your studio "${studio.name}" has been temporarily paused.` },
       };
-
       const msg = messages[action];
       if (msg) {
         await supabaseAdmin.from('notifications').insert({
-          user_id: studio.owner_id,
-          type: msg.type,
-          title: msg.title,
-          content: msg.content,
-          action_url: '/partner/studios',
+          user_id: studio.owner_id, type: msg.type, title: msg.title, content: msg.content, action_url: '/partner/studios',
         });
       }
     }
@@ -157,50 +140,40 @@ export async function PATCH(
   }
 
   // Direct field updates
-  const { studioFields, roomUpdates, amenityIds, hoursData, policyUpdates } = body;
+  const { studioFields, amenityIds, hoursData, policyUpdates } = body;
 
   if (studioFields) {
-    const allowed = [
+    // Only allow actual columns that exist in the studios table
+    const studioTableAllowed = [
       'name', 'description', 'short_description', 'address', 'city', 'state',
       'country', 'postal_code', 'phone', 'email', 'website', 'is_active',
-      'review_status', 'featured_image_url', 'price_per_hour', 'discount_percent',
-      'capacity', 'equipment', 'amenities', 'available_days',
-      'working_hours_start', 'working_hours_end', 'latitude', 'longitude',
+      'review_status', 'featured_image_url', 'latitude', 'longitude',
     ];
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    for (const key of allowed) {
-      if (key in studioFields) updates[key] = studioFields[key];
+    const studioUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const key of studioTableAllowed) {
+      if (key in studioFields) studioUpdates[key] = studioFields[key];
     }
 
-    const { error } = await supabaseAdmin.from('studios').update(updates).eq('id', id);
-    if (error) return NextResponse.json({ error: 'Failed to update studio fields' }, { status: 500 });
-  }
+    const { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
+    if (studioErr) return NextResponse.json({ error: 'Failed to update studio fields' }, { status: 500 });
 
-  // Update rooms (pricing, capacity, etc.)
-  if (roomUpdates && Array.isArray(roomUpdates)) {
-    for (const room of roomUpdates) {
-      if (room.id) {
-        const roomFields: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (room.name !== undefined) roomFields.name = room.name;
-        if (room.price_per_hour !== undefined) roomFields.price_per_hour = Number(room.price_per_hour);
-        if (room.capacity !== undefined) roomFields.capacity = Number(room.capacity);
-        if (room.is_active !== undefined) roomFields.is_active = room.is_active;
-        if (room.description !== undefined) roomFields.description = room.description;
+    // Update rooms table for price_per_hour and capacity
+    const roomUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (studioFields.price_per_hour !== undefined) roomUpdates.price_per_hour = Number(studioFields.price_per_hour);
+    if (studioFields.capacity !== undefined) roomUpdates.capacity = Number(studioFields.capacity);
 
-        await supabaseAdmin.from('rooms').update(roomFields).eq('id', room.id);
-      }
+    if (Object.keys(roomUpdates).length > 1) {
+      await supabaseAdmin.from('rooms').update(roomUpdates).eq('studio_id', id);
     }
   }
 
-  // Update amenities (replace all)
+  // Update amenities (replace all) — amenityIds are UUIDs from the amenities table
   if (amenityIds && Array.isArray(amenityIds)) {
     await supabaseAdmin.from('studio_amenities').delete().eq('studio_id', id);
     if (amenityIds.length > 0) {
-      const inserts = amenityIds.map((amenityId: string) => ({
-        studio_id: id,
-        amenity_id: amenityId,
-      }));
-      await supabaseAdmin.from('studio_amenities').insert(inserts);
+      await supabaseAdmin.from('studio_amenities').insert(
+        amenityIds.map((amenityId: string) => ({ studio_id: id, amenity_id: amenityId }))
+      );
     }
   }
 
@@ -208,14 +181,15 @@ export async function PATCH(
   if (hoursData && Array.isArray(hoursData)) {
     await supabaseAdmin.from('studio_hours').delete().eq('studio_id', id);
     if (hoursData.length > 0) {
-      const inserts = hoursData.map((h: any) => ({
-        studio_id: id,
-        day_of_week: h.day_of_week,
-        open_time: h.open_time,
-        close_time: h.close_time,
-        is_closed: h.is_closed || false,
-      }));
-      await supabaseAdmin.from('studio_hours').insert(inserts);
+      await supabaseAdmin.from('studio_hours').insert(
+        hoursData.map((h: any) => ({
+          studio_id: id,
+          day_of_week: h.day_of_week,
+          open_time: h.open_time,
+          close_time: h.close_time,
+          is_closed: h.is_closed || false,
+        }))
+      );
     }
   }
 
@@ -223,24 +197,19 @@ export async function PATCH(
   if (policyUpdates && Array.isArray(policyUpdates)) {
     await supabaseAdmin.from('cancellation_policies').delete().eq('studio_id', id);
     if (policyUpdates.length > 0) {
-      const inserts = policyUpdates.map((p: any) => ({
-        studio_id: id,
-        hours_before: Number(p.hours_before),
-        refund_percentage: Number(p.refund_percentage),
-        description: p.description || null,
-      }));
-      await supabaseAdmin.from('cancellation_policies').insert(inserts);
+      await supabaseAdmin.from('cancellation_policies').insert(
+        policyUpdates.map((p: any) => ({
+          studio_id: id,
+          hours_before: Number(p.hours_before),
+          refund_percentage: Number(p.refund_percentage),
+          description: p.description || null,
+        }))
+      );
     }
   }
 
   await logAdminAction(email, 'studio_edit', 'studio', id, {
-    sections: [
-      studioFields && 'basic',
-      roomUpdates && 'rooms',
-      amenityIds && 'amenities',
-      hoursData && 'hours',
-      policyUpdates && 'policies',
-    ].filter(Boolean),
+    sections: [studioFields && 'basic', amenityIds && 'amenities', hoursData && 'hours', policyUpdates && 'policies'].filter(Boolean),
   });
 
   return NextResponse.json({ success: true });
@@ -256,37 +225,20 @@ export async function DELETE(
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const { id } = await params;
-
-  const { data: studio } = await supabaseAdmin
-    .from('studios')
-    .select('name, owner_id')
-    .eq('id', id)
-    .maybeSingle();
-
+  const { data: studio } = await supabaseAdmin.from('studios').select('name, owner_id').eq('id', id).maybeSingle();
   if (!studio) return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
 
-  const { error } = await supabaseAdmin
-    .from('studios')
-    .update({
-      review_status: 'deleted',
-      is_active: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id);
-
+  const { error } = await supabaseAdmin.from('studios').update({ review_status: 'deleted', is_active: false, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: 'Failed to delete studio' }, { status: 500 });
 
   if (studio.owner_id) {
     await supabaseAdmin.from('notifications').insert({
-      user_id: studio.owner_id,
-      type: 'studio_deleted',
-      title: 'Studio Removed',
+      user_id: studio.owner_id, type: 'studio_deleted', title: 'Studio Removed',
       content: `Your studio "${studio.name}" has been removed from the platform by admin.`,
       action_url: '/partner/studios',
     });
   }
 
   await logAdminAction(email, 'studio_delete', 'studio', id, { name: studio.name });
-
   return NextResponse.json({ success: true });
 }
