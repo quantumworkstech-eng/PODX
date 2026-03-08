@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminSignOut } from "./login/actions";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
@@ -29,6 +30,18 @@ const menuItems = [
 export function AdminSidebar({ email, name, children }: { email: string; name: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const currentPage = menuItems.find((m) =>
     m.href === "/admin" ? pathname === "/admin" : pathname.startsWith(m.href)
@@ -128,15 +141,52 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full">
                 <Shield className="w-3.5 h-3.5 text-red-400" />
                 <span className="text-xs text-red-400 font-medium">Admin Panel</span>
               </div>
-              <div className="flex items-center gap-2 pl-3 border-l border-white/10">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-white" />
-                </div>
-                <ChevronDown className="w-4 h-4 text-white/40 hidden sm:block" />
+
+              <NotificationBell userEmail={email} />
+
+              <div ref={profileRef} className="relative pl-3 border-l border-white/10">
+                <button
+                  onClick={() => setProfileOpen((o) => !o)}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-white" />
+                  </div>
+                  <ChevronDown className={cn("w-4 h-4 text-white/40 hidden sm:block transition-transform", profileOpen && "rotate-180")} />
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-white/5">
+                      <p className="text-white text-sm font-medium truncate">{name || "Admin"}</p>
+                      <p className="text-white/40 text-xs truncate">{email}</p>
+                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-500/10 text-red-400 text-xs rounded-full">
+                        <Shield className="w-3 h-3" /> Admin
+                      </span>
+                    </div>
+                    <div className="p-1">
+                      <Link
+                        href="/admin/settings"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Settings
+                      </Link>
+                      <button
+                        onClick={() => { setProfileOpen(false); adminSignOut(); }}
+                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

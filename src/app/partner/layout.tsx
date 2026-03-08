@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -42,6 +42,18 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   const { data: session, status } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeStudios, setActiveStudios] = useState(0);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const isAuthPage = pathname === "/partner/login" || pathname === "/partner/signup";
 
@@ -200,11 +212,46 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
 
                   <NotificationBell userEmail={session?.user?.email} />
 
-                  <div className="flex items-center gap-2 pl-3 border-l border-white/10">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D9FC67] to-[#B8E050] flex items-center justify-center">
-                      <Building2 className="w-4 h-4 text-black" />
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-white/40 hidden sm:block" />
+                  <div ref={profileRef} className="relative pl-3 border-l border-white/10">
+                    <button
+                      onClick={() => setProfileOpen((o) => !o)}
+                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D9FC67] to-[#B8E050] flex items-center justify-center">
+                        {session?.user?.image ? (
+                          <img src={session.user.image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <Building2 className="w-4 h-4 text-black" />
+                        )}
+                      </div>
+                      <ChevronDown className={cn("w-4 h-4 text-white/40 hidden sm:block transition-transform", profileOpen && "rotate-180")} />
+                    </button>
+
+                    {profileOpen && (
+                      <div className="absolute right-0 mt-2 w-56 bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                        <div className="px-4 py-3 border-b border-white/5">
+                          <p className="text-white text-sm font-medium truncate">{session?.user?.name || "Partner"}</p>
+                          <p className="text-white/40 text-xs truncate">{session?.user?.email}</p>
+                        </div>
+                        <div className="p-1">
+                          <Link
+                            href="/partner/settings"
+                            onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                          >
+                            <Settings className="w-4 h-4" />
+                            Settings
+                          </Link>
+                          <button
+                            onClick={() => { setProfileOpen(false); signOut({ callbackUrl: "/" }); }}
+                            className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
