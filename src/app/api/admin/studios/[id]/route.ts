@@ -163,7 +163,9 @@ export async function PATCH(
     const allowed = [
       'name', 'description', 'short_description', 'address', 'city', 'state',
       'country', 'postal_code', 'phone', 'email', 'website', 'is_active',
-      'review_status', 'featured_image_url',
+      'review_status', 'featured_image_url', 'price_per_hour', 'discount_percent',
+      'capacity', 'equipment', 'amenities', 'available_days',
+      'working_hours_start', 'working_hours_end', 'latitude', 'longitude',
     ];
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const key of allowed) {

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import {
   Search, CheckCircle, XCircle, PauseCircle, RefreshCw, Building2,
-  Pencil, Trash2, Play, X, Save, Check,
+  Pencil, Trash2, Play, X, Save, Check, Mic, Music, Video, Lightbulb,
+  Volume2, Monitor, Wifi, Car, Coffee, MapPin, Plus,
 } from "lucide-react";
 
 const STATUS_FILTERS = [
@@ -24,7 +25,31 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   deleted: { label: "Deleted", color: "bg-white/5 text-white/30 border-white/10" },
 };
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const EQUIPMENT_OPTIONS = [
+  { id: "microphones", name: "Professional Microphones", icon: Mic },
+  { id: "headphones", name: "Studio Headphones", icon: Music },
+  { id: "cameras", name: "Video Cameras", icon: Video },
+  { id: "lighting", name: "Studio Lighting", icon: Lightbulb },
+  { id: "mixer", name: "Audio Mixer", icon: Volume2 },
+  { id: "soundproofing", name: "Soundproofing", icon: Volume2 },
+  { id: "teleprompter", name: "Teleprompter", icon: Monitor },
+  { id: "monitor", name: "Reference Monitors", icon: Monitor },
+];
+
+const AMENITIES_OPTIONS = [
+  { id: "wifi", name: "Free WiFi", icon: Wifi },
+  { id: "ac", name: "Air Conditioning", icon: Building2 },
+  { id: "parking", name: "Parking", icon: Car },
+  { id: "refreshments", name: "Refreshments", icon: Coffee },
+];
+
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const TIME_SLOTS = [
+  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
+  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
+  "20:00", "21:00", "22:00", "23:00",
+];
 
 interface StudioDetail {
   studio: any;
@@ -36,8 +61,8 @@ interface StudioDetail {
   policies: any[];
 }
 
-function InputField({ label, value, onChange, type = "text" }: {
-  label: string; value: any; onChange: (v: string) => void; type?: string;
+function InputField({ label, value, onChange, type = "text", disabled = false }: {
+  label: string; value: any; onChange: (v: string) => void; type?: string; disabled?: boolean;
 }) {
   return (
     <div>
@@ -46,7 +71,8 @@ function InputField({ label, value, onChange, type = "text" }: {
         type={type}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
+        disabled={disabled}
+        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20 disabled:opacity-50"
       />
     </div>
   );
@@ -86,10 +112,12 @@ export default function AdminStudiosPage() {
 
   // Edit form state
   const [editFields, setEditFields] = useState<Record<string, any>>({});
-  const [editRooms, setEditRooms] = useState<any[]>([]);
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [editHours, setEditHours] = useState<any[]>([]);
-  const [editPolicies, setEditPolicies] = useState<any[]>([]);
+  const [editEquipment, setEditEquipment] = useState<string[]>([]);
+  const [editAmenities, setEditAmenities] = useState<string[]>([]);
+  const [editAvailableDays, setEditAvailableDays] = useState<string[]>([]);
+  const [editWorkingHours, setEditWorkingHours] = useState({ start: "09:00", end: "21:00" });
+  const [editPolicies, setEditPolicies] = useState<{ cancellation: any[]; reschedule: any[] }>({ cancellation: [], reschedule: [] });
+  const [useCustomPolicies, setUseCustomPolicies] = useState(false);
 
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -139,61 +167,109 @@ export default function AdminStudiosPage() {
       name: s.name || "",
       description: s.description || "",
       short_description: s.short_description || "",
+      capacity: s.capacity || "",
       address: s.address || "",
       city: s.city || "",
       state: s.state || "",
-      postal_code: s.postal_code || "",
-      phone: s.phone || "",
-      email: s.email || "",
-      website: s.website || "",
+      country: s.country || "",
+      latitude: s.latitude || "",
+      longitude: s.longitude || "",
+      price_per_hour: s.price_per_hour || (data.rooms?.[0]?.price_per_hour) || "",
+      discount_percent: s.discount_percent || "",
     });
-    setEditRooms(data.rooms.map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      price_per_hour: r.price_per_hour,
-      capacity: r.capacity,
-      is_active: r.is_active,
-      description: r.description || "",
-      equipment: r.room_equipment || [],
-    })));
-    setSelectedAmenities((data.studioAmenities || []).map((a: any) => a.id));
-    setEditHours(
-      DAY_NAMES.map((_, i) => {
-        const existing = (data.hours || []).find((h: any) => h.day_of_week === i);
-        return {
-          day_of_week: i,
-          open_time: existing?.open_time || "09:00",
-          close_time: existing?.close_time || "21:00",
-          is_closed: existing?.is_closed ?? (i === 0),
-        };
-      })
+
+    // Equipment from rooms or studio
+    const equipmentFromRooms = (data.rooms || []).flatMap((r: any) =>
+      (r.room_equipment || []).map((re: any) => re.equipment?.name?.toLowerCase() || "")
     );
-    setEditPolicies(data.policies.length > 0 ? data.policies : [
-      { hours_before: 48, refund_percentage: 100, description: "Full refund" },
-      { hours_before: 24, refund_percentage: 50, description: "50% refund" },
-    ]);
+    const studioEquipment = s.equipment || [];
+    setEditEquipment(
+      [...new Set([...studioEquipment, ...equipmentFromRooms])].filter(Boolean)
+    );
+
+    // Amenities
+    const studioAmenityNames = (data.studioAmenities || []).map((a: any) =>
+      (a.name || "").toLowerCase()
+    );
+    setEditAmenities(s.amenities || studioAmenityNames || []);
+
+    // Working hours & available days from studio_hours
+    const activeHours = (data.hours || []).filter((h: any) => !h.is_closed);
+    if (activeHours.length > 0) {
+      setEditWorkingHours({
+        start: activeHours[0]?.open_time || "09:00",
+        end: activeHours[0]?.close_time || "21:00",
+      });
+    } else {
+      setEditWorkingHours({ start: s.working_hours_start || "09:00", end: s.working_hours_end || "21:00" });
+    }
+
+    // Map day_of_week (0=Sun) to day names
+    const dayMap: Record<number, string> = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
+    const activeDays = (data.hours || [])
+      .filter((h: any) => !h.is_closed)
+      .map((h: any) => dayMap[h.day_of_week])
+      .filter(Boolean);
+    setEditAvailableDays(activeDays.length > 0 ? activeDays : (s.available_days || DAYS.slice(0, 5)));
+
+    // Policies
+    const hasPolicies = (data.policies || []).length > 0;
+    setUseCustomPolicies(hasPolicies);
+    setEditPolicies({
+      cancellation: hasPolicies
+        ? data.policies.map((p: any) => ({
+            id: p.id || crypto.randomUUID(),
+            type: (p.hours_before || 0) >= 24 ? "hours" : "hours",
+            value: p.hours_before || 0,
+            refundPercent: p.refund_percentage || 0,
+            deductionPercent: 100 - (p.refund_percentage || 0),
+          }))
+        : [{ id: crypto.randomUUID(), type: "hours", value: 48, refundPercent: 100, deductionPercent: 0 }],
+      reschedule: s.reschedule_rules || [{ id: crypto.randomUUID(), type: "hours", value: 24, deductionPercent: 0 }],
+    });
+
     setEditLoading(false);
   };
 
   const saveEdit = async () => {
     if (!editData) return;
     setEditSaving(true);
+
+    // Map available days back to studio_hours format
+    const dayNameToNum: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const hoursData = Object.entries(dayNameToNum).map(([name, num]) => ({
+      day_of_week: num,
+      open_time: editWorkingHours.start,
+      close_time: editWorkingHours.end,
+      is_closed: !editAvailableDays.includes(name),
+    }));
+
+    // Map policies
+    const policyUpdates = useCustomPolicies
+      ? editPolicies.cancellation.map((p) => ({
+          hours_before: Number(p.value),
+          refund_percentage: Number(p.refundPercent),
+          description: `${p.refundPercent}% refund if cancelled ${p.value}+ ${p.type} before`,
+        }))
+      : [];
+
     await fetch(`/api/admin/studios/${editData.studio.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        studioFields: editFields,
-        roomUpdates: editRooms.map((r) => ({
-          id: r.id,
-          name: r.name,
-          price_per_hour: r.price_per_hour,
-          capacity: r.capacity,
-          is_active: r.is_active,
-          description: r.description,
-        })),
-        amenityIds: selectedAmenities,
-        hoursData: editHours,
-        policyUpdates: editPolicies,
+        studioFields: {
+          ...editFields,
+          price_per_hour: Number(editFields.price_per_hour) || 0,
+          discount_percent: Number(editFields.discount_percent) || 0,
+          capacity: Number(editFields.capacity) || 0,
+          equipment: editEquipment,
+          amenities: editAmenities,
+          available_days: editAvailableDays,
+          working_hours_start: editWorkingHours.start,
+          working_hours_end: editWorkingHours.end,
+        },
+        hoursData,
+        policyUpdates,
       }),
     });
     setEditSaving(false);
@@ -202,22 +278,21 @@ export default function AdminStudiosPage() {
   };
 
   const setField = (key: string, value: any) => setEditFields((f) => ({ ...f, [key]: value }));
-  const setRoom = (idx: number, key: string, value: any) =>
-    setEditRooms((rooms) => rooms.map((r, i) => (i === idx ? { ...r, [key]: value } : r)));
+  const toggleEquipment = (id: string) =>
+    setEditEquipment((eq) => eq.includes(id) ? eq.filter((e) => e !== id) : [...eq, id]);
   const toggleAmenity = (id: string) =>
-    setSelectedAmenities((ids) => ids.includes(id) ? ids.filter((a) => a !== id) : [...ids, id]);
-  const setHour = (idx: number, key: string, value: any) =>
-    setEditHours((h) => h.map((item, i) => (i === idx ? { ...item, [key]: value } : item)));
-  const setPolicy = (idx: number, key: string, value: any) =>
-    setEditPolicies((p) => p.map((item, i) => (i === idx ? { ...item, [key]: value } : item)));
+    setEditAmenities((am) => am.includes(id) ? am.filter((a) => a !== id) : [...am, id]);
+  const toggleDay = (day: string) =>
+    setEditAvailableDays((days) => days.includes(day) ? days.filter((d) => d !== day) : [...days, day]);
 
   const EDIT_SECTIONS = [
     { id: "basic", label: "Basic Info" },
-    { id: "rooms", label: "Rooms & Pricing" },
+    { id: "location", label: "Location" },
+    { id: "pricing", label: "Pricing & Availability" },
+    { id: "equipment", label: "Equipment" },
     { id: "amenities", label: "Amenities" },
-    { id: "hours", label: "Availability" },
+    { id: "photos", label: "Photos" },
     { id: "policies", label: "Policies" },
-    { id: "images", label: "Images" },
   ];
 
   return (
@@ -310,82 +385,36 @@ export default function AdminStudiosPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1">
-                          {/* Edit */}
-                          <button
-                            onClick={() => openEdit(studio.id)}
-                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors"
-                            title="Edit Studio"
-                          >
+                          <button onClick={() => openEdit(studio.id)} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Edit Studio">
                             <Pencil className="w-4 h-4" />
                           </button>
-
-                          {/* Approve */}
                           {studio.review_status !== "approved" && studio.review_status !== "deleted" && (
-                            <button
-                              onClick={() => handleAction(studio.id, "approve")}
-                              disabled={!!actionLoading}
-                              className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors"
-                              title="Approve"
-                            >
+                            <button onClick={() => handleAction(studio.id, "approve")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors" title="Approve">
                               {actionLoading === `${studio.id}-approve` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                             </button>
                           )}
-
-                          {/* Pause (approved) */}
                           {studio.review_status === "approved" && (
-                            <button
-                              onClick={() => handleAction(studio.id, "pause")}
-                              disabled={!!actionLoading}
-                              className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors"
-                              title="Pause Listing"
-                            >
+                            <button onClick={() => handleAction(studio.id, "pause")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Pause Listing">
                               {actionLoading === `${studio.id}-pause` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
                             </button>
                           )}
-
-                          {/* Activate (paused) */}
                           {studio.review_status === "paused" && (
-                            <button
-                              onClick={() => handleAction(studio.id, "activate")}
-                              disabled={!!actionLoading}
-                              className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors"
-                              title="Reactivate"
-                            >
+                            <button onClick={() => handleAction(studio.id, "activate")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors" title="Reactivate">
                               {actionLoading === `${studio.id}-activate` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                             </button>
                           )}
-
-                          {/* Reject */}
                           {!["rejected", "deleted"].includes(studio.review_status) && (
-                            <button
-                              onClick={() => handleAction(studio.id, "reject")}
-                              disabled={!!actionLoading}
-                              className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"
-                              title="Reject"
-                            >
+                            <button onClick={() => handleAction(studio.id, "reject")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Reject">
                               {actionLoading === `${studio.id}-reject` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                             </button>
                           )}
-
-                          {/* Suspend */}
                           {!["suspended", "deleted", "paused"].includes(studio.review_status) && (
-                            <button
-                              onClick={() => handleAction(studio.id, "suspend")}
-                              disabled={!!actionLoading}
-                              className="p-1.5 rounded-lg hover:bg-yellow-500/10 text-white/40 hover:text-yellow-400 transition-colors"
-                              title="Suspend"
-                            >
+                            <button onClick={() => handleAction(studio.id, "suspend")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-yellow-500/10 text-white/40 hover:text-yellow-400 transition-colors" title="Suspend">
                               {actionLoading === `${studio.id}-suspend` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
                             </button>
                           )}
-
-                          {/* Delete */}
                           {studio.review_status !== "deleted" && (
-                            <button
-                              onClick={() => setDeleteId(studio.id)}
-                              className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"
-                              title="Delete Studio"
-                            >
+                            <button onClick={() => setDeleteId(studio.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Delete Studio">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}
@@ -464,186 +493,161 @@ export default function AdminStudiosPage() {
                   {activeSection === "basic" && (
                     <>
                       <InputField label="Studio Name" value={editFields.name} onChange={(v) => setField("name", v)} />
-                      <TextareaField label="Description" value={editFields.description} onChange={(v) => setField("description", v)} rows={4} />
                       <TextareaField label="Short Description" value={editFields.short_description} onChange={(v) => setField("short_description", v)} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Address" value={editFields.address} onChange={(v) => setField("address", v)} />
-                        <InputField label="City" value={editFields.city} onChange={(v) => setField("city", v)} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="State" value={editFields.state} onChange={(v) => setField("state", v)} />
-                        <InputField label="Postal Code" value={editFields.postal_code} onChange={(v) => setField("postal_code", v)} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Phone" value={editFields.phone} onChange={(v) => setField("phone", v)} />
-                        <InputField label="Email" value={editFields.email} onChange={(v) => setField("email", v)} type="email" />
-                      </div>
-                      <InputField label="Website" value={editFields.website} onChange={(v) => setField("website", v)} />
+                      <TextareaField label="Full Description" value={editFields.description} onChange={(v) => setField("description", v)} rows={4} />
+                      <InputField label="Seating Capacity" value={editFields.capacity} onChange={(v) => setField("capacity", v)} type="number" />
                     </>
                   )}
 
-                  {/* ── ROOMS & PRICING ── */}
-                  {activeSection === "rooms" && (
+                  {/* ── LOCATION ── */}
+                  {activeSection === "location" && (
                     <>
-                      {editRooms.length === 0 ? (
-                        <p className="text-white/40 text-sm py-8 text-center">No rooms configured for this studio</p>
-                      ) : (
-                        editRooms.map((room, idx) => (
-                          <div key={room.id} className="bg-white/[0.03] rounded-xl p-4 space-y-3 border border-white/5">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-white font-medium text-sm">{room.name}</h4>
-                              <label className="flex items-center gap-2 text-xs">
-                                <input
-                                  type="checkbox"
-                                  checked={room.is_active}
-                                  onChange={(e) => setRoom(idx, "is_active", e.target.checked)}
-                                  className="rounded border-white/20"
-                                />
-                                <span className="text-white/50">Active</span>
-                              </label>
-                            </div>
-                            <div className="grid grid-cols-3 gap-3">
-                              <InputField label="Room Name" value={room.name} onChange={(v) => setRoom(idx, "name", v)} />
-                              <InputField label="Price/hr (₹)" value={room.price_per_hour} onChange={(v) => setRoom(idx, "price_per_hour", v)} type="number" />
-                              <InputField label="Capacity" value={room.capacity} onChange={(v) => setRoom(idx, "capacity", v)} type="number" />
-                            </div>
-                            <TextareaField label="Description" value={room.description} onChange={(v) => setRoom(idx, "description", v)} />
-                            {room.equipment && room.equipment.length > 0 && (
-                              <div>
-                                <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">Equipment</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {room.equipment.map((re: any) => (
-                                    <span key={re.equipment?.id || Math.random()} className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white/60 text-xs">
-                                      {re.equipment?.name || "Unknown"} {re.quantity > 1 ? `×${re.quantity}` : ""}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4 text-white/40" />
+                        <span className="text-white/50 text-xs">Studio location details</span>
+                      </div>
+                      <InputField label="Address" value={editFields.address} onChange={(v) => setField("address", v)} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="City" value={editFields.city} onChange={(v) => setField("city", v)} />
+                        <InputField label="State" value={editFields.state} onChange={(v) => setField("state", v)} />
+                      </div>
+                      <InputField label="Country" value={editFields.country} onChange={(v) => setField("country", v)} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="Latitude" value={editFields.latitude} onChange={(v) => setField("latitude", v)} type="number" />
+                        <InputField label="Longitude" value={editFields.longitude} onChange={(v) => setField("longitude", v)} type="number" />
+                      </div>
+                    </>
+                  )}
+
+                  {/* ── PRICING & AVAILABILITY ── */}
+                  {activeSection === "pricing" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="Price per Hour (₹)" value={editFields.price_per_hour} onChange={(v) => setField("price_per_hour", v)} type="number" />
+                        <InputField label="Discount (%)" value={editFields.discount_percent} onChange={(v) => setField("discount_percent", v)} type="number" />
+                      </div>
+
+                      <div className="border-t border-white/5 pt-4 mt-4">
+                        <label className="text-white/40 text-xs uppercase tracking-wider block mb-3">Working Hours</label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-white/50 text-xs block mb-1">Start Time</label>
+                            <select
+                              value={editWorkingHours.start}
+                              onChange={(e) => setEditWorkingHours((h) => ({ ...h, start: e.target.value }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
+                            >
+                              {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </select>
                           </div>
-                        ))
-                      )}
+                          <div>
+                            <label className="text-white/50 text-xs block mb-1">End Time</label>
+                            <select
+                              value={editWorkingHours.end}
+                              onChange={(e) => setEditWorkingHours((h) => ({ ...h, end: e.target.value }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
+                            >
+                              {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/5 pt-4 mt-4">
+                        <label className="text-white/40 text-xs uppercase tracking-wider block mb-3">Available Days</label>
+                        <div className="flex gap-2 flex-wrap">
+                          {DAYS.map((day) => (
+                            <button
+                              key={day}
+                              onClick={() => toggleDay(day)}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                                editAvailableDays.includes(day)
+                                  ? "bg-[#D9FC67]/10 border-[#D9FC67]/30 text-[#D9FC67]"
+                                  : "bg-white/[0.02] border-white/5 text-white/30 hover:border-white/10"
+                              }`}
+                            >
+                              {day}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ── EQUIPMENT ── */}
+                  {activeSection === "equipment" && (
+                    <>
+                      <p className="text-white/40 text-xs mb-3">Select equipment available at this studio</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {EQUIPMENT_OPTIONS.map((eq) => {
+                          const selected = editEquipment.includes(eq.id);
+                          return (
+                            <button
+                              key={eq.id}
+                              onClick={() => toggleEquipment(eq.id)}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                                selected
+                                  ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
+                                  : "bg-white/[0.02] border-white/5 hover:border-white/10"
+                              }`}
+                            >
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                selected ? "bg-[#D9FC67]/20" : "bg-white/5"
+                              }`}>
+                                <eq.icon className={`w-4 h-4 ${selected ? "text-[#D9FC67]" : "text-white/30"}`} />
+                              </div>
+                              <div>
+                                <p className={`text-sm font-medium ${selected ? "text-[#D9FC67]" : "text-white/50"}`}>{eq.name}</p>
+                              </div>
+                              {selected && (
+                                <div className="ml-auto">
+                                  <Check className="w-4 h-4 text-[#D9FC67]" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </>
                   )}
 
                   {/* ── AMENITIES ── */}
                   {activeSection === "amenities" && (
                     <>
-                      {(editData.allAmenities || []).length === 0 ? (
-                        <p className="text-white/40 text-sm py-8 text-center">No amenities available in the system</p>
-                      ) : (
-                        <>
-                          <p className="text-white/40 text-xs mb-2">Select amenities available at this studio</p>
-                          {Object.entries(
-                            (editData.allAmenities || []).reduce((acc: Record<string, any[]>, a: any) => {
-                              const cat = a.category || "other";
-                              if (!acc[cat]) acc[cat] = [];
-                              acc[cat].push(a);
-                              return acc;
-                            }, {})
-                          ).map(([category, amenities]) => (
-                            <div key={category} className="space-y-2">
-                              <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium capitalize">{category}</h4>
-                              <div className="grid grid-cols-2 gap-2">
-                                {(amenities as any[]).map((a: any) => (
-                                  <label
-                                    key={a.id}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
-                                      selectedAmenities.includes(a.id)
-                                        ? "bg-[#D9FC67]/10 border-[#D9FC67]/30 text-[#D9FC67]"
-                                        : "bg-white/[0.02] border-white/5 text-white/50 hover:border-white/10"
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedAmenities.includes(a.id)}
-                                      onChange={() => toggleAmenity(a.id)}
-                                      className="sr-only"
-                                    />
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                      selectedAmenities.includes(a.id) ? "bg-[#D9FC67] border-[#D9FC67]" : "border-white/20"
-                                    }`}>
-                                      {selectedAmenities.includes(a.id) && <Check className="w-3 h-3 text-black" />}
-                                    </div>
-                                    <span className="text-sm">{a.name}</span>
-                                  </label>
-                                ))}
+                      <p className="text-white/40 text-xs mb-3">Select amenities available at this studio</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {AMENITIES_OPTIONS.map((am) => {
+                          const selected = editAmenities.includes(am.id);
+                          return (
+                            <button
+                              key={am.id}
+                              onClick={() => toggleAmenity(am.id)}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                                selected
+                                  ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
+                                  : "bg-white/[0.02] border-white/5 hover:border-white/10"
+                              }`}
+                            >
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                selected ? "bg-[#D9FC67]/20" : "bg-white/5"
+                              }`}>
+                                <am.icon className={`w-4 h-4 ${selected ? "text-[#D9FC67]" : "text-white/30"}`} />
                               </div>
-                            </div>
-                          ))}
-                        </>
-                      )}
+                              <p className={`text-sm font-medium ${selected ? "text-[#D9FC67]" : "text-white/50"}`}>{am.name}</p>
+                              {selected && (
+                                <div className="ml-auto">
+                                  <Check className="w-4 h-4 text-[#D9FC67]" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </>
                   )}
 
-                  {/* ── AVAILABILITY / HOURS ── */}
-                  {activeSection === "hours" && (
-                    <div className="space-y-2">
-                      <p className="text-white/40 text-xs mb-2">Configure studio operating hours</p>
-                      {editHours.map((h, idx) => (
-                        <div key={idx} className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${h.is_closed ? "bg-white/[0.01] border-white/5 opacity-50" : "bg-white/[0.03] border-white/5"}`}>
-                          <span className="text-white text-sm font-medium w-24">{DAY_NAMES[h.day_of_week]}</span>
-                          <label className="flex items-center gap-2 text-xs mr-3">
-                            <input
-                              type="checkbox"
-                              checked={h.is_closed}
-                              onChange={(e) => setHour(idx, "is_closed", e.target.checked)}
-                              className="rounded border-white/20"
-                            />
-                            <span className="text-white/40">Closed</span>
-                          </label>
-                          {!h.is_closed && (
-                            <>
-                              <input
-                                type="time"
-                                value={h.open_time}
-                                onChange={(e) => setHour(idx, "open_time", e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-white/20"
-                              />
-                              <span className="text-white/30 text-xs">to</span>
-                              <input
-                                type="time"
-                                value={h.close_time}
-                                onChange={(e) => setHour(idx, "close_time", e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-white/20"
-                              />
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* ── POLICIES ── */}
-                  {activeSection === "policies" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-white/40 text-xs">Cancellation refund tiers</p>
-                        <button
-                          onClick={() => setEditPolicies((p) => [...p, { hours_before: 0, refund_percentage: 0, description: "" }])}
-                          className="px-3 py-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-lg text-xs transition-colors"
-                        >
-                          + Add Tier
-                        </button>
-                      </div>
-                      {editPolicies.map((p, idx) => (
-                        <div key={idx} className="grid grid-cols-4 gap-3 items-end bg-white/[0.03] rounded-xl p-3 border border-white/5">
-                          <InputField label="Hours Before" value={p.hours_before} onChange={(v) => setPolicy(idx, "hours_before", v)} type="number" />
-                          <InputField label="Refund %" value={p.refund_percentage} onChange={(v) => setPolicy(idx, "refund_percentage", v)} type="number" />
-                          <InputField label="Description" value={p.description || ""} onChange={(v) => setPolicy(idx, "description", v)} />
-                          <button
-                            onClick={() => setEditPolicies((policies) => policies.filter((_, i) => i !== idx))}
-                            className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-colors self-end"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* ── IMAGES ── */}
-                  {activeSection === "images" && (
+                  {/* ── PHOTOS ── */}
+                  {activeSection === "photos" && (
                     <div className="space-y-3">
                       <p className="text-white/40 text-xs">Studio images (managed via partner dashboard)</p>
                       {(editData.images || []).length === 0 ? (
@@ -659,6 +663,168 @@ export default function AdminStudiosPage() {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── POLICIES ── */}
+                  {activeSection === "policies" && (
+                    <div className="space-y-4">
+                      {/* Custom policies toggle */}
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <div className={`w-10 h-5 rounded-full relative transition-colors ${useCustomPolicies ? "bg-[#D9FC67]" : "bg-white/10"}`}
+                          onClick={() => setUseCustomPolicies(!useCustomPolicies)}
+                        >
+                          <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${useCustomPolicies ? "translate-x-5" : "translate-x-0.5"}`} />
+                        </div>
+                        <span className="text-white/60 text-sm">Use custom cancellation policies</span>
+                      </label>
+
+                      {useCustomPolicies && (
+                        <>
+                          {/* Cancellation Rules */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium">Cancellation Rules</h4>
+                              <button
+                                onClick={() => setEditPolicies((p) => ({
+                                  ...p,
+                                  cancellation: [...p.cancellation, { id: crypto.randomUUID(), type: "hours", value: 0, refundPercent: 0, deductionPercent: 100 }],
+                                }))}
+                                className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-lg text-xs transition-colors"
+                              >
+                                <Plus className="w-3 h-3" /> Add Rule
+                              </button>
+                            </div>
+                            {editPolicies.cancellation.map((rule, idx) => (
+                              <div key={rule.id} className="bg-white/[0.03] rounded-xl p-4 border border-white/5 space-y-3">
+                                <div className="grid grid-cols-4 gap-3 items-end">
+                                  <div>
+                                    <label className="text-white/40 text-xs block mb-1">Time Unit</label>
+                                    <select
+                                      value={rule.type}
+                                      onChange={(e) => {
+                                        const updated = [...editPolicies.cancellation];
+                                        updated[idx] = { ...updated[idx], type: e.target.value };
+                                        setEditPolicies((p) => ({ ...p, cancellation: updated }));
+                                      }}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+                                    >
+                                      <option value="hours">Hours</option>
+                                      <option value="days">Days</option>
+                                    </select>
+                                  </div>
+                                  <InputField
+                                    label="Before Booking"
+                                    value={rule.value}
+                                    onChange={(v) => {
+                                      const updated = [...editPolicies.cancellation];
+                                      updated[idx] = { ...updated[idx], value: Number(v) };
+                                      setEditPolicies((p) => ({ ...p, cancellation: updated }));
+                                    }}
+                                    type="number"
+                                  />
+                                  <InputField
+                                    label="Refund %"
+                                    value={rule.refundPercent}
+                                    onChange={(v) => {
+                                      const updated = [...editPolicies.cancellation];
+                                      updated[idx] = { ...updated[idx], refundPercent: Number(v), deductionPercent: 100 - Number(v) };
+                                      setEditPolicies((p) => ({ ...p, cancellation: updated }));
+                                    }}
+                                    type="number"
+                                  />
+                                  <button
+                                    onClick={() => setEditPolicies((p) => ({
+                                      ...p,
+                                      cancellation: p.cancellation.filter((_, i) => i !== idx),
+                                    }))}
+                                    className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-colors self-end"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Reschedule Rules */}
+                          <div className="space-y-3 border-t border-white/5 pt-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium">Reschedule Rules</h4>
+                              <button
+                                onClick={() => setEditPolicies((p) => ({
+                                  ...p,
+                                  reschedule: [...p.reschedule, { id: crypto.randomUUID(), type: "hours", value: 0, deductionPercent: 0 }],
+                                }))}
+                                className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-lg text-xs transition-colors"
+                              >
+                                <Plus className="w-3 h-3" /> Add Rule
+                              </button>
+                            </div>
+                            {editPolicies.reschedule.map((rule, idx) => (
+                              <div key={rule.id} className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                                <div className="grid grid-cols-4 gap-3 items-end">
+                                  <div>
+                                    <label className="text-white/40 text-xs block mb-1">Time Unit</label>
+                                    <select
+                                      value={rule.type}
+                                      onChange={(e) => {
+                                        const updated = [...editPolicies.reschedule];
+                                        updated[idx] = { ...updated[idx], type: e.target.value };
+                                        setEditPolicies((p) => ({ ...p, reschedule: updated }));
+                                      }}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+                                    >
+                                      <option value="hours">Hours</option>
+                                      <option value="days">Days</option>
+                                    </select>
+                                  </div>
+                                  <InputField
+                                    label="Before Booking"
+                                    value={rule.value}
+                                    onChange={(v) => {
+                                      const updated = [...editPolicies.reschedule];
+                                      updated[idx] = { ...updated[idx], value: Number(v) };
+                                      setEditPolicies((p) => ({ ...p, reschedule: updated }));
+                                    }}
+                                    type="number"
+                                  />
+                                  <InputField
+                                    label="Deduction %"
+                                    value={rule.deductionPercent}
+                                    onChange={(v) => {
+                                      const updated = [...editPolicies.reschedule];
+                                      updated[idx] = { ...updated[idx], deductionPercent: Number(v) };
+                                      setEditPolicies((p) => ({ ...p, reschedule: updated }));
+                                    }}
+                                    type="number"
+                                  />
+                                  <button
+                                    onClick={() => setEditPolicies((p) => ({
+                                      ...p,
+                                      reschedule: p.reschedule.filter((_, i) => i !== idx),
+                                    }))}
+                                    className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-colors self-end"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {!useCustomPolicies && (
+                        <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                          <p className="text-white/40 text-sm">Using platform default cancellation policies:</p>
+                          <ul className="mt-2 space-y-1 text-white/50 text-xs">
+                            <li>• 48+ hours before: Full refund</li>
+                            <li>• 24-48 hours before: 50% refund</li>
+                            <li>• Less than 24 hours: No refund</li>
+                          </ul>
                         </div>
                       )}
                     </div>
