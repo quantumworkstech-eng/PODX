@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Search, XCircle, RefreshCw, DollarSign, RotateCcw, Check, X,
   ChevronLeft, ChevronRight, Eye, Save, User, Building2, Clock,
-  CreditCard, Package, Users, Calendar, FileText, Pencil,
+  CreditCard, Package, Users, Calendar, FileText, Pencil, Plus,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
@@ -107,6 +107,39 @@ export default function AdminBookingsPage() {
   const [reviewModal, setReviewModal] = useState<RescheduleRequest | null>(null);
   const [adminNote, setAdminNote] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
+
+  // Add booking modal
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addFields, setAddFields] = useState({
+    user_email: "", studio_id: "", date: "", start_time: "10:00", end_time: "12:00",
+    status: "confirmed", total_price: "", notes: "",
+  });
+  const [studioList, setStudioList] = useState<any[]>([]);
+
+  const loadStudiosForDropdown = () => {
+    fetch("/api/admin/studios?page=1")
+      .then(r => r.json())
+      .then(d => setStudioList(d.studios || []));
+  };
+
+  const handleAddBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddSaving(true);
+    setAddError(null);
+    const res = await fetch("/api/admin/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(addFields),
+    });
+    const data = await res.json();
+    setAddSaving(false);
+    if (!res.ok) { setAddError(data.error || "Failed to create booking"); return; }
+    setAddOpen(false);
+    setAddFields({ user_email: "", studio_id: "", date: "", start_time: "10:00", end_time: "12:00", status: "confirmed", total_price: "", notes: "" });
+    fetchBookings();
+  };
 
   const fetchBookings = () => {
     setBookingLoading(true);
@@ -228,7 +261,7 @@ export default function AdminBookingsPage() {
               <h2 className="text-xl font-bold text-white">Booking Control</h2>
               <p className="text-white/40 text-sm">{bookingTotal.toLocaleString()} total bookings</p>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               {STATUS_FILTERS.map((f) => (
                 <button
                   key={f}
@@ -242,6 +275,13 @@ export default function AdminBookingsPage() {
                   {f}
                 </button>
               ))}
+              <button
+                onClick={() => { setAddOpen(true); setAddError(null); loadStudiosForDropdown(); }}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-[#D9FC67] text-black hover:bg-[#E8FF8A] transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Booking
+              </button>
             </div>
           </div>
 
@@ -869,6 +909,87 @@ export default function AdminBookingsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Booking Modal */}
+      {addOpen && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+              <h3 className="text-white font-semibold text-lg">Add New Booking</h3>
+              <button onClick={() => setAddOpen(false)} className="text-white/40 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddBooking} className="p-6 space-y-4">
+              {addError && (
+                <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{addError}</div>
+              )}
+              <div>
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">User Email *</label>
+                <input required type="email" value={addFields.user_email} onChange={(e) => setAddFields(f => ({ ...f, user_email: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" placeholder="user@example.com" />
+              </div>
+              <div>
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Studio *</label>
+                <select required value={addFields.studio_id} onChange={(e) => setAddFields(f => ({ ...f, studio_id: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20 appearance-none">
+                  <option value="" className="bg-[#18181b]">Select a studio...</option>
+                  {studioList.map((s: any) => (
+                    <option key={s.id} value={s.id} className="bg-[#18181b]">{s.name} — {s.city}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Date *</label>
+                <input required type="date" value={addFields.date} onChange={(e) => setAddFields(f => ({ ...f, date: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Start Time *</label>
+                  <input required type="time" value={addFields.start_time} onChange={(e) => setAddFields(f => ({ ...f, start_time: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" />
+                </div>
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">End Time *</label>
+                  <input required type="time" value={addFields.end_time} onChange={(e) => setAddFields(f => ({ ...f, end_time: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Status</label>
+                  <select value={addFields.status} onChange={(e) => setAddFields(f => ({ ...f, status: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20 appearance-none">
+                    {["confirmed", "pending", "completed", "cancelled"].map(s => (
+                      <option key={s} value={s} className="bg-[#18181b] capitalize">{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Total Price (₹)</label>
+                  <input type="number" min="0" value={addFields.total_price} onChange={(e) => setAddFields(f => ({ ...f, total_price: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" placeholder="Auto-calculated" />
+                </div>
+              </div>
+              <div>
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Notes</label>
+                <textarea rows={2} value={addFields.notes} onChange={(e) => setAddFields(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20 resize-none" placeholder="Admin note (optional)" />
+              </div>
+              <p className="text-white/30 text-xs">Price is auto-calculated from studio rate × hours if left blank. Booking number will be prefixed with ADM-.</p>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setAddOpen(false)} className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm transition-colors">Cancel</button>
+                <button type="submit" disabled={addSaving}
+                  className="flex-1 px-4 py-2.5 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">
+                  {addSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Create Booking
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

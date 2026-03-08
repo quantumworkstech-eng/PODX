@@ -158,12 +158,26 @@ export async function PATCH(
     if (studioErr) return NextResponse.json({ error: 'Failed to update studio fields' }, { status: 500 });
 
     // Update rooms table for price_per_hour and capacity
-    const roomUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (studioFields.price_per_hour !== undefined) roomUpdates.price_per_hour = Number(studioFields.price_per_hour);
-    if (studioFields.capacity !== undefined) roomUpdates.capacity = Number(studioFields.capacity);
-
-    if (Object.keys(roomUpdates).length > 1) {
-      await supabaseAdmin.from('rooms').update(roomUpdates).eq('studio_id', id);
+    const hasPrice = studioFields.price_per_hour !== undefined;
+    const hasCapacity = studioFields.capacity !== undefined;
+    if (hasPrice || hasCapacity) {
+      const { data: existingRoom } = await supabaseAdmin
+        .from('rooms').select('id').eq('studio_id', id).maybeSingle();
+      if (existingRoom) {
+        const roomUpdates: Record<string, unknown> = {};
+        if (hasPrice) roomUpdates.price_per_hour = Number(studioFields.price_per_hour);
+        if (hasCapacity) roomUpdates.capacity = Number(studioFields.capacity);
+        await supabaseAdmin.from('rooms').update(roomUpdates).eq('studio_id', id);
+      } else {
+        // No room exists yet — create one
+        await supabaseAdmin.from('rooms').insert({
+          studio_id: id,
+          name: 'Main Room',
+          price_per_hour: Number(studioFields.price_per_hour) || 1000,
+          capacity: Number(studioFields.capacity) || 4,
+          is_active: true,
+        });
+      }
     }
   }
 

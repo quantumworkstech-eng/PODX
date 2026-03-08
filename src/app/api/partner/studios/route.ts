@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
   // Create default room
   await supabaseAdmin.from('rooms').insert({
     studio_id: studio.id,
+    name: 'Main Room',
     price_per_hour: pricePerHour || 0,
     capacity: capacity || 2,
     is_active: true,

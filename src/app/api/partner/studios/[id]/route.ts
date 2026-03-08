@@ -68,10 +68,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   // Update rooms table for price and capacity
   if (pricePerHour !== undefined || capacity !== undefined) {
-    const roomUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
-    if (pricePerHour !== undefined) roomUpdates.price_per_hour = Number(pricePerHour);
-    if (capacity !== undefined) roomUpdates.capacity = Number(capacity);
-    await supabaseAdmin.from('rooms').update(roomUpdates).eq('studio_id', id);
+    const { data: existingRoom } = await supabaseAdmin
+      .from('rooms').select('id').eq('studio_id', id).maybeSingle();
+    if (existingRoom) {
+      const roomUpdates: Record<string, any> = {};
+      if (pricePerHour !== undefined) roomUpdates.price_per_hour = Number(pricePerHour);
+      if (capacity !== undefined) roomUpdates.capacity = Number(capacity);
+      await supabaseAdmin.from('rooms').update(roomUpdates).eq('studio_id', id);
+    } else {
+      // No room exists yet — create one
+      await supabaseAdmin.from('rooms').insert({
+        studio_id: id,
+        name: 'Main Room',
+        price_per_hour: Number(pricePerHour) || 1000,
+        capacity: Number(capacity) || 4,
+        is_active: true,
+      });
+    }
   }
 
   // Update images (replace all)
