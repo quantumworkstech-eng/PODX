@@ -71,7 +71,7 @@ export default function StudiosPage() {
           <>
             <div className="absolute inset-0">
               <Image
-                src={featured.cover_image || featured.images?.[0] || "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1920"}
+                src={featured.cover_image || "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1920"}
                 alt={featured.name}
                 fill
                 className="object-cover transition-opacity duration-1000"
@@ -96,7 +96,7 @@ export default function StudiosPage() {
                 <div className="flex items-center gap-4 mb-6 text-white/70 text-sm">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-[#D9FC67]" />
-                    {featured.location?.area || featured.city}, {featured.location?.city || "Mumbai"}
+                    {featured.location?.area}, {featured.location?.city || "Mumbai"}
                   </span>
                   {featured.rating && (
                     <span className="flex items-center gap-1.5">
@@ -111,7 +111,7 @@ export default function StudiosPage() {
                 </div>
 
                 <p className="text-white/70 mb-8 text-base leading-relaxed max-w-lg">
-                  {featured.description || featured.short_description || "Professional podcast studio with premium equipment for content creators."}
+                  {featured.description || "Professional podcast studio with premium equipment for content creators."}
                 </p>
 
                 <div className="flex gap-4 items-center">
@@ -235,7 +235,7 @@ export default function StudiosPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((studio) => {
-              const images = studio.images || (studio.cover_image ? [studio.cover_image] : []);
+              const images = studio.cover_image ? [studio.cover_image] : [];
               const currentImageIdx = imageIndices[studio.id] || 0;
               const currentImage = images[currentImageIdx] || images[0] || "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800";
 
@@ -294,7 +294,7 @@ export default function StudiosPage() {
                     <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-[#D9FC67]" />
                       <span className="text-white text-xs font-medium">
-                        {studio.location?.area || studio.city || "Mumbai"}
+                        {studio.location?.area || "Mumbai"}
                       </span>
                     </div>
                   </div>
@@ -318,20 +318,20 @@ export default function StudiosPage() {
 
                     {/* Description */}
                     <p className="text-white/50 text-sm leading-relaxed line-clamp-2 mb-4">
-                      {studio.short_description || studio.description || "Professional podcast studio with premium equipment."}
+                      {studio.description || "Professional podcast studio with premium equipment."}
                     </p>
 
-                    {/* Features */}
-                    {studio.features && studio.features.length > 0 && (
+                    {/* Amenities */}
+                    {studio.amenities && studio.amenities.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-4">
-                        {studio.features.slice(0, 3).map((feature: string, i: number) => (
+                        {studio.amenities.slice(0, 3).map((amenity: string, i: number) => (
                           <span key={i} className="px-2.5 py-1 bg-white/[0.04] border border-white/5 rounded-full text-white/50 text-xs">
-                            {feature}
+                            {amenity}
                           </span>
                         ))}
-                        {studio.features.length > 3 && (
+                        {studio.amenities.length > 3 && (
                           <span className="px-2.5 py-1 bg-white/[0.04] border border-white/5 rounded-full text-white/30 text-xs">
-                            +{studio.features.length - 3} more
+                            +{studio.amenities.length - 3} more
                           </span>
                         )}
                       </div>
@@ -340,7 +340,7 @@ export default function StudiosPage() {
                     {/* Booking info + CTA */}
                     <div className="flex items-center gap-2 text-white/40 text-xs mb-4">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Min {studio.min_hours || 1} hr · Available Today</span>
+                      <span>Min 1 hr · Available Today</span>
                     </div>
 
                     <Link href="/book" className="block">
