@@ -49,7 +49,7 @@ export default function StudiosPage() {
   }, [studios]);
 
   const filtered = studios.filter((s) => {
-    const matchCity = activeCity === "All Cities" || s.location?.city === activeCity || s.city === activeCity;
+    const matchCity = activeCity === "All Cities" || s.location?.city === activeCity;
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
     return matchCity && matchSearch;
   });
