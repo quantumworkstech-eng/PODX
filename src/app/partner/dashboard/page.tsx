@@ -179,10 +179,8 @@ export default function PartnerDashboardOverview() {
         <div className="lg:col-span-2 bg-[#141414] border border-white/5 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white">Upcoming Sessions</h2>
-            <Link href="/partner/bookings">
-              <Button variant="ghost" className="text-[#D9FC67] hover:text-[#E8FF8A] hover:bg-[#D9FC67]/10">
-                View All <ArrowUpRight className="w-4 h-4 ml-1" />
-              </Button>
+            <Link href="/partner/bookings" className="flex items-center gap-1 text-sm font-medium text-[#D9FC67] hover:text-[#E8FF8A] hover:bg-[#D9FC67]/10 px-3 py-1.5 rounded-lg transition-colors">
+              View All <ArrowUpRight className="w-4 h-4" />
             </Link>
           </div>
 
@@ -229,38 +227,32 @@ export default function PartnerDashboardOverview() {
         <div className="bg-[#141414] border border-white/5 rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-white mb-6">Quick Actions</h2>
           <div className="space-y-3">
-            <Link href="/partner/studios/create" className="block">
-              <button className="w-full flex items-center gap-3 p-4 bg-[#D9FC67]/10 hover:bg-[#D9FC67]/20 rounded-xl transition-colors text-left">
-                <div className="p-2 rounded-lg bg-[#D9FC67]/20">
-                  <Building2 className="w-5 h-5 text-[#D9FC67]" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Add New Studio</p>
-                  <p className="text-white/40 text-xs">List your podcast space</p>
-                </div>
-              </button>
+            <Link href="/partner/studios/create" className="w-full flex items-center gap-3 p-4 bg-[#D9FC67]/10 hover:bg-[#D9FC67]/20 rounded-xl transition-colors">
+              <div className="p-2 rounded-lg bg-[#D9FC67]/20">
+                <Building2 className="w-5 h-5 text-[#D9FC67]" />
+              </div>
+              <div>
+                <p className="text-white font-medium">Add New Studio</p>
+                <p className="text-white/40 text-xs">List your podcast space</p>
+              </div>
             </Link>
-            <Link href="/partner/policies" className="block">
-              <button className="w-full flex items-center gap-3 p-4 bg-white/5 hover:bg-white/[0.07] rounded-xl transition-colors text-left">
-                <div className="p-2 rounded-lg bg-white/10">
-                  <Clock className="w-5 h-5 text-white/60" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Set Policies</p>
-                  <p className="text-white/40 text-xs">Configure cancellation rules</p>
-                </div>
-              </button>
+            <Link href="/partner/policies" className="w-full flex items-center gap-3 p-4 bg-white/5 hover:bg-white/[0.07] rounded-xl transition-colors">
+              <div className="p-2 rounded-lg bg-white/10">
+                <Clock className="w-5 h-5 text-white/60" />
+              </div>
+              <div>
+                <p className="text-white font-medium">Set Policies</p>
+                <p className="text-white/40 text-xs">Configure cancellation rules</p>
+              </div>
             </Link>
-            <Link href="/partner/earnings" className="block">
-              <button className="w-full flex items-center gap-3 p-4 bg-white/5 hover:bg-white/[0.07] rounded-xl transition-colors text-left">
-                <div className="p-2 rounded-lg bg-white/10">
-                  <DollarSign className="w-5 h-5 text-white/60" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">View Earnings</p>
-                  <p className="text-white/40 text-xs">Track your revenue</p>
-                </div>
-              </button>
+            <Link href="/partner/earnings" className="w-full flex items-center gap-3 p-4 bg-white/5 hover:bg-white/[0.07] rounded-xl transition-colors">
+              <div className="p-2 rounded-lg bg-white/10">
+                <DollarSign className="w-5 h-5 text-white/60" />
+              </div>
+              <div>
+                <p className="text-white font-medium">View Earnings</p>
+                <p className="text-white/40 text-xs">Track your revenue</p>
+              </div>
             </Link>
           </div>
         </div>
@@ -271,10 +263,8 @@ export default function PartnerDashboardOverview() {
         <div className="bg-[#141414] border border-white/5 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white">Your Studios</h2>
-            <Link href="/partner/studios">
-              <Button variant="ghost" className="text-[#D9FC67] hover:text-[#E8FF8A] hover:bg-[#D9FC67]/10">
-                Manage <ArrowUpRight className="w-4 h-4 ml-1" />
-              </Button>
+            <Link href="/partner/studios" className="flex items-center gap-1 text-sm font-medium text-[#D9FC67] hover:text-[#E8FF8A] hover:bg-[#D9FC67]/10 px-3 py-1.5 rounded-lg transition-colors">
+              Manage <ArrowUpRight className="w-4 h-4" />
             </Link>
           </div>
 

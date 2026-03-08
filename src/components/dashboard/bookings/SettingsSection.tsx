@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { User, Bell, Globe, Shield, CreditCard, Moon, ChevronRight } from "lucide-react";
+import { User, Bell, Globe, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ export function SettingsSection() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Profile Information */}
-          <div className="bg-[#18181b] rounded-2xl border border-white/5 overflow-hidden">
+          <div id="profile" className="bg-[#18181b] rounded-2xl border border-white/5 overflow-hidden">
             <div className="p-6 border-b border-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/10 flex items-center justify-center">
@@ -113,7 +113,7 @@ export function SettingsSection() {
           </div>
 
           {/* Notifications */}
-          <div className="bg-[#18181b] rounded-2xl border border-white/5 overflow-hidden">
+          <div id="notifications" className="bg-[#18181b] rounded-2xl border border-white/5 overflow-hidden">
             <div className="p-6 border-b border-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
@@ -148,7 +148,7 @@ export function SettingsSection() {
           </div>
 
           {/* Preferences */}
-          <div className="bg-[#18181b] rounded-2xl border border-white/5 overflow-hidden">
+          <div id="preferences" className="bg-[#18181b] rounded-2xl border border-white/5 overflow-hidden">
             <div className="p-6 border-b border-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
@@ -186,11 +186,15 @@ export function SettingsSection() {
             <h3 className="text-white font-semibold mb-4">Quick Links</h3>
             <div className="space-y-2">
               {[
-                { icon: Shield, label: "Privacy & Security" },
-                { icon: CreditCard, label: "Payment Methods" },
-                { icon: Moon, label: "Appearance" },
-              ].map(({ icon: Icon, label }) => (
-                <button key={label} className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors text-left">
+                { icon: User, label: "Profile Information", target: "profile" },
+                { icon: Bell, label: "Notifications", target: "notifications" },
+                { icon: Globe, label: "Preferences", target: "preferences" },
+              ].map(({ icon: Icon, label, target }) => (
+                <button
+                  key={label}
+                  onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth" })}
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
+                >
                   <div className="flex items-center gap-3">
                     <Icon className="w-5 h-5 text-white/50" />
                     <span className="text-white/70">{label}</span>
