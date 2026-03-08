@@ -57,3 +57,40 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ users: filtered, total: count || 0, page, limit });
 }
+
+export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireAdmin(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+
+  const body = await request.json();
+  const { full_name, email, phone, role } = body;
+
+  if (!email) return NextResponse.json({ error: 'email is required' }, { status: 400 });
+
+  // Check if user already exists
+  const { data: existing } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
+  if (existing) return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
+
+  const { data: user, error: userErr } = await supabaseAdmin.from('users').insert({
+    email,
+    role: role || 'user',
+    auth_provider: 'email',
+    email_verified: false,
+  }).select('id, email').single();
+
+  if (userErr || !user) {
+    return NextResponse.json({ error: userErr?.message || 'Failed to create user' }, { status: 500 });
+  }
+
+  if (full_name || phone) {
+    await supabaseAdmin.from('profiles').insert({
+      user_id: user.id,
+      full_name: full_name || null,
+      phone: phone || null,
+    });
+  }
+
+  return NextResponse.json({ user }, { status: 201 });
+}

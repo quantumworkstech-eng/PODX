@@ -114,6 +114,37 @@ export default function AdminStudiosPage() {
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Add studio modal
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addFields, setAddFields] = useState({
+    name: "", description: "", short_description: "", address: "",
+    city: "", state: "", country: "India", owner_email: "",
+    price_per_hour: "", capacity: "",
+  });
+
+  const handleAddStudio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddSaving(true);
+    setAddError(null);
+    const res = await fetch("/api/admin/studios", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...addFields,
+        price_per_hour: Number(addFields.price_per_hour) || 1000,
+        capacity: Number(addFields.capacity) || 4,
+      }),
+    });
+    const data = await res.json();
+    setAddSaving(false);
+    if (!res.ok) { setAddError(data.error || "Failed to create studio"); return; }
+    setAddOpen(false);
+    setAddFields({ name: "", description: "", short_description: "", address: "", city: "", state: "", country: "India", owner_email: "", price_per_hour: "", capacity: "" });
+    fetchStudios();
+  };
+
   const fetchStudios = () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
@@ -277,7 +308,7 @@ export default function AdminStudiosPage() {
           <h2 className="text-xl font-bold text-white">Studio Management</h2>
           <p className="text-white/40 text-sm">{total.toLocaleString()} total studios · Full control</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
@@ -291,6 +322,13 @@ export default function AdminStudiosPage() {
               {f.label}
             </button>
           ))}
+          <button
+            onClick={() => { setAddOpen(true); setAddError(null); }}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-[#D9FC67] text-black hover:bg-[#E8FF8A] transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Studio
+          </button>
         </div>
       </div>
 
@@ -700,6 +738,81 @@ export default function AdminStudiosPage() {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Studio Modal */}
+      {addOpen && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+              <h3 className="text-white font-semibold text-lg">Add New Studio</h3>
+              <button onClick={() => setAddOpen(false)} className="text-white/40 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddStudio} className="p-6 space-y-4">
+              {addError && (
+                <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{addError}</div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Studio Name *</label>
+                  <input required value={addFields.name} onChange={(e) => setAddFields(f => ({ ...f, name: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="Studio Alpha" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Owner Email *</label>
+                  <input required type="email" value={addFields.owner_email} onChange={(e) => setAddFields(f => ({ ...f, owner_email: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="owner@example.com" />
+                </div>
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">City *</label>
+                  <input required value={addFields.city} onChange={(e) => setAddFields(f => ({ ...f, city: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="Mumbai" />
+                </div>
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">State</label>
+                  <input value={addFields.state} onChange={(e) => setAddFields(f => ({ ...f, state: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="Maharashtra" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Address</label>
+                  <input value={addFields.address} onChange={(e) => setAddFields(f => ({ ...f, address: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="123 Main Street, Andheri West" />
+                </div>
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Price / Hour (₹)</label>
+                  <input type="number" min="0" value={addFields.price_per_hour} onChange={(e) => setAddFields(f => ({ ...f, price_per_hour: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="1000" />
+                </div>
+                <div>
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Capacity (persons)</label>
+                  <input type="number" min="1" value={addFields.capacity} onChange={(e) => setAddFields(f => ({ ...f, capacity: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="4" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Short Description</label>
+                  <input value={addFields.short_description} onChange={(e) => setAddFields(f => ({ ...f, short_description: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20" placeholder="One-line summary" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Description</label>
+                  <textarea rows={3} value={addFields.description} onChange={(e) => setAddFields(f => ({ ...f, description: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20 resize-none" placeholder="Full studio description..." />
+                </div>
+              </div>
+              <p className="text-white/30 text-xs">Studio will be created in <span className="text-yellow-400">pending_review</span> status. Use the edit drawer to add images, amenities, and hours after creation.</p>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setAddOpen(false)} className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm transition-colors">Cancel</button>
+                <button type="submit" disabled={addSaving}
+                  className="flex-1 px-4 py-2.5 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">
+                  {addSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Create Studio
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -59,3 +59,49 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ bookings, total: count || 0, page, limit });
 }
+
+export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireAdmin(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+
+  const body = await request.json();
+  const { user_email, studio_id, date, start_time, end_time, status, total_price, notes } = body;
+
+  if (!user_email || !studio_id || !date || !start_time || !end_time) {
+    return NextResponse.json({ error: 'user_email, studio_id, date, start_time, end_time are required' }, { status: 400 });
+  }
+
+  const { data: user } = await supabaseAdmin.from('users').select('id').eq('email', user_email).maybeSingle();
+  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 400 });
+
+  // Get first active room for studio
+  const { data: room } = await supabaseAdmin.from('rooms').select('id, price_per_hour').eq('studio_id', studio_id).eq('is_active', true).maybeSingle();
+
+  const startDt = new Date(`${date}T${start_time}:00`);
+  const endDt = new Date(`${date}T${end_time}:00`);
+  const hours = (endDt.getTime() - startDt.getTime()) / 3600000;
+  const price = total_price ? Number(total_price) : (room?.price_per_hour || 0) * hours;
+
+  const bookingNumber = 'ADM-' + Date.now().toString().slice(-8);
+
+  const { data: booking, error: bErr } = await supabaseAdmin.from('bookings').insert({
+    booking_number: bookingNumber,
+    user_id: user.id,
+    studio_id,
+    room_id: room?.id || null,
+    start_time: startDt.toISOString(),
+    end_time: endDt.toISOString(),
+    status: status || 'confirmed',
+    total_price: price,
+    notes: notes || null,
+    created_by_admin: true,
+  }).select('id, booking_number').single();
+
+  if (bErr || !booking) {
+    return NextResponse.json({ error: bErr?.message || 'Failed to create booking' }, { status: 500 });
+  }
+
+  return NextResponse.json({ booking }, { status: 201 });
+}

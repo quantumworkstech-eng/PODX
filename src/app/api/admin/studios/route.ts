@@ -56,3 +56,49 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ studios, total: count || 0, page, limit });
 }
+
+export async function POST(request: NextRequest) {
+  const email = await getAdminEmail();
+  if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+
+  const body = await request.json();
+  const { name, description, short_description, address, city, state, country, owner_email, price_per_hour, capacity } = body;
+
+  if (!name || !city || !owner_email) {
+    return NextResponse.json({ error: 'name, city, and owner_email are required' }, { status: 400 });
+  }
+
+  const { data: ownerUser } = await supabaseAdmin.from('users').select('id').eq('email', owner_email).maybeSingle();
+  if (!ownerUser) return NextResponse.json({ error: 'Owner user not found. Create the user first.' }, { status: 400 });
+
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
+
+  const { data: studio, error: studioErr } = await supabaseAdmin.from('studios').insert({
+    name,
+    slug,
+    description: description || null,
+    short_description: short_description || null,
+    address: address || null,
+    city,
+    state: state || null,
+    country: country || 'India',
+    owner_id: ownerUser.id,
+    is_active: false,
+    review_status: 'pending_review',
+  }).select('id, name, slug').single();
+
+  if (studioErr || !studio) {
+    return NextResponse.json({ error: studioErr?.message || 'Failed to create studio' }, { status: 500 });
+  }
+
+  await supabaseAdmin.from('rooms').insert({
+    studio_id: studio.id,
+    name: 'Main Room',
+    price_per_hour: Number(price_per_hour) || 1000,
+    capacity: Number(capacity) || 4,
+    is_active: true,
+  });
+
+  return NextResponse.json({ studio }, { status: 201 });
+}
