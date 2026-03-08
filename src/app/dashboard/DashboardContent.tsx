@@ -15,6 +15,7 @@ import {
   ChevronDown,
   CreditCard,
   Home,
+  Headphones,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
@@ -264,7 +265,7 @@ export default function DashboardContent() {
       case "past":
         return <PastBookings bookings={pastBookings} />;
       case "billing":
-        return <BillingSection bookings={pastBookings} />;
+        return <BillingSection bookings={bookings} />;
       case "settings":
         return <SettingsSection />;
       default:
@@ -379,6 +380,10 @@ export default function DashboardContent() {
               </div>
 
               <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#D9FC67]/10 rounded-full">
+                  <Headphones className="w-3.5 h-3.5 text-[#D9FC67]" />
+                  <span className="text-xs text-[#D9FC67] font-medium">Client</span>
+                </div>
                 <div className="relative">
                   <NotificationBell userEmail={session?.user?.email} />
                 </div>

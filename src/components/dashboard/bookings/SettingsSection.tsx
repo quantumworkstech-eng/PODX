@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { User, Bell, Globe, ChevronRight } from "lucide-react";
+import { User, Bell, Globe, ChevronRight, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function SettingsSection() {
@@ -208,9 +209,12 @@ export function SettingsSection() {
           <div className="bg-gradient-to-br from-[#D9FC67]/10 to-[#B8E050]/10 rounded-2xl border border-[#D9FC67]/20 p-6">
             <h3 className="text-white font-semibold mb-2">Need Help?</h3>
             <p className="text-white/50 text-sm mb-4">Our support team is available 24/7 to assist you.</p>
-            <Button variant="outline" className="w-full bg-white/5 border-white/20 text-white hover:bg-white/10">
-              Contact Support
-            </Button>
+            <Link href="/contact">
+              <Button variant="outline" className="w-full bg-white/5 border-white/20 text-white hover:bg-white/10">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Contact Support
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

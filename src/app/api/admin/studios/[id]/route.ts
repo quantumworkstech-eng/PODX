@@ -140,7 +140,7 @@ export async function PATCH(
   }
 
   // Direct field updates
-  const { studioFields, amenityIds, hoursData, policyUpdates } = body;
+  const { studioFields, amenityIds, hoursData, policyUpdates, imageUrls } = body;
 
   if (studioFields) {
     // Only allow actual columns that exist in the studios table
@@ -222,8 +222,21 @@ export async function PATCH(
     }
   }
 
+  // Insert image URLs into studio_images table
+  if (imageUrls && Array.isArray(imageUrls) && imageUrls.length > 0) {
+    await supabaseAdmin.from('studio_images').delete().eq('studio_id', id);
+    await supabaseAdmin.from('studio_images').insert(
+      imageUrls.map((url: string, idx: number) => ({
+        studio_id: id,
+        image_url: url,
+        display_order: idx,
+        is_primary: idx === 0,
+      }))
+    );
+  }
+
   await logAdminAction(email, 'studio_edit', 'studio', id, {
-    sections: [studioFields && 'basic', amenityIds && 'amenities', hoursData && 'hours', policyUpdates && 'policies'].filter(Boolean),
+    sections: [studioFields && 'basic', amenityIds && 'amenities', hoursData && 'hours', policyUpdates && 'policies', imageUrls && 'images'].filter(Boolean),
   });
 
   return NextResponse.json({ success: true });

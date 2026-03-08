@@ -32,8 +32,9 @@ export async function GET() {
     .from('bookings')
     .select(`
       id, booking_number, start_time, end_time, status, total_price, notes, created_at,
-      studios!studio_id(id, name),
-      users!user_id(id, email, profiles(full_name, phone))
+      studios!studio_id(id, name, city, address),
+      users!user_id(id, email, profiles(full_name, phone)),
+      rooms!room_id(price_per_hour)
     `)
     .in('studio_id', studioIds)
     .order('start_time', { ascending: false });
@@ -50,27 +51,55 @@ export async function GET() {
     const startTime = new Date(b.start_time);
     const endTime = new Date(b.end_time);
     const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-    const timeSlot = `${startTime.getHours().toString().padStart(2, '0')}:00`;
+    const fmt = (d: Date) => `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 
+    const roomArr = b.rooms;
+    const room = Array.isArray(roomArr) ? roomArr[0] : roomArr;
     const profileArr = b.users?.profiles;
     const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
     const customerName = profile?.full_name || b.users?.email?.split('@')[0] || 'Customer';
 
+    const addOns: { name: string; price: number }[] = notes.addOns || [];
+    const pkg = notes.package || null;
+    const pricePerHour = room?.price_per_hour || 0;
+    const basePrice = pricePerHour * duration;
+    const packagePrice = pkg ? (pkg.price_per_hour || 0) * duration : 0;
+    const addOnsTotal = addOns.reduce((s: number, a: any) => s + (a.price || 0), 0);
+    const subtotal = basePrice + packagePrice + addOnsTotal;
+    const gst = subtotal * 0.18;
+
     return {
       id: b.booking_number || b.id,
       dbId: b.id,
-      studio: { name: b.studios?.name || '' },
+      studio: {
+        name: b.studios?.name || '',
+        city: b.studios?.city || '',
+        address: b.studios?.address || '',
+      },
       customer: {
         name: customerName,
         email: b.users?.email || '',
         phone: profile?.phone || '',
       },
       date: b.start_time,
-      timeSlot,
+      endDate: b.end_time,
+      timeSlot: fmt(startTime),
+      endTime: fmt(endTime),
       duration,
-      packageName: notes.package?.name,
+      participants: notes.participants || null,
+      package: pkg ? { name: pkg.name, pricePerHour: pkg.price_per_hour || 0 } : null,
+      addOns,
+      pricing: {
+        basePrice,
+        packagePrice,
+        addOnsTotal,
+        subtotal,
+        gst,
+        total: Number(b.total_price),
+      },
       totalPrice: Number(b.total_price),
       status: b.status as 'confirmed' | 'pending' | 'cancelled' | 'completed',
+      createdAt: b.created_at,
     };
   });
 

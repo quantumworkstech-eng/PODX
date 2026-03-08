@@ -103,7 +103,7 @@ export default function AdminDashboard() {
       icon: DollarSign,
       label: "Revenue Today",
       value: `₹${(stats?.revenueToday ?? 0).toLocaleString("en-IN")}`,
-      sub: `₹${((stats?.revenueThisMonth ?? 0) / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} this month`,
+      sub: `₹${(stats?.revenueThisMonth ?? 0).toLocaleString("en-IN")} this month`,
       color: "bg-green-500/10 text-green-400",
       href: "/admin/payments",
     },

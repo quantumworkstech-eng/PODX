@@ -9,16 +9,21 @@ interface BillingSectionProps {
 }
 
 export function BillingSection({ bookings }: BillingSectionProps) {
-  const totalSpent = bookings.reduce((sum, b) => sum + b.totalPrice, 0);
-  const averagePerSession = bookings.length > 0 ? Math.round(totalSpent / bookings.length) : 0;
+  // confirmed = paid but session upcoming; completed = session done; both are charged
+  const paidBookings = bookings.filter((b) => b.status === "confirmed" || b.status === "completed");
+  const totalSpent = paidBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+  const averagePerSession = paidBookings.length > 0 ? Math.round(totalSpent / paidBookings.length) : 0;
 
-  const invoices = bookings.filter((b) => b.status === "completed").map((b, index) => ({
-    id: `INV-${String(index + 1).padStart(4, "0")}`,
-    date: b.createdAt,
-    amount: b.totalPrice,
-    studio: b.studio.name,
-    status: "paid",
-  }));
+  const invoices = paidBookings
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((b, index) => ({
+      id: `INV-${String(index + 1).padStart(4, "0")}`,
+      bookingId: b.id,
+      date: b.createdAt,
+      amount: b.totalPrice,
+      studio: b.studio.name,
+      status: b.status === "completed" ? "paid" : "paid",
+    }));
 
   return (
     <div className="space-y-6">
@@ -85,28 +90,31 @@ export function BillingSection({ bookings }: BillingSectionProps) {
               </thead>
               <tbody>
                 {invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b border-white/5 hover:bg-white/5">
+                  <tr key={invoice.id} className="border-b border-white/5 hover:bg-white/[0.03]">
                     <td className="px-4 py-4">
-                      <p className="text-white font-medium">{invoice.id}</p>
+                      <p className="text-white font-medium font-mono text-sm">{invoice.id}</p>
+                      <p className="text-white/30 text-xs font-mono mt-0.5">{invoice.bookingId}</p>
                     </td>
                     <td className="px-4 py-4">
                       <p className="text-white/70">{invoice.studio}</p>
                     </td>
                     <td className="px-4 py-4">
                       <p className="text-white/70">
-                        {new Date(invoice.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {invoice.date
+                          ? new Date(invoice.date).toLocaleDateString("en-IN", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "—"}
                       </p>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-white font-semibold">₹{invoice.amount.toLocaleString()}</p>
+                      <p className="text-white font-semibold">₹{invoice.amount.toLocaleString("en-IN")}</p>
                     </td>
                     <td className="px-4 py-4">
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
-                        {invoice.status}
+                        Paid
                       </span>
                     </td>
                     <td className="px-4 py-4">
@@ -114,7 +122,18 @@ export function BillingSection({ bookings }: BillingSectionProps) {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => {
+                            const content = `Invoice: ${invoice.id}\nBooking: ${invoice.bookingId}\nStudio: ${invoice.studio}\nDate: ${new Date(invoice.date).toLocaleDateString("en-IN")}\nAmount: ₹${invoice.amount.toLocaleString("en-IN")}\nStatus: Paid`;
+                            const blob = new Blob([content], { type: "text/plain" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${invoice.id}.txt`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
                           className="text-white/60 hover:text-white hover:bg-white/10"
+                          title="Download invoice"
                         >
                           <Download className="w-4 h-4" />
                         </Button>

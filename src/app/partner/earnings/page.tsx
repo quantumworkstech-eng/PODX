@@ -33,25 +33,35 @@ interface Studio {
   name: string;
 }
 
-const PARTNER_BOOKINGS_KEY = "partner_bookings";
-const PARTNER_STUDIOS_KEY = "partner_studios";
-
 export default function PartnerEarningsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
   const [timeFilter, setTimeFilter] = useState<"week" | "month" | "year">("month");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedBookings = localStorage.getItem(PARTNER_BOOKINGS_KEY);
-    if (storedBookings) setBookings(JSON.parse(storedBookings));
-
-    const storedStudios = localStorage.getItem(PARTNER_STUDIOS_KEY);
-    if (storedStudios) setStudios(JSON.parse(storedStudios));
+    Promise.all([
+      fetch("/api/partner/bookings").then((r) => r.json()),
+      fetch("/api/partner/studios").then((r) => r.json()),
+    ])
+      .then(([bd, sd]) => {
+        setBookings(bd.bookings || []);
+        setStudios(sd.studios || []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  const completedBookings = bookings.filter((b) => b.status === "completed");
-  const confirmedBookings = bookings.filter((b) => b.status === "confirmed");
-  const cancelledBookings = bookings.filter((b) => b.status === "cancelled");
+  const now = new Date();
+  const filterDate = new Date();
+  if (timeFilter === "week") filterDate.setDate(now.getDate() - 7);
+  else if (timeFilter === "month") filterDate.setMonth(now.getMonth() - 1);
+  else filterDate.setFullYear(now.getFullYear() - 1);
+
+  const filteredBookings = bookings.filter((b) => new Date(b.date) >= filterDate);
+  const completedBookings = filteredBookings.filter((b) => b.status === "completed");
+  const confirmedBookings = filteredBookings.filter((b) => b.status === "confirmed");
+  const cancelledBookings = filteredBookings.filter((b) => b.status === "cancelled");
 
   const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
   const pendingEarnings = confirmedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
@@ -102,10 +112,18 @@ export default function PartnerEarningsPage() {
     .slice(0, 10);
 
   const studioPerformance = studios.map((studio) => {
-    const studioBookings = bookings.filter((b) => b.studio.name === studio.name && b.status === "completed");
+    const studioBookings = filteredBookings.filter((b) => b.studio.name === studio.name && b.status === "completed");
     const revenue = studioBookings.reduce((sum, b) => sum + b.totalPrice, 0);
     return { ...studio, bookings: studioBookings.length, revenue };
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -203,9 +203,13 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#D9FC67]/10 rounded-full">
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#D9FC67]/10 rounded-full border border-[#D9FC67]/20">
+                    <Building2 className="w-3.5 h-3.5 text-[#D9FC67]" />
+                    <span className="text-xs text-[#D9FC67] font-medium">Partner</span>
+                  </div>
+                  <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full">
                     <div className="w-2 h-2 bg-[#D9FC67] rounded-full animate-pulse" />
-                    <span className="text-xs text-[#D9FC67] font-medium">
+                    <span className="text-xs text-white/50 font-medium">
                       {activeStudios} Active Studio{activeStudios !== 1 ? "s" : ""}
                     </span>
                   </div>
