@@ -296,7 +296,7 @@ export default function AdminStudiosPage() {
             </button>
           ))}
           <button
-            onClick={() => { setAddOpen(true); setAddError(null); }}
+            onClick={() => setAddOpen(true)}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-[#D9FC67] text-black hover:bg-[#E8FF8A] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
