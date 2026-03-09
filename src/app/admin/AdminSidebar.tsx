@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { adminSignOut } from "./login/actions";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
@@ -145,6 +146,8 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
                 <Shield className="w-3.5 h-3.5 text-red-400" />
                 <span className="text-xs text-red-400 font-medium">Admin Panel</span>
               </div>
+
+              <ThemeToggle />
 
               <NotificationBell userEmail={email} />
 

@@ -51,7 +51,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${dmSans.variable} scroll-smooth`}>
+    <html lang="en" data-theme="dark" className={`${outfit.variable} ${dmSans.variable} scroll-smooth`}>
+      <head>
+        {/* Anti-FOUC: apply saved theme before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('podx_theme')||'dark';var r=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-background antialiased font-[family-name:var(--font-dm-sans)]">
         <Providers>{children}</Providers>
       </body>

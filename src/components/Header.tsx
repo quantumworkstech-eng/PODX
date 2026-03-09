@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, X } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { label: "Studios", href: "/studios" },
@@ -47,6 +48,7 @@ export function Header() {
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/auth/login" className="hidden sm:block">
               <Button variant="ghost" size="sm" className="text-sm font-medium text-white/80 hover:text-white hover:bg-white/10">
                 Login

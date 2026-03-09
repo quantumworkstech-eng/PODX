@@ -18,6 +18,7 @@ import {
   Headphones,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -384,6 +385,8 @@ export default function DashboardContent() {
                   <Headphones className="w-3.5 h-3.5 text-[#D9FC67]" />
                   <span className="text-xs text-[#D9FC67] font-medium">Client</span>
                 </div>
+                <ThemeToggle />
+
                 <div className="relative">
                   <NotificationBell userEmail={session?.user?.email} />
                 </div>

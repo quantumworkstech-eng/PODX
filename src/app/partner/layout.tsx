@@ -18,6 +18,7 @@ import {
   Star,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
@@ -213,6 +214,8 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                       {activeStudios} Active Studio{activeStudios !== 1 ? "s" : ""}
                     </span>
                   </div>
+
+                  <ThemeToggle />
 
                   <NotificationBell userEmail={session?.user?.email} />
 
