@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-1 flex-wrap">
+                      <div className="flex gap-1 flex-wrap items-center">
                         {user.roles.length === 0 ? (
                           <span className="text-white/30 text-xs">No role</span>
                         ) : (
@@ -173,6 +173,9 @@ export default function AdminUsersPage() {
                               {role}
                             </span>
                           ))
+                        )}
+                        {user.studio_count > 0 && (
+                          <span className="text-white/30 text-xs ml-1">{user.studio_count} studio{user.studio_count > 1 ? "s" : ""}</span>
                         )}
                       </div>
                     </td>

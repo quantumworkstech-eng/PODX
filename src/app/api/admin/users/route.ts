@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
     .from('users')
     .select(`
       id, email, auth_provider, email_verified, created_at, role,
-      profiles(full_name, avatar_url, phone)
+      profiles(full_name, avatar_url, phone),
+      user_roles(roles(name)),
+      studios!studios_owner_id_fkey(id)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -41,17 +43,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
   }
 
-  const users = (data || []).map((u: any) => ({
-    id: u.id,
-    email: u.email,
-    auth_provider: u.auth_provider,
-    email_verified: u.email_verified,
-    created_at: u.created_at,
-    full_name: u.profiles?.full_name || null,
-    avatar_url: u.profiles?.avatar_url || null,
-    phone: u.profiles?.phone || null,
-    roles: u.role ? [u.role] : [],
-  }));
+  const users = (data || []).map((u: any) => {
+    // Merge roles from: users.role column + user_roles junction table + studio ownership
+    const allRoles = new Set<string>();
+    if (u.role) allRoles.add(u.role);
+    (u.user_roles || []).forEach((ur: any) => { if (ur.roles?.name) allRoles.add(ur.roles.name); });
+    const studioCount = (u.studios || []).length;
+    if (studioCount > 0 && !allRoles.has('admin')) allRoles.add('partner');
+
+    return {
+      id: u.id,
+      email: u.email,
+      auth_provider: u.auth_provider,
+      email_verified: u.email_verified,
+      created_at: u.created_at,
+      full_name: u.profiles?.full_name || null,
+      avatar_url: u.profiles?.avatar_url || null,
+      phone: u.profiles?.phone || null,
+      roles: Array.from(allRoles),
+      studio_count: studioCount,
+    };
+  });
 
   const filtered = role ? users.filter((u) => u.roles.includes(role)) : users;
 

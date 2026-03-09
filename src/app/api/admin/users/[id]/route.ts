@@ -57,7 +57,7 @@ export async function GET(
   const [{ data: user }, { data: bookings }] = await Promise.all([
     supabaseAdmin
       .from('users')
-      .select('id, email, auth_provider, email_verified, created_at, role, profiles(full_name, avatar_url, phone)')
+      .select('id, email, auth_provider, email_verified, created_at, role, profiles(full_name, avatar_url, phone), user_roles(roles(name)), studios!studios_owner_id_fkey(id)')
       .eq('id', id)
       .maybeSingle(),
     supabaseAdmin
@@ -70,10 +70,17 @@ export async function GET(
 
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+  const allRoles = new Set<string>();
+  if (user.role) allRoles.add(user.role);
+  ((user as any).user_roles || []).forEach((ur: any) => { if (ur.roles?.name) allRoles.add(ur.roles.name); });
+  const studioCount = ((user as any).studios || []).length;
+  if (studioCount > 0 && !allRoles.has('admin')) allRoles.add('partner');
+
   return NextResponse.json({
     user: {
       ...user,
-      roles: user.role ? [user.role] : [],
+      roles: Array.from(allRoles),
+      studio_count: studioCount,
     },
     bookings: bookings || [],
   });
