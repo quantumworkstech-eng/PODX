@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { checkStudioLimit } from '@/lib/subscription-gates';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -74,6 +75,22 @@ export async function POST(request: NextRequest) {
 
   const partnerId = await getPartnerId(session.user.email);
   if (!partnerId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+  // Subscription gate: check studio limit
+  const studioCheck = await checkStudioLimit(partnerId);
+  if (!studioCheck.allowed) {
+    return NextResponse.json(
+      {
+        error: studioCheck.max === 0
+          ? 'An active subscription is required to list studios. Visit Billing & Plans to subscribe.'
+          : `Studio limit reached. Your plan allows ${studioCheck.max} studio${studioCheck.max === 1 ? '' : 's'} (you have ${studioCheck.current}). Upgrade your plan to add more.`,
+        code: 'STUDIO_LIMIT_REACHED',
+        current: studioCheck.current,
+        max: studioCheck.max,
+      },
+      { status: 403 }
+    );
+  }
 
   const body = await request.json();
   const { name, description, fullDescription, address, city, pricePerHour, capacity, equipment, images, latitude, longitude } = body;

@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { auth } from "@/auth";
+import { supabaseAdmin } from "@/lib/supabase";
+const supabase = supabaseAdmin!;
+import { getPartnerSubscription, isSubscriptionActive, checkFeature } from "@/lib/subscription-gates";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -21,6 +17,16 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Subscription gate
+  const sub = await getPartnerSubscription(user.id);
+  if (!isSubscriptionActive(sub)) {
+    return NextResponse.json(
+      { error: "An active subscription is required to access analytics.", code: "SUBSCRIPTION_REQUIRED" },
+      { status: 403 }
+    );
+  }
+  const hasFullAnalytics = await checkFeature(user.id, "analytics_full");
 
   const { searchParams } = new URL(req.url);
   const period = searchParams.get("period") || "30"; // days
@@ -122,7 +128,9 @@ export async function GET(req: NextRequest) {
     .filter((e) => e.payout_status === "pending")
     .reduce((s, e) => s + e.partner_amount, 0);
 
-  return NextResponse.json({
+  // Basic tier: limit chart to 7 days and strip detailed breakdowns
+  const responseData: Record<string, unknown> = {
+    analytics_level: hasFullAnalytics ? "full" : "basic",
     summary: {
       totalRevenue,
       netEarnings,
@@ -134,9 +142,14 @@ export async function GET(req: NextRequest) {
       newClients,
       repeatClients,
     },
-    studioPerformance,
-    dailyChart,
     peakHours,
-    topClients,
-  });
+    dailyChart: hasFullAnalytics ? dailyChart : dailyChart.slice(-7),
+  };
+
+  if (hasFullAnalytics) {
+    responseData.studioPerformance = studioPerformance;
+    responseData.topClients = topClients;
+  }
+
+  return NextResponse.json(responseData);
 }

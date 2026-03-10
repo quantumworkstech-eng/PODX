@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
   Calendar,
+  CreditCard,
   DollarSign,
   Settings,
   LogOut,
@@ -19,6 +20,7 @@ import {
   Globe,
   Users,
   TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -33,6 +35,7 @@ const menuItems = [
   { id: "clients", label: "Clients", icon: Users, href: "/partner/clients" },
   { id: "analytics", label: "Analytics", icon: TrendingUp, href: "/partner/analytics" },
   { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings" },
+  { id: "billing", label: "Billing & Plans", icon: CreditCard, href: "/partner/billing" },
   { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
   { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel", badge: "New" },
   { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },
@@ -50,6 +53,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeStudios, setActiveStudios] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [subStatus, setSubStatus] = useState<"active" | "grace_period" | "expired" | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +83,13 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
         setActiveStudios(studios.filter((s) => s.status === "active").length);
       })
       .catch(console.error);
+    fetch("/api/partner/subscription")
+      .then((r) => r.json())
+      .then((d) => {
+        const s = d.subscription?.status;
+        if (s === "grace_period" || s === "expired") setSubStatus(s);
+      })
+      .catch(() => {});
   }, [status, isAuthPage]);
 
   if (status === "loading" && !isAuthPage) {
@@ -283,6 +294,20 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
               </div>
             </header>
 
+            {subStatus === "grace_period" && (
+              <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">Your subscription has expired. You have a 7-day grace period to renew before your studios are deactivated.</span>
+                <a href="/partner/billing" className="font-semibold underline underline-offset-2 whitespace-nowrap">Renew Now</a>
+              </div>
+            )}
+            {subStatus === "expired" && (
+              <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">Your subscription has expired and your studios have been deactivated. Subscribe to reactivate your listings.</span>
+                <a href="/partner/billing" className="font-semibold underline underline-offset-2 whitespace-nowrap">Subscribe</a>
+              </div>
+            )}
             <div className="p-6">{children}</div>
           </main>
         </div>

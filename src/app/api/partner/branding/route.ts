@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { auth } from "@/auth";
+import { supabaseAdmin } from "@/lib/supabase";
+const supabase = supabaseAdmin!;
+import { checkFeature } from "@/lib/subscription-gates";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -36,7 +32,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -48,6 +44,19 @@ export async function PUT(req: NextRequest) {
     .single();
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Subscription gate: white-label requires Pro or Enterprise
+  const canWhitelabel = await checkFeature(user.id, "whitelabel");
+  if (!canWhitelabel) {
+    return NextResponse.json(
+      {
+        error: "White-label branding requires a Pro or Enterprise subscription. Visit Billing & Plans to upgrade.",
+        code: "FEATURE_GATED",
+        feature: "whitelabel",
+      },
+      { status: 403 }
+    );
+  }
 
   const body = await req.json();
   const {

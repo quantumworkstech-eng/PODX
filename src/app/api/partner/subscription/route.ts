@@ -1,0 +1,41 @@
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { supabaseAdmin } from '@/lib/supabase';
+import { getPartnerSubscription } from '@/lib/subscription-gates';
+
+async function getPartnerId(email: string): Promise<string | null> {
+  const { data } = await supabaseAdmin!
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!supabaseAdmin) {
+    return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+  }
+
+  const partnerId = await getPartnerId(session.user.email);
+  if (!partnerId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+  const [subscription, { data: paymentHistory }] = await Promise.all([
+    getPartnerSubscription(partnerId),
+    supabaseAdmin
+      .from('subscription_payments')
+      .select('id, amount, billing_cycle, status, period_start, period_end, created_at, plan:subscription_plans(name, tier)')
+      .eq('partner_id', partnerId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ]);
+
+  return NextResponse.json({
+    subscription: subscription ?? null,
+    paymentHistory: paymentHistory ?? [],
+  });
+}
