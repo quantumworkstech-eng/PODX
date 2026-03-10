@@ -11,8 +11,9 @@ const STEPS = [
   { id: 2, label: "Location" },
   { id: 3, label: "Pricing & Hours" },
   { id: 4, label: "Amenities" },
-  { id: 5, label: "Photos" },
-  { id: 6, label: "Policies & Review" },
+  { id: 5, label: "Add-ons" },
+  { id: 6, label: "Photos" },
+  { id: 7, label: "Policies & Review" },
 ];
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -78,6 +79,8 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
 
   const [amenities, setAmenities] = useState<any[]>([]);
   const [amenitiesLoading, setAmenitiesLoading] = useState(false);
+  const [addons, setAddons] = useState<any[]>([]);
+  const [addonsLoading, setAddonsLoading] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +94,14 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
         .then((d) => setAmenities(d.amenities || []))
         .catch(() => setAmenities([]))
         .finally(() => setAmenitiesLoading(false));
+    }
+    if (step === 5 && addons.length === 0) {
+      setAddonsLoading(true);
+      fetch("/api/admin/addons?active=true")
+        .then((r) => r.json())
+        .then((d) => setAddons(d.addons || []))
+        .catch(() => setAddons([]))
+        .finally(() => setAddonsLoading(false));
     }
   }, [step]);
 
@@ -546,8 +557,54 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
             </div>
           )}
 
-          {/* ── Step 5: Photos ── */}
+          {/* ── Step 5: Add-ons ── */}
           {step === 5 && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-white/60 text-sm font-medium">Platform Booking Add-ons</p>
+                <p className="text-white/30 text-xs mt-1">These add-ons are available platform-wide — customers can select them during checkout for any studio booking.</p>
+              </div>
+
+              {addonsLoading ? (
+                <div className="py-16 flex justify-center">
+                  <RefreshCw className="w-6 h-6 text-white/30 animate-spin" />
+                </div>
+              ) : addons.length === 0 ? (
+                <div className="py-16 text-center border border-dashed border-white/10 rounded-xl">
+                  <p className="text-white/30 text-sm">No add-ons configured in the system</p>
+                  <p className="text-white/20 text-xs mt-1">Add platform add-ons from the Add-ons management page</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {addons.map((addon: any) => (
+                    <div
+                      key={addon.id}
+                      className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-white/5 rounded-xl"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium">{addon.name}</p>
+                        {addon.description && (
+                          <p className="text-white/40 text-xs mt-0.5">{addon.description}</p>
+                        )}
+                        {addon.category && (
+                          <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white/5 text-white/30 text-[10px] capitalize">
+                            {addon.category}
+                          </span>
+                        )}
+                      </div>
+                      <div className="ml-4 text-right flex-shrink-0">
+                        <p className="text-[#D9FC67] font-semibold text-sm">₹{Number(addon.price).toLocaleString()}</p>
+                        <p className="text-white/30 text-[10px]">flat fee</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 6: Photos ── */}
+          {step === 6 && (
             <div className="space-y-4">
               <p className="text-white/40 text-sm">Add image URLs for this studio. The first image will be the featured image.</p>
               <div className="flex gap-2">
@@ -601,8 +658,8 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
             </div>
           )}
 
-          {/* ── Step 6: Policies & Review ── */}
-          {step === 6 && (
+          {/* ── Step 7: Policies & Review ── */}
+          {step === 7 && (
             <div className="space-y-6">
               {/* Cancellation Policies */}
               <div className="space-y-3">

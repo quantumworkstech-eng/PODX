@@ -82,6 +82,9 @@ export default function PartnerStudiosPage() {
     status: "active",
   });
 
+  const [platformAddons, setPlatformAddons] = useState<any[]>([]);
+  const [addonsLoading, setAddonsLoading] = useState(false);
+
   useEffect(() => {
     fetch("/api/partner/studios")
       .then((r) => r.json())
@@ -109,6 +112,15 @@ export default function PartnerStudiosPage() {
       });
     }
     setIsModalOpen(true);
+    // Fetch platform add-ons
+    if (platformAddons.length === 0) {
+      setAddonsLoading(true);
+      fetch("/api/addons")
+        .then((r) => r.json())
+        .then((d) => setPlatformAddons(d.addons || []))
+        .catch(() => setPlatformAddons([]))
+        .finally(() => setAddonsLoading(false));
+    }
   };
 
   const handleCloseModal = () => {
@@ -407,6 +419,40 @@ export default function PartnerStudiosPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Platform Add-ons */}
+              <div>
+                <label className="text-white/60 text-sm mb-1 block">Platform Add-ons</label>
+                <p className="text-white/30 text-xs mb-3">Available booking add-ons customers can purchase during checkout</p>
+                {addonsLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="w-5 h-5 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : platformAddons.length === 0 ? (
+                  <p className="text-white/20 text-sm py-4 text-center bg-white/[0.02] rounded-xl border border-white/5">
+                    No add-ons configured on the platform yet
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {platformAddons.map((addon) => (
+                      <div
+                        key={addon.id}
+                        className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-white/5 rounded-xl"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-white/80 text-sm font-medium">{addon.name}</p>
+                          {addon.description && (
+                            <p className="text-white/30 text-xs mt-0.5 truncate">{addon.description}</p>
+                          )}
+                        </div>
+                        <span className="ml-4 text-[#D9FC67] font-semibold text-sm flex-shrink-0">
+                          ₹{Number(addon.price).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>

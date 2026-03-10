@@ -112,6 +112,10 @@ export default function AdminStudiosPage() {
   const [editPolicies, setEditPolicies] = useState<{ cancellation: any[]; reschedule: any[] }>({ cancellation: [], reschedule: [] });
   const [useCustomPolicies, setUseCustomPolicies] = useState(false);
 
+  // Add-ons
+  const [allAddons, setAllAddons] = useState<any[]>([]);
+  const [addonsLoading, setAddonsLoading] = useState(false);
+
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -130,6 +134,17 @@ export default function AdminStudiosPage() {
   };
 
   useEffect(() => { fetchStudios(); }, [page, statusFilter]);
+
+  useEffect(() => {
+    if (activeSection === "addons" && allAddons.length === 0) {
+      setAddonsLoading(true);
+      fetch("/api/admin/addons?active=true")
+        .then((r) => r.json())
+        .then((d) => setAllAddons(d.addons || []))
+        .catch(() => setAllAddons([]))
+        .finally(() => setAddonsLoading(false));
+    }
+  }, [activeSection]);
 
   const handleAction = async (studioId: string, action: string) => {
     setActionLoading(`${studioId}-${action}`);
@@ -269,6 +284,7 @@ export default function AdminStudiosPage() {
     { id: "location", label: "Location" },
     { id: "pricing", label: "Pricing & Availability" },
     { id: "amenities", label: "Amenities" },
+    { id: "addons", label: "Add-ons" },
     { id: "photos", label: "Photos" },
     { id: "policies", label: "Policies" },
   ];
@@ -593,6 +609,60 @@ export default function AdminStudiosPage() {
                         </>
                       )}
                     </>
+                  )}
+
+                  {/* ── ADD-ONS ── */}
+                  {activeSection === "addons" && (
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/60 text-sm font-medium">Platform Booking Add-ons</p>
+                          <p className="text-white/30 text-xs mt-0.5">These add-ons are available to customers when booking any studio on the platform.</p>
+                        </div>
+                      </div>
+
+                      {addonsLoading ? (
+                        <div className="py-12 flex justify-center">
+                          <div className="w-6 h-6 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : allAddons.length === 0 ? (
+                        <div className="py-12 text-center border border-dashed border-white/10 rounded-xl">
+                          <p className="text-white/30 text-sm">No add-ons configured</p>
+                          <p className="text-white/20 text-xs mt-1">Add platform add-ons from the Add-ons management page</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-3">
+                          {allAddons.map((addon: any) => (
+                            <div
+                              key={addon.id}
+                              className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-white/5 rounded-xl"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white text-sm font-medium">{addon.name}</p>
+                                {addon.description && (
+                                  <p className="text-white/40 text-xs mt-0.5 truncate">{addon.description}</p>
+                                )}
+                                {addon.category && (
+                                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white/5 text-white/30 text-[10px] capitalize">
+                                    {addon.category}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="ml-4 text-right flex-shrink-0">
+                                <p className="text-[#D9FC67] font-semibold text-sm">₹{Number(addon.price).toLocaleString()}</p>
+                                <p className="text-white/30 text-[10px]">flat fee</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-2 px-4 py-3 bg-blue-500/5 border border-blue-500/10 rounded-xl">
+                        <p className="text-blue-400/70 text-xs">
+                          Manage platform add-ons from <span className="font-medium text-blue-400">/admin/settings</span> or the Add-ons section in the admin panel.
+                        </p>
+                      </div>
+                    </div>
                   )}
 
                   {/* ── PHOTOS ── */}

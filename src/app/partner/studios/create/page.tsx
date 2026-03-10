@@ -134,9 +134,10 @@ const STEPS = [
   { id: 2, name: "Location", short: "Location" },
   { id: 3, name: "Pricing", short: "Pricing" },
   { id: 4, name: "Equipment", short: "Equipment" },
-  { id: 5, name: "Photos", short: "Photos" },
-  { id: 6, name: "Policies", short: "Policies" },
-  { id: 7, name: "Review", short: "Review" },
+  { id: 5, name: "Add-ons", short: "Add-ons" },
+  { id: 6, name: "Photos", short: "Photos" },
+  { id: 7, name: "Policies", short: "Policies" },
+  { id: 8, name: "Review", short: "Review" },
 ];
 
 async function geocodeAddress(address: string, city: string, country: string): Promise<{ lat: number; lon: number } | null> {
@@ -166,11 +167,24 @@ export default function CreateStudioPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
+  const [platformAddons, setPlatformAddons] = useState<any[]>([]);
+  const [addonsLoading, setAddonsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getCities().then(setCities).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (currentStep === 5 && platformAddons.length === 0) {
+      setAddonsLoading(true);
+      fetch("/api/addons")
+        .then((r) => r.json())
+        .then((d) => setPlatformAddons(d.addons || []))
+        .catch(() => setPlatformAddons([]))
+        .finally(() => setAddonsLoading(false));
+    }
+  }, [currentStep]);
 
   const handleGeocode = async () => {
     if (!formData.address || !formData.city) return;
@@ -199,11 +213,13 @@ export default function CreateStudioPage() {
         return formData.pricePerHour > 0;
       case 4:
         return formData.equipment.length > 0;
-      case 5:
-        return formData.images.length > 0;
-      case 6:
+      case 5: // Add-ons (informational, always valid)
         return true;
+      case 6:
+        return formData.images.length > 0;
       case 7:
+        return true;
+      case 8:
         return true;
       default:
         return true;
@@ -211,7 +227,7 @@ export default function CreateStudioPage() {
   };
 
   const handleNext = () => {
-    if (validateStep(currentStep) && currentStep < 7) {
+    if (validateStep(currentStep) && currentStep < 8) {
       setCurrentStep((prev) => prev + 1);
     }
   };
@@ -666,6 +682,57 @@ export default function CreateStudioPage() {
   const renderStep5 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Platform Add-ons</h2>
+        <p className="text-white/60">Booking add-ons customers can purchase alongside their studio session</p>
+      </div>
+
+      {addonsLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 text-[#D9FC67] animate-spin" />
+        </div>
+      ) : platformAddons.length === 0 ? (
+        <div className="py-16 text-center border-2 border-dashed border-white/10 rounded-2xl">
+          <p className="text-white/40 font-medium">No add-ons configured yet</p>
+          <p className="text-white/20 text-sm mt-1">Platform add-ons will appear here once added by the admin</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {platformAddons.map((addon) => (
+            <div
+              key={addon.id}
+              className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-xl"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-white font-medium">{addon.name}</p>
+                {addon.description && (
+                  <p className="text-white/40 text-sm mt-0.5">{addon.description}</p>
+                )}
+                {addon.category && (
+                  <span className="inline-block mt-1.5 px-2.5 py-0.5 rounded-full bg-white/5 text-white/30 text-xs capitalize">
+                    {addon.category}
+                  </span>
+                )}
+              </div>
+              <div className="ml-6 text-right flex-shrink-0">
+                <p className="text-[#D9FC67] font-bold text-lg">₹{Number(addon.price).toLocaleString()}</p>
+                <p className="text-white/30 text-xs">flat fee</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4 p-4 bg-[#D9FC67]/5 border border-[#D9FC67]/10 rounded-xl">
+        <p className="text-[#D9FC67]/70 text-sm">
+          These add-ons are available to customers when booking any studio. They are managed platform-wide by admins.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderStep6 = () => (
+    <div className="space-y-6 animate-fade-in">
+      <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Studio Photos</h2>
         <p className="text-white/60">Upload high-quality photos of your studio</p>
       </div>
@@ -721,7 +788,7 @@ export default function CreateStudioPage() {
     </div>
   );
 
-  const renderStep6 = () => {
+  const renderStep7 = () => {
     const addCancellationRule = () => {
       const newRule = { id: Date.now().toString(), type: "days" as const, value: 1, refundPercent: 100, deductionPercent: 0 };
       updateFormData({ cancellationRules: [...formData.cancellationRules, newRule] });
@@ -901,7 +968,7 @@ export default function CreateStudioPage() {
     );
   };
 
-  const renderStep7 = () => (
+  const renderStep8 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Review & Confirm</h2>
@@ -970,7 +1037,7 @@ export default function CreateStudioPage() {
         <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-semibold">Photos</h3>
-            <button onClick={() => setCurrentStep(5)} className="text-[#D9FC67] text-sm hover:underline">Edit</button>
+            <button onClick={() => setCurrentStep(6)} className="text-[#D9FC67] text-sm hover:underline">Edit</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {formData.images.slice(0, 5).map((img, index) => (
@@ -985,7 +1052,7 @@ export default function CreateStudioPage() {
         <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-semibold">Policies</h3>
-            <button onClick={() => setCurrentStep(6)} className="text-[#D9FC67] text-sm hover:underline">Edit</button>
+            <button onClick={() => setCurrentStep(7)} className="text-[#D9FC67] text-sm hover:underline">Edit</button>
           </div>
           {formData.useCustomPolicies ? (
             <div className="space-y-3 text-sm">
@@ -1028,6 +1095,7 @@ export default function CreateStudioPage() {
       case 5: return renderStep5();
       case 6: return renderStep6();
       case 7: return renderStep7();
+      case 8: return renderStep8();
       default: return null;
     }
   };
@@ -1063,7 +1131,7 @@ export default function CreateStudioPage() {
             Back
           </Button>
 
-          {currentStep < 7 ? (
+          {currentStep < 8 ? (
             <Button
               onClick={handleNext}
               disabled={!validateStep(currentStep)}
