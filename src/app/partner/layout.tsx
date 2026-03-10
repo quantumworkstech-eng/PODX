@@ -16,6 +16,9 @@ import {
   BarChart3,
   Shield,
   Star,
+  Globe,
+  Users,
+  TrendingUp,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -27,9 +30,12 @@ const menuItems = [
   { id: "dashboard", label: "Dashboard Overview", icon: BarChart3, href: "/partner/dashboard" },
   { id: "studios", label: "My Studios", icon: Building2, href: "/partner/studios" },
   { id: "bookings", label: "Bookings", icon: Calendar, href: "/partner/bookings" },
-  { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
-  { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },
+  { id: "clients", label: "Clients", icon: Users, href: "/partner/clients" },
+  { id: "analytics", label: "Analytics", icon: TrendingUp, href: "/partner/analytics" },
   { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings" },
+  { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
+  { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel", badge: "New" },
+  { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },
   { id: "settings", label: "Settings", icon: Settings, href: "/partner/settings" },
 ];
 
@@ -58,17 +64,14 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
 
   const isAuthPage = pathname === "/partner/login" || pathname === "/partner/signup";
 
-  // Redirect unauthenticated users away from protected pages
   useEffect(() => {
     if (status === "unauthenticated" && !isAuthPage) {
       router.push("/partner/login");
     }
   }, [status, isAuthPage, router]);
 
-  // Fetch live stats for sidebar/header once authenticated
   useEffect(() => {
     if (status !== "authenticated" || isAuthPage) return;
-
     fetch("/api/partner/studios")
       .then((r) => r.json())
       .then((sd) => {
@@ -131,23 +134,31 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
               {/* Navigation */}
               <nav className="flex-1 p-3 overflow-y-auto">
                 <ul className="space-y-1">
-                  {menuItems.map((item) => (
-                    <li key={item.id}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setSidebarOpen(false)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                          pathname === item.href
-                            ? "bg-[#D9FC67]/10 text-[#D9FC67]"
-                            : "text-white/50 hover:text-white hover:bg-white/5"
-                        )}
-                      >
-                        <item.icon className="w-5 h-5" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
+                  {menuItems.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                    return (
+                      <li key={item.id}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setSidebarOpen(false)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                            isActive
+                              ? "bg-[#D9FC67]/10 text-[#D9FC67]"
+                              : "text-white/50 hover:text-white hover:bg-white/5"
+                          )}
+                        >
+                          <item.icon className="w-5 h-5" />
+                          {item.label}
+                          {"badge" in item && item.badge && (
+                            <span className="ml-auto text-[10px] text-[#D9FC67] bg-[#D9FC67]/10 px-1.5 py-0.5 rounded-full">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </nav>
 
@@ -177,7 +188,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
             />
           )}
 
-          {/* Main */}
+          {/* Main content */}
           <main className="flex-1 min-h-screen">
             <header className="sticky top-0 z-20 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
               <div className="flex items-center justify-between">
@@ -190,7 +201,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                   </button>
                   <div>
                     <h1 className="text-xl font-semibold text-white">
-                      {menuItems.find((m) => pathname === m.href)?.label || "Dashboard"}
+                      {menuItems.find((m) => pathname === m.href || pathname.startsWith(m.href + "/"))?.label || "Dashboard"}
                     </h1>
                     <p className="text-white/40 text-sm">
                       {new Date().toLocaleDateString("en-US", {
@@ -241,6 +252,14 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                           <p className="text-white/40 text-xs truncate">{session?.user?.email}</p>
                         </div>
                         <div className="p-1">
+                          <Link
+                            href="/partner/whitelabel"
+                            onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                          >
+                            <Globe className="w-4 h-4" />
+                            White-Label
+                          </Link>
                           <Link
                             href="/partner/settings"
                             onClick={() => setProfileOpen(false)}
