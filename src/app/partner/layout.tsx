@@ -37,6 +37,7 @@ const menuItems = [
   { id: "analytics", label: "Analytics", icon: TrendingUp, href: "/partner/analytics" },
   { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings" },
   { id: "billing", label: "Billing & Plans", icon: CreditCard, href: "/partner/billing" },
+  { id: "coupons", label: "Coupons", icon: Tag, href: "/partner/coupons" },
   { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
   { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel", badge: "New" },
   { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },

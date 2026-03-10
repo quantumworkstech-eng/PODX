@@ -7,7 +7,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
   MapPin, Clock, Users, Star, ChevronLeft, ChevronRight,
-  Mic2, Video, Headphones, Wifi, Car, Coffee, Search, Zap,
+  Mic2, Video, Headphones, Wifi, Car, Coffee, Search, Wind,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllStudios } from "@/lib/data";
@@ -17,7 +17,7 @@ const CITIES = ["All Cities", "Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad
 
 const AMENITY_ICONS: Record<string, any> = {
   wifi: Wifi,
-  ac: Zap,
+  ac: Wind,
   parking: Car,
   refreshments: Coffee,
   microphones: Mic2,

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   CreditCard, CheckCircle2, AlertTriangle, XCircle,
-  Zap, Building2, Globe, BarChart3, Cpu, ChevronDown, X,
+  Sparkles, Building2, Globe, BarChart3, Cpu, ChevronDown, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -68,7 +68,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; pulse: strin
 
 const PLAN_FEATURES: { key: keyof Plan; label: string; icon: any }[] = [
   { key: "max_studios", label: "Studios", icon: Building2 },
-  { key: "commission_pct", label: "Platform Commission", icon: Zap },
+  { key: "commission_pct", label: "Platform Commission", icon: Sparkles },
   { key: "whitelabel_enabled", label: "White-Label", icon: Globe },
   { key: "analytics_level", label: "Analytics", icon: BarChart3 },
   { key: "api_access", label: "API Access", icon: Cpu },

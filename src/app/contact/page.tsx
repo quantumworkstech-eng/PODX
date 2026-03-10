@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   MessageSquare,
   Headphones,
-  Zap,
+  Sparkles,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -384,7 +384,7 @@ export default function ContactPage() {
               {/* Quick action */}
               <div className="p-6 rounded-2xl bg-gradient-to-br from-[#D9FC67]/10 to-transparent border border-[#D9FC67]/20">
                 <div className="flex items-center gap-3 mb-3">
-                  <Zap className="w-5 h-5 text-[#D9FC67]" />
+                  <Sparkles className="w-5 h-5 text-[#D9FC67]" />
                   <h3 className="font-semibold text-white">Ready to book?</h3>
                 </div>
                 <p className="text-white/60 text-sm mb-4">

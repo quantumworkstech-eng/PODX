@@ -15,7 +15,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Star,
-  Zap,
+  Sparkles,
   Radio,
   Film,
   Monitor,
@@ -183,7 +183,7 @@ const PROCESS_STEPS = [
     step: "02",
     title: "Book a Slot",
     description: "Select your preferred studio, date, and time. Instant confirmation — no back and forth.",
-    icon: Zap,
+    icon: Sparkles,
   },
   {
     step: "03",
