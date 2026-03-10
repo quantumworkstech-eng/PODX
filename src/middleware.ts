@@ -43,7 +43,10 @@ export async function middleware(request: NextRequest) {
   // ── Custom domain routing ──────────────────────────────────────
   // For non-podx.com hosts that aren't localhost, treat as custom domain
   const cleanHost = host.split(':')[0];
-  const isKnownHost = MAIN_HOSTS.includes(cleanHost) || cleanHost.endsWith('.podx.com');
+  const isKnownHost =
+    MAIN_HOSTS.includes(cleanHost) ||
+    cleanHost.endsWith('.podx.com') ||
+    cleanHost.endsWith('.vercel.app');
   const isLocalhost = cleanHost === 'localhost' || cleanHost === '127.0.0.1';
 
   if (!isKnownHost && !isLocalhost && !pathname.startsWith('/api') && !pathname.startsWith('/_next')) {
