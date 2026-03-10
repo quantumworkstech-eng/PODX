@@ -7,7 +7,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
   MapPin, Clock, Users, Star, ChevronLeft, ChevronRight,
-  Mic2, Video, Headphones, Wifi, Car, Coffee, Search,
+  Mic2, Video, Headphones, Wifi, Car, Coffee, Search, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllStudios } from "@/lib/data";
