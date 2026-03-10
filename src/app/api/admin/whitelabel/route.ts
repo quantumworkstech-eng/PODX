@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  const adminEmail = await getAdminEmail(req);
+  const adminEmail = await getAdminEmail();
   if (!adminEmail) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const adminEmail = await getAdminEmail(req);
+  const adminEmail = await getAdminEmail();
   if (!adminEmail) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { partner_id, admin_disabled, admin_notes, is_published,

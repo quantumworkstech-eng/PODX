@@ -21,6 +21,7 @@ import {
   Users,
   TrendingUp,
   AlertTriangle,
+  Tag,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";

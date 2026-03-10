@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowLeft,
+  Tag,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -80,6 +81,8 @@ export function PaymentStep() {
     getSubtotal,
     getTax,
     getTotalPrice,
+    getDiscount,
+    appliedCoupon,
     resetBooking,
     prevStep,
   } = useBooking();
@@ -183,6 +186,8 @@ export function PaymentStep() {
           totalPrice: total,
           subtotal,
           tax,
+          discountAmount: getDiscount(),
+          couponCode: appliedCoupon?.code || null,
           paymentId,
           orderId,
         }),
@@ -501,6 +506,12 @@ export function PaymentStep() {
                 <span className="text-white/60">Subtotal</span>
                 <span className="text-white">₹{getSubtotal().toLocaleString()}</span>
               </div>
+              {getDiscount() > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#D9FC67]/80">Discount ({appliedCoupon?.code})</span>
+                  <span className="text-[#D9FC67] font-medium">-₹{getDiscount().toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">GST (18%)</span>
                 <span className="text-white">₹{getTax().toLocaleString()}</span>

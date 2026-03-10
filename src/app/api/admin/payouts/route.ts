@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  const adminEmail = await getAdminEmail(req);
+  const adminEmail = await getAdminEmail();
   if (!adminEmail) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const adminEmail = await getAdminEmail(req);
+  const adminEmail = await getAdminEmail();
   if (!adminEmail) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { payout_id, status, reference_number, failure_reason, notes } = await req.json();
@@ -100,7 +100,7 @@ export async function PATCH(req: NextRequest) {
       .eq("payout_status", "processing");
   }
 
-  await logAdminAction(adminEmail, `payout_${status}`, "payout", { payout_id, status });
+  await logAdminAction(adminEmail, `payout_${status}`, "payout", payout_id, { status });
 
   return NextResponse.json({ payout });
 }

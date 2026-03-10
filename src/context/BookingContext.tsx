@@ -4,6 +4,13 @@ import { createContext, useContext, useState, useCallback, ReactNode, useEffect 
 import { Studio } from "@/lib/types";
 import { ServicePackage, AddOnService, TIME_SLOTS } from "@/lib/booking-types";
 
+interface AppliedCoupon {
+  code: string;
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+  discountAmount: number;
+}
+
 interface BookingState {
   currentStep: number;
   date: Date | null;
@@ -18,6 +25,7 @@ interface BookingState {
   showPayment: boolean;
   selectedCity: string | null;
   selectionMode: "studio" | "date" | null;
+  appliedCoupon: AppliedCoupon | null;
 }
 
 interface StoredBooking {
@@ -50,6 +58,7 @@ interface BookingContextType extends BookingState {
   getTotalPrice: () => number;
   getSubtotal: () => number;
   getTax: () => number;
+  getDiscount: () => number;
   getStudioPrice: () => number;
   getPackagePrice: () => number;
   getAddOnsPrice: () => number;
@@ -65,6 +74,7 @@ interface BookingContextType extends BookingState {
   clearBookingStorage: () => void;
   setSelectedCity: (city: string | null) => void;
   setSelectionMode: (mode: "studio" | "date") => void;
+  setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
 }
 
 const PENDING_BOOKING_KEY = "podx_pending_booking";
@@ -84,6 +94,7 @@ const initialState: BookingState = {
   showPayment: false,
   selectedCity: null,
   selectionMode: null,
+  appliedCoupon: null,
 };
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -226,7 +237,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const resetBooking = useCallback(() => {
     clearBookingStorage();
-    setState(initialState);
+    setState({ ...initialState, appliedCoupon: null });
   }, [clearBookingStorage]);
 
   const getStudioPrice = useCallback(() => {
@@ -247,13 +258,18 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return getStudioPrice() + getPackagePrice() + getAddOnsPrice();
   }, [getStudioPrice, getPackagePrice, getAddOnsPrice]);
 
+  const getDiscount = useCallback(() => {
+    return state.appliedCoupon?.discountAmount ?? 0;
+  }, [state.appliedCoupon]);
+
   const getTax = useCallback(() => {
-    return Math.round(getSubtotal() * TAX_RATE);
-  }, [getSubtotal]);
+    const taxable = Math.max(0, getSubtotal() - getDiscount());
+    return Math.round(taxable * TAX_RATE);
+  }, [getSubtotal, getDiscount]);
 
   const getTotalPrice = useCallback(() => {
-    return getSubtotal() + getTax();
-  }, [getSubtotal, getTax]);
+    return Math.max(0, getSubtotal() - getDiscount()) + getTax();
+  }, [getSubtotal, getDiscount, getTax]);
 
   const canProceed = useCallback(() => {
     switch (state.currentStep) {
@@ -314,6 +330,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, selectionMode: mode }));
   }, []);
 
+  const setAppliedCoupon = useCallback((coupon: AppliedCoupon | null) => {
+    setState((prev) => ({ ...prev, appliedCoupon: coupon }));
+  }, []);
+
   // Auto-save whenever booking state changes (debounced)
   useEffect(() => {
     if (!initialized) return;
@@ -343,6 +363,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     getTotalPrice,
     getSubtotal,
     getTax,
+    getDiscount,
     getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,
@@ -358,6 +379,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     clearBookingStorage,
     setSelectedCity,
     setSelectionMode,
+    setAppliedCoupon,
   };
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>;

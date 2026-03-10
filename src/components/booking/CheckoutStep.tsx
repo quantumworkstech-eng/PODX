@@ -15,6 +15,10 @@ import {
   Shield,
   AlertCircle,
   Info,
+  Pencil,
+  Tag,
+  X,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
@@ -44,24 +48,72 @@ export function CheckoutStep() {
     getSubtotal,
     getTax,
     getTotalPrice,
+    getDiscount,
     openAuthModal,
     saveBookingToStorage,
     proceedToPayment,
     canProceed,
+    goToStep,
+    selectionMode,
+    appliedCoupon,
+    setAppliedCoupon,
   } = useBooking();
 
   const { data: session } = useSession();
   const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
+  const [couponCode, setCouponCode] = useState(appliedCoupon?.code || "");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const handleProceedToPayment = () => {
     saveBookingToStorage();
     if (session) {
-      // Already authenticated — go straight to payment
       proceedToPayment();
     } else {
       openAuthModal();
     }
+  };
+
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          studioId: selectedStudio?.id,
+          subtotal: getSubtotal(),
+        }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedCoupon({
+          code,
+          discountType: data.coupon.discount_type,
+          discountValue: data.coupon.discount_value,
+          discountAmount: data.discountAmount,
+        });
+        setCouponError(null);
+      } else {
+        setCouponError(data.error || "Invalid coupon code");
+        setAppliedCoupon(null);
+      }
+    } catch {
+      setCouponError("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
   };
 
   const formatDate = () => {
@@ -87,7 +139,14 @@ export function CheckoutStep() {
     return `${fmt(hour)} – ${fmt(endTime)}`;
   };
 
+  // Step numbers depend on selection mode
+  const sessionStep = selectionMode === "studio" ? 2 : 1;
+  const studioStep = selectionMode === "studio" ? 1 : 2;
+  const packageStep = 3;
+  const addonsStep = 4;
+
   const isReadyToCheckout = canProceed();
+  const discount = getDiscount();
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -101,9 +160,18 @@ export function CheckoutStep() {
         <div className="lg:col-span-3 space-y-5">
           {/* Date / time / duration / participants */}
           <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-            <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#D9FC67]" />
-              Session Details
+            <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#D9FC67]" />
+                Session Details
+              </span>
+              <button
+                onClick={() => goToStep(sessionStep)}
+                className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Edit
+              </button>
             </h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="flex items-center gap-3">
@@ -152,7 +220,16 @@ export function CheckoutStep() {
           {/* Studio */}
           {selectedStudio && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-base font-semibold text-white mb-4">Studio</h3>
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
+                <span>Studio</span>
+                <button
+                  onClick={() => goToStep(studioStep)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              </h3>
               <div className="flex gap-4">
                 <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
                   <Image
@@ -179,7 +256,16 @@ export function CheckoutStep() {
           {/* Package */}
           {selectedPackage && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-base font-semibold text-white mb-3">Package</h3>
+              <h3 className="text-base font-semibold text-white mb-3 flex items-center justify-between">
+                <span>Package</span>
+                <button
+                  onClick={() => goToStep(packageStep)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              </h3>
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-white font-medium">{selectedPackage.name}</h4>
@@ -201,8 +287,15 @@ export function CheckoutStep() {
           {/* Add-ons */}
           {selectedAddOns.length > 0 && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-base font-semibold text-white mb-4">
-                Add-ons ({selectedAddOns.length})
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
+                <span>Add-ons ({selectedAddOns.length})</span>
+                <button
+                  onClick={() => goToStep(addonsStep)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
               </h3>
               <div className="space-y-3">
                 {selectedAddOns.map((addon) => (
@@ -328,11 +421,69 @@ export function CheckoutStep() {
               )}
             </div>
 
+            {/* Coupon input */}
+            <div className="mb-5">
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#D9FC67]/10 border border-[#D9FC67]/30">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-[#D9FC67]" />
+                    <div>
+                      <p className="text-[#D9FC67] text-sm font-semibold">{appliedCoupon.code}</p>
+                      <p className="text-white/50 text-xs">
+                        {appliedCoupon.discountType === "percentage"
+                          ? `${appliedCoupon.discountValue}% off`
+                          : `₹${appliedCoupon.discountValue} off`}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={handleRemoveCoupon} className="text-white/40 hover:text-white transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                      placeholder="Promo / coupon code"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#D9FC67]/50"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim() || couponLoading}
+                      className="px-4 py-2 rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    >
+                      {couponLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Tag className="w-3.5 h-3.5" />}
+                      Apply
+                    </button>
+                  </div>
+                  {couponError && (
+                    <p className="text-red-400 text-xs flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      {couponError}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="border-t border-white/10 pt-4 mb-5 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Subtotal</span>
                 <span className="text-white">₹{getSubtotal().toLocaleString()}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#D9FC67]/80 flex items-center gap-1">
+                    <Tag className="w-3 h-3" />
+                    Discount ({appliedCoupon?.code})
+                  </span>
+                  <span className="text-[#D9FC67] font-medium">-₹{discount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">GST (18%)</span>
                 <span className="text-white">₹{getTax().toLocaleString()}</span>
