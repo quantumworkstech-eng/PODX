@@ -9,14 +9,15 @@ const supabase = createClient(
 
 interface Props {
   children: React.ReactNode;
-  params: { partner_slug: string };
+  params: Promise<{ partner_slug: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { partner_slug } = await params;
   const { data: branding } = await supabase
     .from("partner_branding")
     .select("brand_name, booking_page_title, booking_page_description, favicon_url, logo_url")
-    .eq("partner_slug", params.partner_slug)
+    .eq("partner_slug", partner_slug)
     .eq("is_published", true)
     .single();
 
@@ -30,10 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function WhiteLabelLayout({ children, params }: Props) {
+  const { partner_slug } = await params;
   const { data: branding } = await supabase
     .from("partner_branding")
     .select("*")
-    .eq("partner_slug", params.partner_slug)
+    .eq("partner_slug", partner_slug)
     .eq("is_published", true)
     .eq("admin_disabled", false)
     .single();
