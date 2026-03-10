@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const email = await getAdminEmail();
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   const { status, plan_id, current_period_end, notes } = body;
 
