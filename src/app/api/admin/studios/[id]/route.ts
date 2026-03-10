@@ -21,6 +21,8 @@ export async function GET(
     { data: allAmenities },
     { data: hours },
     { data: policies },
+    { data: studioAddons },
+    { data: allAddons },
   ] = await Promise.all([
     supabaseAdmin
       .from('studios')
@@ -55,6 +57,16 @@ export async function GET(
       .select('*')
       .eq('studio_id', id)
       .order('hours_before', { ascending: false }),
+    supabaseAdmin
+      .from('studio_addons')
+      .select('addon_id')
+      .eq('studio_id', id),
+    supabaseAdmin
+      .from('platform_addons')
+      .select('id, name, description, price, category')
+      .eq('is_active', true)
+      .order('category')
+      .order('name'),
   ]);
 
   if (studioErr || !studio) {
@@ -78,6 +90,8 @@ export async function GET(
     allAmenities: allAmenities || [],
     hours: hours || [],
     policies: policies || [],
+    studioAddonIds: (studioAddons || []).map((sa: any) => sa.addon_id),
+    allAddons: allAddons || [],
   });
 }
 
@@ -140,7 +154,7 @@ export async function PATCH(
   }
 
   // Direct field updates
-  const { studioFields, amenityIds, hoursData, policyUpdates, imageUrls } = body;
+  const { studioFields, amenityIds, addonIds, hoursData, policyUpdates, imageUrls } = body;
 
   if (studioFields) {
     // Only allow actual columns that exist in the studios table
@@ -191,6 +205,16 @@ export async function PATCH(
     }
   }
 
+  // Update studio add-ons (replace all)
+  if (addonIds && Array.isArray(addonIds)) {
+    await supabaseAdmin.from('studio_addons').delete().eq('studio_id', id);
+    if (addonIds.length > 0) {
+      await supabaseAdmin.from('studio_addons').insert(
+        addonIds.map((addonId: string) => ({ studio_id: id, addon_id: addonId }))
+      );
+    }
+  }
+
   // Update studio hours
   if (hoursData && Array.isArray(hoursData)) {
     await supabaseAdmin.from('studio_hours').delete().eq('studio_id', id);
@@ -236,7 +260,7 @@ export async function PATCH(
   }
 
   await logAdminAction(email, 'studio_edit', 'studio', id, {
-    sections: [studioFields && 'basic', amenityIds && 'amenities', hoursData && 'hours', policyUpdates && 'policies', imageUrls && 'images'].filter(Boolean),
+    sections: [studioFields && 'basic', amenityIds && 'amenities', addonIds && 'addons', hoursData && 'hours', policyUpdates && 'policies', imageUrls && 'images'].filter(Boolean),
   });
 
   return NextResponse.json({ success: true });

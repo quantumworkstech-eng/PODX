@@ -53,6 +53,8 @@ interface StudioDetail {
   allAmenities: any[];
   hours: any[];
   policies: any[];
+  studioAddonIds: string[];
+  allAddons: any[];
 }
 
 function InputField({ label, value, onChange, type = "text" }: {
@@ -115,6 +117,7 @@ export default function AdminStudiosPage() {
   // Add-ons
   const [allAddons, setAllAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
 
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -135,16 +138,6 @@ export default function AdminStudiosPage() {
 
   useEffect(() => { fetchStudios(); }, [page, statusFilter]);
 
-  useEffect(() => {
-    if (activeSection === "addons" && allAddons.length === 0) {
-      setAddonsLoading(true);
-      fetch("/api/admin/addons?active=true")
-        .then((r) => r.json())
-        .then((d) => setAllAddons(d.addons || []))
-        .catch(() => setAllAddons([]))
-        .finally(() => setAddonsLoading(false));
-    }
-  }, [activeSection]);
 
   const handleAction = async (studioId: string, action: string) => {
     setActionLoading(`${studioId}-${action}`);
@@ -191,6 +184,9 @@ export default function AdminStudiosPage() {
 
     // Amenities — UUIDs from DB
     setSelectedAmenities((data.studioAmenities || []).map((a: any) => a.id).filter(Boolean));
+
+    // Add-ons — UUIDs from DB
+    setSelectedAddonIds(data.studioAddonIds || []);
 
     // Working hours & available days from studio_hours
     const dayMap: Record<number, string> = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
@@ -256,6 +252,7 @@ export default function AdminStudiosPage() {
           capacity: Number(editFields.capacity) || 0,
         },
         amenityIds: selectedAmenities,
+        addonIds: selectedAddonIds,
         hoursData,
         policyUpdates,
       }),
@@ -278,6 +275,9 @@ export default function AdminStudiosPage() {
     setSelectedAmenities((ids) => ids.includes(id) ? ids.filter((a) => a !== id) : [...ids, id]);
   const toggleDay = (day: string) =>
     setEditAvailableDays((days) => days.includes(day) ? days.filter((d) => d !== day) : [...days, day]);
+
+  const toggleAddon = (id: string) =>
+    setSelectedAddonIds((ids) => ids.includes(id) ? ids.filter((a) => a !== id) : [...ids, id]);
 
   const EDIT_SECTIONS = [
     { id: "basic", label: "Basic Info" },
@@ -614,54 +614,64 @@ export default function AdminStudiosPage() {
                   {/* ── ADD-ONS ── */}
                   {activeSection === "addons" && (
                     <div className="space-y-4">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-white/60 text-sm font-medium">Platform Booking Add-ons</p>
-                          <p className="text-white/30 text-xs mt-0.5">These add-ons are available to customers when booking any studio on the platform.</p>
+                          <p className="text-white/60 text-sm font-medium">Booking Add-ons</p>
+                          <p className="text-white/30 text-xs mt-0.5">Select which add-ons customers can purchase when booking this studio.</p>
                         </div>
+                        <span className="text-white/30 text-xs">
+                          {selectedAddonIds.length} selected
+                        </span>
                       </div>
 
-                      {addonsLoading ? (
-                        <div className="py-12 flex justify-center">
-                          <div className="w-6 h-6 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
-                        </div>
-                      ) : allAddons.length === 0 ? (
+                      {(editData.allAddons || []).length === 0 ? (
                         <div className="py-12 text-center border border-dashed border-white/10 rounded-xl">
-                          <p className="text-white/30 text-sm">No add-ons configured</p>
-                          <p className="text-white/20 text-xs mt-1">Add platform add-ons from the Add-ons management page</p>
+                          <p className="text-white/30 text-sm">No add-ons configured on the platform</p>
+                          <p className="text-white/20 text-xs mt-1">Add platform add-ons from the Add-ons management page first</p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 gap-3">
-                          {allAddons.map((addon: any) => (
-                            <div
-                              key={addon.id}
-                              className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-white/5 rounded-xl"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="text-white text-sm font-medium">{addon.name}</p>
-                                {addon.description && (
-                                  <p className="text-white/40 text-xs mt-0.5 truncate">{addon.description}</p>
-                                )}
-                                {addon.category && (
-                                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white/5 text-white/30 text-[10px] capitalize">
-                                    {addon.category}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="ml-4 text-right flex-shrink-0">
-                                <p className="text-[#D9FC67] font-semibold text-sm">₹{Number(addon.price).toLocaleString()}</p>
-                                <p className="text-white/30 text-[10px]">flat fee</p>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="grid grid-cols-1 gap-2">
+                          {(editData.allAddons || []).map((addon: any) => {
+                            const selected = selectedAddonIds.includes(addon.id);
+                            return (
+                              <button
+                                key={addon.id}
+                                onClick={() => toggleAddon(addon.id)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left w-full ${
+                                  selected
+                                    ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
+                                    : "bg-white/[0.02] border-white/5 hover:border-white/10"
+                                }`}
+                              >
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                                  selected ? "bg-[#D9FC67] border-[#D9FC67]" : "border-white/20"
+                                }`}>
+                                  {selected && <Check className="w-3 h-3 text-black" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium ${selected ? "text-[#D9FC67]" : "text-white/70"}`}>
+                                    {addon.name}
+                                  </p>
+                                  {addon.description && (
+                                    <p className="text-white/30 text-xs mt-0.5 truncate">{addon.description}</p>
+                                  )}
+                                  {addon.category && (
+                                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white/5 text-white/30 text-[10px] capitalize">
+                                      {addon.category}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="ml-2 text-right flex-shrink-0">
+                                  <p className={`font-semibold text-sm ${selected ? "text-[#D9FC67]" : "text-white/50"}`}>
+                                    ₹{Number(addon.price).toLocaleString()}
+                                  </p>
+                                  <p className="text-white/20 text-[10px]">flat fee</p>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
-
-                      <div className="mt-2 px-4 py-3 bg-blue-500/5 border border-blue-500/10 rounded-xl">
-                        <p className="text-blue-400/70 text-xs">
-                          Manage platform add-ons from <span className="font-medium text-blue-400">/admin/settings</span> or the Add-ons section in the admin panel.
-                        </p>
-                      </div>
                     </div>
                   )}
 
