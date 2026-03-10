@@ -1,11 +1,25 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { MapPin, Clock, Mic2, Radio, Headphones, Sparkles } from "lucide-react";
+import { Mic2, Radio, Headphones, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
+function formatCount(n: number): string {
+  if (n >= 1000) return `${Math.floor(n / 1000)}K+`;
+  return `${n}+`;
+}
+
 export function Hero() {
+  const [stats, setStats] = useState({ totalUsers: 0, totalStudios: 0, totalHours: 0 });
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then((r) => r.json())
+      .then((data) => setStats(data))
+      .catch(() => {});
+  }, []);
 
   return (
     <section className="relative min-h-screen bg-background overflow-hidden">
@@ -35,40 +49,13 @@ export function Hero() {
         >
           {/* Left Content */}
           <div>
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#D9FC67] animate-pulse" />
-              <span className="text-xs text-white/90 font-medium">Now Booking for 2025</span>
-            </div>
-
             {/* Main Headline */}
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1]">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-8 leading-[1.1]">
               Where
               <span className="text-[#D9FC67]"> Great</span>
               <br />
               Podcasts Begin
             </h1>
-
-            {/* Subtitle */}
-            <p className="text-lg text-white/80 mb-8 max-w-md leading-relaxed">
-              Professional podcast studios in Mumbai with Sony FX3 cameras, 
-              Shure SM7dB mics, and everything you need to create content that stands out.
-            </p>
-
-            {/* Location & Hours - Same row */}
-            <div className="flex flex-wrap items-start gap-6 mb-8 text-sm">
-              <div className="flex items-center gap-2 text-white/90">
-                <MapPin className="w-4 h-4 text-[#D9FC67]" />
-                <span>Mumbai</span>
-              </div>
-              <div className="flex items-center gap-2 text-white/70">
-                <Clock className="w-4 h-4" />
-                <div className="flex flex-col">
-                  <span>Sunday to Friday: 10:00 to 22:00</span>
-                  <span className="text-white/50">Saturday: Upon Request</span>
-                </div>
-              </div>
-            </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-4">
@@ -107,7 +94,9 @@ export function Hero() {
                 ))}
               </div>
               <div className="text-sm">
-                <div className="text-white font-medium">2,000+ Creators</div>
+                <div className="text-white font-medium">
+                  {stats.totalUsers > 0 ? formatCount(stats.totalUsers) : "2,000+"} Creators
+                </div>
                 <div className="text-white/50 text-xs">Trust PodX</div>
               </div>
             </div>
@@ -120,7 +109,9 @@ export function Hero() {
               <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Mic2 className="w-5 h-5 text-[#D9FC67]" />
               </div>
-              <div className="text-2xl font-semibold text-white mb-1">2,000+</div>
+              <div className="text-2xl font-semibold text-white mb-1">
+                {stats.totalUsers > 0 ? formatCount(stats.totalUsers) : "—"}
+              </div>
               <div className="text-xs text-white/60">Podcasters Empowered</div>
             </div>
 
@@ -129,7 +120,9 @@ export function Hero() {
               <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Radio className="w-5 h-5 text-[#D9FC67]" />
               </div>
-              <div className="text-2xl font-semibold text-white mb-1">9</div>
+              <div className="text-2xl font-semibold text-white mb-1">
+                {stats.totalStudios > 0 ? stats.totalStudios : "—"}
+              </div>
               <div className="text-xs text-white/60">Premium Studios</div>
             </div>
 
@@ -138,7 +131,9 @@ export function Hero() {
               <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Headphones className="w-5 h-5 text-[#D9FC67]" />
               </div>
-              <div className="text-2xl font-semibold text-white mb-1">75K+</div>
+              <div className="text-2xl font-semibold text-white mb-1">
+                {stats.totalHours > 0 ? formatCount(stats.totalHours) : "—"}
+              </div>
               <div className="text-xs text-white/60">Hours Recorded</div>
             </div>
 

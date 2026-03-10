@@ -28,30 +28,34 @@ export function WeHelpCreate() {
         </h2>
         
         {/* Animated content types */}
-        <div className="h-16 sm:h-20 overflow-hidden">
-          <div 
-            className="transition-transform duration-500 ease-in-out"
-            style={{ transform: `translateY(-${currentIndex * 100}%)` }}
-          >
-            {contentTypes.map((type, index) => (
-              <div
-                key={index}
-                className="h-16 sm:h-20 flex items-center justify-center"
+        <div className="h-16 sm:h-20 overflow-hidden relative">
+          {contentTypes.map((type, index) => (
+            <div
+              key={index}
+              className="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out"
+              style={{
+                opacity: index === currentIndex ? 1 : 0,
+                transform: index === currentIndex
+                  ? 'translateY(0)'
+                  : index < currentIndex
+                    ? 'translateY(-40px)'
+                    : 'translateY(40px)',
+                pointerEvents: index === currentIndex ? 'auto' : 'none',
+              }}
+            >
+              <span
+                className="text-4xl sm:text-5xl lg:text-6xl font-bold"
+                style={{
+                  background: 'linear-gradient(135deg, #D9FC67 0%, #B8E050 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
               >
-                <span 
-                  className="text-4xl sm:text-5xl lg:text-6xl font-bold"
-                  style={{ 
-                    background: 'linear-gradient(135deg, #D9FC67 0%, #B8E050 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}
-                >
-                  {type}
-                </span>
-              </div>
-            ))}
-          </div>
+                {type}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Dots indicator */}

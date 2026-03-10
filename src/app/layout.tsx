@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit, DM_Sans } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { Chatbot } from "@/components/Chatbot";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -61,7 +62,10 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background antialiased font-[family-name:var(--font-dm-sans)]">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Chatbot />
+        </Providers>
       </body>
     </html>
   );

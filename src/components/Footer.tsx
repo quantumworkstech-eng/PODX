@@ -34,15 +34,6 @@ export function Footer() {
                 Contact Us
               </Button>
             </Link>
-            <Link href="/studios">
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-10 py-6 text-base font-semibold bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white rounded-full"
-              >
-                Browse Studios
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
@@ -89,17 +80,6 @@ export function Footer() {
               </Link>
             </div>
 
-            {/* Inspiration credit */}
-            <div className="text-sm text-white/50">
-              Inspired by{" "}
-              <Link 
-                href="https://dubai.poddster.com" 
-                target="_blank"
-                className="text-[#D9FC67] hover:text-[#B8E050] transition-colors"
-              >
-                Poddster
-              </Link>
-            </div>
           </div>
         </div>
       </footer>

@@ -7,8 +7,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
   MapPin, Clock, Users, Star, ChevronLeft, ChevronRight,
-  Mic2, Video, Headphones, Wifi, Car, Coffee, Search, Filter,
-  ArrowRight, Play, Zap,
+  Mic2, Video, Headphones, Wifi, Car, Coffee, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllStudios } from "@/lib/data";
@@ -160,6 +159,22 @@ export default function StudiosPage() {
             <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
+
+        {/* No studios at all — launching soon hero */}
+        {!loading && studios.length === 0 && (
+          <div className="relative z-10 w-full flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D9FC67]/10 border border-[#D9FC67]/30 mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D9FC67] animate-pulse" />
+                <span className="text-[#D9FC67] text-sm font-medium">Launching Soon</span>
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Studios Coming Soon</h1>
+              <p className="text-white/60 text-lg max-w-md mx-auto">
+                We&apos;re setting up premium podcast studios near you. Stay tuned!
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Search + Filter Bar */}
@@ -206,9 +221,6 @@ export default function StudiosPage() {
             </h2>
             <p className="text-white/40 text-sm mt-1">{filtered.length} studio{filtered.length !== 1 ? "s" : ""} found</p>
           </div>
-          <Link href="/partner/signup" className="hidden sm:flex items-center gap-2 text-[#D9FC67] text-sm font-medium hover:text-[#B8E050] transition-colors">
-            List Your Studio <ArrowRight className="w-4 h-4" />
-          </Link>
         </div>
 
         {loading ? (
@@ -229,8 +241,29 @@ export default function StudiosPage() {
             <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-white/20" />
             </div>
-            <p className="text-white/40 text-lg">No studios found</p>
-            <p className="text-white/30 text-sm mt-2">Try a different city or search term</p>
+            {search || activeCity !== "All Cities" ? (
+              <>
+                <p className="text-white/40 text-lg">No studios found</p>
+                <p className="text-white/30 text-sm mt-2">Try a different city or search term</p>
+              </>
+            ) : (
+              <>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D9FC67]/10 border border-[#D9FC67]/30 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D9FC67] animate-pulse" />
+                  <span className="text-[#D9FC67] text-sm font-medium">Launching Soon</span>
+                </div>
+                <p className="text-white/60 text-lg">Studios coming to your city</p>
+                <p className="text-white/30 text-sm mt-2">We&apos;re setting up soon. Get notified when we launch!</p>
+                <a
+                  href="https://wa.me/919876543210"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-[#D9FC67] text-black font-semibold text-sm hover:bg-[#E8FF8A] transition-colors"
+                >
+                  Notify Me
+                </a>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -355,18 +388,6 @@ export default function StudiosPage() {
           </div>
         )}
 
-        {/* List Your Studio CTA */}
-        <div className="mt-16 rounded-3xl bg-gradient-to-r from-[#D9FC67]/10 via-[#B8E050]/5 to-transparent border border-[#D9FC67]/20 p-8 lg:p-12 flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div>
-            <h3 className="text-2xl font-bold text-white mb-2">Own a Podcast Studio?</h3>
-            <p className="text-white/60">List your studio on PodX and reach thousands of creators. Setup in minutes.</p>
-          </div>
-          <Link href="/partner/signup" className="flex-shrink-0">
-            <Button className="px-8 py-6 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-full text-base border-0">
-              List Your Studio
-            </Button>
-          </Link>
-        </div>
       </section>
 
       <Footer />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookingProvider, useBooking } from "@/context/BookingContext";
 import { StepProgress } from "@/components/booking/StepProgress";
@@ -25,6 +25,7 @@ const PENDING_BOOKING_KEY = "podx_pending_booking";
 function BookingContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const {
     currentStep,
     showAuthModal,
@@ -221,11 +222,14 @@ function BookingContent() {
               </span>
             )}
           </div>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/10">
-              Exit Booking
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white/60 hover:text-white hover:bg-white/10"
+            onClick={() => router.back()}
+          >
+            Exit Booking
+          </Button>
         </div>
       </header>
 

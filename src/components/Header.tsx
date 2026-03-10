@@ -113,11 +113,6 @@ export function Header() {
                         Book Now
                       </Button>
                     </Link>
-                    <Link href="/partner/signup" onClick={() => setIsMobileMenuOpen(false)} className="block">
-                      <Button variant="ghost" className="w-full justify-center text-white/60 hover:text-white hover:bg-white/5 text-sm">
-                        List Your Studio →
-                      </Button>
-                    </Link>
                   </div>
                 </div>
               </SheetContent>
