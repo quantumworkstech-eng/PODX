@@ -15,7 +15,8 @@ export async function GET() {
 
   const [
     { count: totalUsers },
-    { count: totalPartners },
+    { data: partnerRoleUsers },
+    { data: studioOwners },
     { count: totalStudios },
     { count: totalBookings },
     { data: revenueData },
@@ -25,7 +26,8 @@ export async function GET() {
     { count: pendingRefunds },
   ] = await Promise.all([
     supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
-    supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('role', 'partner'),
+    supabaseAdmin.from('users').select('id').eq('role', 'partner'),
+    supabaseAdmin.from('studios').select('owner_id').not('owner_id', 'is', null),
     supabaseAdmin.from('studios').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('bookings').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('payments').select('amount').eq('status', 'succeeded'),
@@ -34,6 +36,13 @@ export async function GET() {
     supabaseAdmin.from('studios').select('*', { count: 'exact', head: true }).eq('review_status', 'pending_review'),
     supabaseAdmin.from('refunds').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ]);
+
+  // Count unique partners: users with role='partner' + users who own studios
+  const partnerIdSet = new Set<string>([
+    ...(partnerRoleUsers || []).map((u: any) => u.id),
+    ...(studioOwners || []).map((s: any) => s.owner_id).filter(Boolean),
+  ]);
+  const totalPartners = partnerIdSet.size;
 
   // Fetch separately — table may not exist before migration
   let pendingReschedule = 0;
