@@ -14,21 +14,23 @@ export async function GET() {
   const now = new Date().toISOString();
 
   // active → grace_period
-  const { count: toGrace } = await supabaseAdmin
+  const { data: toGraceData } = await supabaseAdmin
     .from('partner_subscriptions')
     .update({ status: 'grace_period' })
     .eq('status', 'active')
     .lt('current_period_end', now)
     .gt('grace_period_end', now)
-    .select('id', { count: 'exact', head: true });
+    .select('id');
+  const toGrace = toGraceData?.length || 0;
 
   // active/grace_period → expired
-  const { count: toExpired } = await supabaseAdmin
+  const { data: toExpiredData } = await supabaseAdmin
     .from('partner_subscriptions')
     .update({ status: 'expired' })
     .in('status', ['active', 'grace_period'])
     .lt('grace_period_end', now)
-    .select('id', { count: 'exact', head: true });
+    .select('id');
+  const toExpired = toExpiredData?.length || 0;
 
   return NextResponse.json({
     success: true,
