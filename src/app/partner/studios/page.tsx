@@ -38,11 +38,22 @@ interface Studio {
   city: string;
   price_per_hour: number;
   capacity: number;
+  buffer_minutes: number;
   equipment?: string[];
   images: string[];
   status: "active" | "inactive";
   review_status?: string;
 }
+
+const BUFFER_OPTIONS = [
+  { value: 0,   label: "No buffer" },
+  { value: 15,  label: "15 minutes" },
+  { value: 30,  label: "30 minutes" },
+  { value: 45,  label: "45 minutes" },
+  { value: 60,  label: "1 hour" },
+  { value: 90,  label: "1.5 hours" },
+  { value: 120, label: "2 hours" },
+];
 
 const equipmentOptions = [
   "Microphones",
@@ -77,6 +88,7 @@ export default function PartnerStudiosPage() {
     city: "",
     price_per_hour: 0,
     capacity: 2,
+    buffer_minutes: 0,
     equipment: [],
     images: [],
     status: "active",
@@ -106,6 +118,7 @@ export default function PartnerStudiosPage() {
         city: "",
         price_per_hour: 0,
         capacity: 2,
+        buffer_minutes: 0,
         equipment: [],
         images: [],
         status: "active",
@@ -133,6 +146,7 @@ export default function PartnerStudiosPage() {
       city: "",
       price_per_hour: 0,
       capacity: 2,
+      buffer_minutes: 0,
       equipment: [],
       images: [],
       status: "active",
@@ -155,6 +169,7 @@ export default function PartnerStudiosPage() {
             city: formData.city,
             pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
+            buffer_minutes: formData.buffer_minutes ?? 0,
             images: formData.images,
             is_active: formData.status !== "inactive",
           }),
@@ -407,6 +422,28 @@ export default function PartnerStudiosPage() {
                 <div>
                   <label className="text-white/60 text-sm mb-2 block">Capacity *</label>
                   <Input type="number" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 2 })} placeholder="4" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-1 block">Buffer Time After Booking</label>
+                <p className="text-white/30 text-xs mb-2">Time blocked after each session for cleanup & prep. Not visible to clients.</p>
+                <div className="flex flex-wrap gap-2">
+                  {BUFFER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, buffer_minutes: opt.value })}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-sm transition-colors",
+                        formData.buffer_minutes === opt.value
+                          ? "bg-[#D9FC67] text-black"
+                          : "bg-white/5 text-white/60 hover:bg-white/10"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 

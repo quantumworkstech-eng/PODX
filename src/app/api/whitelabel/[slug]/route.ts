@@ -9,9 +9,9 @@ const supabase = createClient(
 // Public endpoint: resolve a white-label partner by slug, subdomain, or custom domain
 export async function GET(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const slug = params.slug;
+  const { slug } = await params;
 
   const { data: branding, error } = await supabase
     .from("partner_branding")

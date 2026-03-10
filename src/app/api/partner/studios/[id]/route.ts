@@ -38,6 +38,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     name, description, fullDescription, shortDescription, address, city, state, country,
     pricePerHour, capacity, images, is_active,
     latitude, longitude,
+    buffer_minutes,
     amenities, // string[] of amenity names like ['wifi', 'ac']
     availableDays, // string[] like ['Mon', 'Tue']
     workingHours, // { start: string, end: string }
@@ -59,6 +60,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (is_active !== undefined) studioUpdates.is_active = is_active;
   if (latitude !== undefined) studioUpdates.latitude = latitude;
   if (longitude !== undefined) studioUpdates.longitude = longitude;
+  if (buffer_minutes !== undefined) studioUpdates.buffer_minutes = Math.max(0, parseInt(buffer_minutes) || 0);
 
   const { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
   if (studioErr) {

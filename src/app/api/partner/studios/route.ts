@@ -25,7 +25,7 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('studios')
     .select(`
-      id, name, slug, description, short_description, address, city, is_active, review_status, latitude, longitude, created_at,
+      id, name, slug, description, short_description, address, city, is_active, review_status, latitude, longitude, buffer_minutes, created_at,
       rooms(id, price_per_hour, capacity, is_active),
       studio_images(image_url, display_order)
     `)
@@ -56,6 +56,7 @@ export async function GET() {
       longitude: s.longitude,
       price_per_hour: price,
       capacity,
+      buffer_minutes: s.buffer_minutes ?? 0,
       images: sortedImages.map((i: any) => i.image_url),
       status: s.is_active ? 'active' : 'inactive',
     };

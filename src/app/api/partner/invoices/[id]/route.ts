@@ -5,8 +5,9 @@ const supabase = supabaseAdmin!;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,7 +24,7 @@ export async function GET(
   const { data: invoice, error } = await supabase
     .from("partner_invoices")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("partner_id", user.id)
     .single();
 

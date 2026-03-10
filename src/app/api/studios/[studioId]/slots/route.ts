@@ -31,26 +31,39 @@ export async function GET(
     const dayEnd = new Date(date);
     dayEnd.setHours(23, 59, 59, 999);
 
-    const { data: bookings, error } = await supabaseAdmin
-      .from("bookings")
-      .select("start_time, end_time")
-      .eq("studio_id", studioId)
-      .neq("status", "cancelled")
-      .gte("start_time", dayStart.toISOString())
-      .lte("start_time", dayEnd.toISOString());
+    // Fetch bookings and studio buffer_minutes in parallel
+    const [{ data: bookings, error }, { data: studio }] = await Promise.all([
+      supabaseAdmin
+        .from("bookings")
+        .select("start_time, end_time")
+        .eq("studio_id", studioId)
+        .neq("status", "cancelled")
+        .gte("start_time", dayStart.toISOString())
+        .lte("start_time", dayEnd.toISOString()),
+      supabaseAdmin
+        .from("studios")
+        .select("buffer_minutes")
+        .eq("id", studioId)
+        .maybeSingle(),
+    ]);
 
     if (error) {
       console.error("Slots query error:", error);
       return NextResponse.json({ bookedSlots: [] });
     }
 
-    // Convert each booking's start→end range into individual hour-slot strings
+    const bufferMinutes: number = studio?.buffer_minutes ?? 0;
+
+    // Convert each booking's start→end range (+ buffer) into blocked hour-slot strings.
+    // Buffer is invisible to clients — it silently extends the blocked window.
     const bookedSlots: string[] = [];
     for (const b of bookings || []) {
       const start = new Date(b.start_time);
-      const end = new Date(b.end_time);
+      const effectiveEnd = new Date(new Date(b.end_time).getTime() + bufferMinutes * 60 * 1000);
+      // Round up to the next whole hour so partial-hour buffers block the enclosing slot
+      const effectiveEndHours = effectiveEnd.getHours() + effectiveEnd.getMinutes() / 60;
       let h = start.getHours();
-      while (h < end.getHours()) {
+      while (h < Math.ceil(effectiveEndHours)) {
         bookedSlots.push(`${h.toString().padStart(2, "0")}:00`);
         h++;
       }

@@ -5,8 +5,9 @@ const supabase = supabaseAdmin!;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +25,7 @@ export async function GET(
   const { data: client, error } = await supabase
     .from("partner_clients")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("partner_id", user.id)
     .single();
 
@@ -48,7 +49,7 @@ export async function GET(
     .from("partner_invoices")
     .select("id, invoice_number, invoice_date, total_amount, status")
     .eq("partner_id", user.id)
-    .eq("client_id", params.id)
+    .eq("client_id", id)
     .order("created_at", { ascending: false });
 
   return NextResponse.json({ client, bookings: bookings || [], invoices: invoices || [] });
@@ -56,8 +57,9 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -81,7 +83,7 @@ export async function PATCH(
   const { data: client, error } = await supabase
     .from("partner_clients")
     .update({ ...update, updated_at: new Date().toISOString() })
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("partner_id", user.id)
     .select()
     .single();
