@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Shield, Ban, RefreshCw, ChevronDown, Eye, User, Plus, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Search, Pencil, Plus, X, RefreshCw } from "lucide-react";
+import { UserEditDrawer } from "./UserEditDrawer";
 
 const ROLES = ["all", "user", "partner", "admin"];
 
 const roleColors: Record<string, string> = {
-  admin: "bg-red-500/10 text-red-400 border-red-500/20",
+  admin:   "bg-red-500/10 text-red-400 border-red-500/20",
   partner: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  user: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  user:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
 };
 
 export default function AdminUsersPage() {
@@ -19,9 +19,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [showRoleModal, setShowRoleModal] = useState<string | null>(null);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
 
   // Add user modal
   const [addOpen, setAddOpen] = useState(false);
@@ -65,18 +63,6 @@ export default function AdminUsersPage() {
     fetchUsers();
   };
 
-  const handleAction = async (userId: string, action: string, role?: string) => {
-    setActionLoading(userId);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, role }),
-    });
-    setActionLoading(null);
-    setShowRoleModal(null);
-    fetchUsers();
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -116,7 +102,7 @@ export default function AdminUsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by email..."
+            placeholder="Search by email or name…"
             className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/20"
           />
         </div>
@@ -134,6 +120,7 @@ export default function AdminUsersPage() {
                 <th className="text-left px-6 py-4 text-white/40 text-xs font-medium uppercase tracking-wider">User</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs font-medium uppercase tracking-wider">Roles</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs font-medium uppercase tracking-wider">Provider</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs font-medium uppercase tracking-wider">Status</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs font-medium uppercase tracking-wider">Joined</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs font-medium uppercase tracking-wider">Actions</th>
               </tr>
@@ -141,20 +128,20 @@ export default function AdminUsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center text-white/40">
+                  <td colSpan={6} className="px-6 py-16 text-center text-white/40">
                     <div className="w-6 h-6 border-2 border-red-400 border-t-transparent rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center text-white/40">No users found</td>
+                  <td colSpan={6} className="px-6 py-16 text-center text-white/40">No users found</td>
                 </tr>
               ) : (
                 users.map((user) => (
                   <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
                           {(user.full_name || user.email)?.[0]?.toUpperCase()}
                         </div>
                         <div>
@@ -183,32 +170,24 @@ export default function AdminUsersPage() {
                       <span className="text-white/50 text-sm capitalize">{user.auth_provider || "email"}</span>
                     </td>
                     <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs border ${user.email_verified ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
+                        {user.email_verified ? "Active" : "Banned"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
                       <span className="text-white/40 text-sm">
                         {new Date(user.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setShowRoleModal(user.id)}
-                          className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-[#D9FC67] transition-colors"
-                          title="Change Role"
-                        >
-                          <Shield className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleAction(user.id, user.email_verified ? "ban" : "unban")}
-                          disabled={actionLoading === user.id}
-                          className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-red-400 transition-colors"
-                          title={user.email_verified ? "Ban User" : "Unban User"}
-                        >
-                          {actionLoading === user.id ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Ban className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setEditUserId(user.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#D9FC67]/10 text-white/50 hover:text-[#D9FC67] border border-white/10 hover:border-[#D9FC67]/30 text-xs font-medium transition-all"
+                        title="Edit user"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -260,17 +239,17 @@ export default function AdminUsersPage() {
               <div>
                 <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Full Name</label>
                 <input value={addFields.full_name} onChange={(e) => setAddFields(f => ({ ...f, full_name: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" placeholder="Rahul Sharma" />
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/20" placeholder="Rahul Sharma" />
               </div>
               <div>
                 <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Email Address *</label>
                 <input required type="email" value={addFields.email} onChange={(e) => setAddFields(f => ({ ...f, email: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" placeholder="rahul@example.com" />
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/20" placeholder="rahul@example.com" />
               </div>
               <div>
                 <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Phone</label>
                 <input type="tel" value={addFields.phone} onChange={(e) => setAddFields(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20" placeholder="+91 98765 43210" />
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/20" placeholder="+91 98765 43210" />
               </div>
               <div>
                 <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Role</label>
@@ -295,30 +274,13 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Role Change Modal */}
-      {showRoleModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-white font-semibold mb-4">Change User Role</h3>
-            <div className="space-y-2">
-              {["user", "partner", "admin"].map((role) => (
-                <button
-                  key={role}
-                  onClick={() => handleAction(showRoleModal, "change_role", role)}
-                  className="w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white capitalize text-sm transition-colors"
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowRoleModal(null)}
-              className="mt-4 w-full px-4 py-2 rounded-xl bg-white/5 text-white/50 hover:text-white text-sm transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+      {/* Edit Drawer */}
+      {editUserId && (
+        <UserEditDrawer
+          userId={editUserId}
+          onClose={() => setEditUserId(null)}
+          onSaved={() => fetchUsers()}
+        />
       )}
     </div>
   );

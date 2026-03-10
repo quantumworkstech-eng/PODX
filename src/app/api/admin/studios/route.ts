@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   let query = supabaseAdmin
     .from('studios')
     .select(`
-      id, name, slug, city, is_active, review_status, created_at,
-      users!studios_owner_id_fkey(email, profiles(full_name)),
+      id, name, slug, city, is_active, review_status, created_at, owner_id,
+      users!studios_owner_id_fkey(id, email, profiles(full_name)),
       rooms(price_per_hour, capacity),
       studio_images(image_url, display_order)
     `, { count: 'exact' })
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       is_active: s.is_active,
       review_status: s.review_status || 'pending_review',
       created_at: s.created_at,
+      owner_id: s.owner_id || s.users?.id || null,
       owner_email: s.users?.email || '',
       owner_name: s.users?.profiles?.full_name || '',
       price_per_hour: price,

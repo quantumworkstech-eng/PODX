@@ -40,11 +40,22 @@ export async function PATCH(
     return NextResponse.json({ success: true, message: 'Role updated' });
   }
 
+  if (action === 'update_profile') {
+    const { full_name, phone } = body;
+    const { data: existing } = await supabaseAdmin.from('profiles').select('user_id').eq('user_id', id).maybeSingle();
+    if (existing) {
+      await supabaseAdmin.from('profiles').update({ full_name: full_name ?? null, phone: phone ?? null }).eq('user_id', id);
+    } else {
+      await supabaseAdmin.from('profiles').insert({ user_id: id, full_name: full_name ?? null, phone: phone ?? null });
+    }
+    return NextResponse.json({ success: true, message: 'Profile updated' });
+  }
+
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;

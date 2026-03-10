@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, RefreshCw, X, Shield, ShieldCheck, ShieldOff, Check, AlertCircle } from "lucide-react";
+import { Plus, Trash2, RefreshCw, X, Shield, ShieldCheck, ShieldOff, Check, AlertCircle, Pencil } from "lucide-react";
+import { AdminEditDrawer } from "./AdminEditDrawer";
 
 interface Admin {
   id: string;
@@ -28,6 +29,9 @@ export default function AdminAdminsPage() {
 
   // Remove confirm
   const [removeId, setRemoveId] = useState<string | null>(null);
+
+  // Edit drawer
+  const [editAdmin, setEditAdmin] = useState<Admin | null>(null);
 
   const fetchAdmins = () => {
     setLoading(true);
@@ -57,28 +61,6 @@ export default function AdminAdminsPage() {
     setInviteLoading(false);
     setInviteOpen(false);
     setInviteEmail("");
-    fetchAdmins();
-  };
-
-  const toggleActive = async (admin: Admin) => {
-    setActionLoading(`toggle-${admin.id}`);
-    await fetch(`/api/admin/admins/${admin.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_active: !admin.is_active }),
-    });
-    setActionLoading(null);
-    fetchAdmins();
-  };
-
-  const changeRole = async (admin: Admin, newRole: string) => {
-    setActionLoading(`role-${admin.id}`);
-    await fetch(`/api/admin/admins/${admin.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: newRole }),
-    });
-    setActionLoading(null);
     fetchAdmins();
   };
 
@@ -174,15 +156,13 @@ export default function AdminAdminsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <select
-                        value={admin.role}
-                        onChange={(e) => changeRole(admin, e.target.value)}
-                        disabled={actionLoading === `role-${admin.id}`}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-white/20 disabled:opacity-50"
-                      >
-                        <option value="admin" className="bg-[#18181b]">Admin</option>
-                        <option value="super_admin" className="bg-[#18181b]">Super Admin</option>
-                      </select>
+                      <span className={`px-2.5 py-1 rounded-full text-xs border ${
+                        admin.role === "super_admin"
+                          ? "bg-orange-500/10 text-orange-400 border-orange-500/20"
+                          : "bg-red-500/10 text-red-400 border-red-500/20"
+                      }`}>
+                        {admin.role === "super_admin" ? "Super Admin" : "Admin"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs border ${admin.is_active ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
@@ -196,14 +176,14 @@ export default function AdminAdminsPage() {
                       <p className="text-white/40 text-xs">{new Date(admin.created_at).toLocaleDateString("en-IN")}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => toggleActive(admin)}
-                          disabled={actionLoading === `toggle-${admin.id}`}
-                          className={`p-1.5 rounded-lg transition-colors ${admin.is_active ? "hover:bg-orange-500/10 text-white/40 hover:text-orange-400" : "hover:bg-green-500/10 text-white/40 hover:text-green-400"}`}
-                          title={admin.is_active ? "Revoke Access" : "Restore Access"}
+                          onClick={() => setEditAdmin(admin)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#D9FC67]/10 text-white/50 hover:text-[#D9FC67] border border-white/10 hover:border-[#D9FC67]/30 text-xs font-medium transition-all"
+                          title="Edit admin"
                         >
-                          {actionLoading === `toggle-${admin.id}` ? <RefreshCw className="w-4 h-4 animate-spin" /> : admin.is_active ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
                         </button>
                         <button
                           onClick={() => setRemoveId(admin.id)}
@@ -304,6 +284,16 @@ export default function AdminAdminsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Drawer */}
+      {editAdmin && (
+        <AdminEditDrawer
+          admin={editAdmin}
+          onClose={() => setEditAdmin(null)}
+          onSaved={() => { fetchAdmins(); setEditAdmin(null); }}
+          onRemoveRequest={(id) => { setEditAdmin(null); setRemoveId(id); }}
+        />
       )}
     </div>
   );
