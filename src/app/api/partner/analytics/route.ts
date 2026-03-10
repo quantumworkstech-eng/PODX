@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
   // ── Studio performance ──
   const studioMap: Record<string, { name: string; city: string; bookings: number; revenue: number; hours: number }> = {};
   for (const b of allBookings) {
-    const studio = b.studios as { id: string; name: string; city: string } | null;
+    const studioArray = b.studios as unknown as { id: string; name: string; city: string }[] | null;
+    const studio = studioArray?.[0];
     if (!studio) continue;
     if (!studioMap[b.studio_id]) {
       studioMap[b.studio_id] = { name: studio.name, city: studio.city, bookings: 0, revenue: 0, hours: 0 };
