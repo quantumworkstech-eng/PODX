@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// ── GET /api/studios/[studioId]/slots?date=YYYY-MM-DD ────────────────────────
+// ── GET /api/studios/[id]/slots?date=YYYY-MM-DD ────────────────────────
 // Returns the list of hour-slots already booked for this studio on the given date.
 // The client uses this to grey-out unavailable time slots in DateTimeStep.
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ studioId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { studioId } = await params;
+  const { id: studioId } = await params;
 
   try {
     const date = request.nextUrl.searchParams.get("date");
@@ -71,7 +71,7 @@ export async function GET(
 
     return NextResponse.json({ bookedSlots });
   } catch (error) {
-    console.error("GET /api/studios/[studioId]/slots error:", error);
+    console.error("GET /api/studios/[id]/slots error:", error);
     return NextResponse.json({ bookedSlots: [] });
   }
 }

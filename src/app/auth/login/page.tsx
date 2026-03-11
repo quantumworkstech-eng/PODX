@@ -34,7 +34,6 @@ export default function LoginPage() {
     if (urlError) {
       setRawErrorCode(urlError);
       setError(NEXTAUTH_ERRORS[urlError] ?? NEXTAUTH_ERRORS.Default);
-      console.error("[Auth] Google sign-in error code:", urlError);
     }
   }, [searchParams]);
 
@@ -42,23 +41,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setError("");
     setRawErrorCode("");
-    console.log("[Auth] Starting Google sign-in...");
-    try {
-      const result = await signIn("google", { callbackUrl: "/dashboard", redirect: false });
-      console.log("[Auth] signIn result:", JSON.stringify(result));
-      if (result?.url) {
-        console.log("[Auth] Redirecting to:", result.url);
-        window.location.href = result.url;
-      } else {
-        console.error("[Auth] No URL returned:", result);
-        setError("Sign-in failed — no redirect URL returned.");
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error("[Auth] signIn threw:", err);
-      setError("Sign-in error: " + String(err));
-      setIsLoading(false);
-    }
+    await signIn("google", { callbackUrl: "/dashboard" });
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
