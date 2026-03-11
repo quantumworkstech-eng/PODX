@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
@@ -26,6 +27,7 @@ const AMENITY_ICONS: Record<string, any> = {
 };
 
 export default function StudiosPage() {
+  const router = useRouter();
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCity, setActiveCity] = useState("All Cities");
@@ -33,6 +35,11 @@ export default function StudiosPage() {
   const [featuredIdx, setFeaturedIdx] = useState(0);
   const [imageIndices, setImageIndices] = useState<Record<string, number>>({});
   const autoRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleBookNow = (studio: Studio) => {
+    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studio));
+    router.push("/book?preselect=1");
+  };
 
   useEffect(() => {
     getAllStudios().then((data) => { setStudios(data); setLoading(false); });
@@ -114,11 +121,12 @@ export default function StudiosPage() {
                 </p>
 
                 <div className="flex gap-4 items-center">
-                  <Link href="/book">
-                    <Button className="px-8 py-6 text-base font-semibold bg-[#D9FC67] hover:bg-[#E8FF8A] text-black rounded-full border-0">
-                      Book This Studio
-                    </Button>
-                  </Link>
+                  <Button
+                    onClick={() => featured && handleBookNow(featured)}
+                    className="px-8 py-6 text-base font-semibold bg-[#D9FC67] hover:bg-[#E8FF8A] text-black rounded-full border-0"
+                  >
+                    Book This Studio
+                  </Button>
                   <span className="text-white font-bold text-xl">
                     ₹{featured.price_per_hour?.toLocaleString("en-IN")}<span className="text-white/50 text-sm font-normal">/hr</span>
                   </span>
@@ -376,11 +384,12 @@ export default function StudiosPage() {
                       <span>Min 1 hr · Available Today</span>
                     </div>
 
-                    <Link href="/book" className="block">
-                      <Button className="w-full bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-2xl py-6 transition-all group-hover:shadow-lg group-hover:shadow-[#D9FC67]/20">
-                        Book Now
-                      </Button>
-                    </Link>
+                    <Button
+                      onClick={() => handleBookNow(studio)}
+                      className="w-full bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-2xl py-6 transition-all group-hover:shadow-lg group-hover:shadow-[#D9FC67]/20"
+                    >
+                      Book Now
+                    </Button>
                   </div>
                 </div>
               );

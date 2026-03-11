@@ -39,6 +39,8 @@ function BookingContent() {
     setSelectedCity,
     selectionMode,
     setSelectionMode,
+    setSelectedStudio,
+    goToStep,
   } = useBooking();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -50,6 +52,25 @@ function BookingContent() {
   // Hydrate from stored state on first mount
   useEffect(() => {
     setHydrated(true);
+
+    // Handle "Book Now" from studio listing — studio pre-selected, skip to date/time
+    const preselect = searchParams.get("preselect");
+    if (preselect === "1") {
+      const raw = sessionStorage.getItem("yanisa_preselected_studio");
+      if (raw) {
+        try {
+          const studio = JSON.parse(raw);
+          sessionStorage.removeItem("yanisa_preselected_studio");
+          setSelectedStudio(studio);
+          setSelectionMode("studio");
+          localStorage.setItem(SELECTION_MODE_KEY, "studio");
+          goToStep(2); // jump straight to DateTimeStep
+          return;
+        } catch {
+          // fall through to normal onboarding
+        }
+      }
+    }
 
     const storedOnboarding = localStorage.getItem(ONBOARDING_KEY);
     const storedMode = localStorage.getItem(SELECTION_MODE_KEY);
