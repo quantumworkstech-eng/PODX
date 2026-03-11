@@ -185,9 +185,13 @@ export default function DashboardContent() {
     setBookings(updated);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
 
+    // Use the real UUID (dbId) for the API call — bookingId may be booking_number
+    const booking = bookings.find((b) => b.id === bookingId);
+    const apiId = booking?.dbId || bookingId;
+
     // Persist to Supabase
     try {
-      await fetch(`/api/bookings/${bookingId}`, {
+      await fetch(`/api/bookings/${apiId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cancel" }),
@@ -209,9 +213,13 @@ export default function DashboardContent() {
     setBookings(updated);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
 
+    // Use the real UUID (dbId) for the API call
+    const booking = bookings.find((b) => b.id === bookingId);
+    const apiId = booking?.dbId || bookingId;
+
     // Persist to Supabase
     try {
-      await fetch(`/api/bookings/${bookingId}`, {
+      await fetch(`/api/bookings/${apiId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

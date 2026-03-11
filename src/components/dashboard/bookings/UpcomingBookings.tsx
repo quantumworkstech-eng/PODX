@@ -11,6 +11,7 @@ import { RescheduleModal } from "../modals/RescheduleModal";
 
 export interface BookingData {
   id: string;
+  dbId?: string;   // actual UUID in DB (id may be booking_number)
   date: string;
   timeSlot: string;
   duration: number;
