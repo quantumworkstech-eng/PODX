@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,18 @@ import { Mail, User, Phone, ArrowRight, Check, RotateCcw } from "lucide-react";
 
 type Step = "email" | "otp" | "profile";
 
+const NEXTAUTH_ERRORS: Record<string, string> = {
+  OAuthSignin: "Could not start Google sign-in. Please try again.",
+  OAuthCallback: "Google sign-in was cancelled or failed. Please try again.",
+  OAuthCreateAccount: "Could not create your account. Please try again.",
+  OAuthAccountNotLinked: "This email is already registered with a different sign-in method.",
+  Callback: "Sign-in callback error. Please try again.",
+  Default: "Sign-in failed. Please try again.",
+};
+
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -20,6 +30,13 @@ export default function SignupPage() {
   const [mobile, setMobile] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      setError(NEXTAUTH_ERRORS[urlError] ?? NEXTAUTH_ERRORS.Default);
+    }
+  }, [searchParams]);
 
   const handleGoogleSignup = async () => {
     setIsLoading(true);

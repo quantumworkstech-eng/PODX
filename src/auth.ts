@@ -6,7 +6,8 @@ import bcrypt from "bcryptjs";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
+// NextAuth v5 uses AUTH_SECRET; keep NEXTAUTH_SECRET as fallback
+const NEXTAUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -90,12 +91,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user?.email) {
-        if (!supabaseAdmin) return true;
+        if (!supabaseAdmin) {
+          console.error("[auth] supabaseAdmin not configured — Google user won't be persisted");
+          return true;
+        }
 
         try {
           const { data: existingUser } = await supabaseAdmin
             .from("users")
-            .select("id, email")
+            .select("id")
             .eq("email", user.email)
             .maybeSingle();
 
@@ -107,19 +111,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 auth_provider: "google",
                 email_verified: true,
               })
-              .select()
+              .select("id")
               .single();
 
-            if (!insertError && newUser) {
-              await supabaseAdmin.from("profiles").insert({
+            if (insertError) {
+              console.error("[auth] Failed to create user for Google sign-in:", insertError.message);
+            } else if (newUser) {
+              const { error: profileError } = await supabaseAdmin.from("profiles").insert({
                 user_id: newUser.id,
-                full_name: user.name,
-                avatar_url: user.image,
+                full_name: user.name ?? null,
+                avatar_url: user.image ?? null,
               });
+              if (profileError) {
+                console.error("[auth] Failed to create profile:", profileError.message);
+              }
             }
           }
         } catch (error) {
-          console.error("Error in Google signIn callback:", error);
+          console.error("[auth] Error in Google signIn callback:", error);
         }
       }
       return true;
@@ -131,20 +140,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user?.id;
         return token;
       }
-      // Fetch role on first sign-in OR if role is missing from an existing token
-      if (supabaseAdmin && (user || account || !token.role)) {
-        const email = user?.email || token.email;
+
+      // Look up the DB user to get our internal UUID and role.
+      // Runs on first sign-in (user/account populated) or when id is missing from token.
+      if (supabaseAdmin && (user || account || !token.id)) {
+        const email = (user?.email ?? token.email) as string | undefined;
         if (email) {
-          const { data: dbUser } = await supabaseAdmin
+          // Try with role column first (added by studio_review_migration.sql)
+          const { data: dbUser, error: roleQueryError } = await supabaseAdmin
             .from("users")
             .select("id, role")
             .eq("email", email)
             .maybeSingle();
-          if (dbUser) {
+
+          if (!roleQueryError && dbUser) {
             token.id = dbUser.id;
-            token.role = dbUser.role || "user";
-          } else if (user?.id) {
-            token.id = user.id;
+            token.role = (dbUser as any).role ?? "user";
+          } else {
+            if (roleQueryError) {
+              // role column likely missing — fall back to id-only query
+              console.warn("[auth] role column query failed, falling back:", roleQueryError.message);
+            }
+            const { data: dbUserBasic } = await supabaseAdmin
+              .from("users")
+              .select("id")
+              .eq("email", email)
+              .maybeSingle();
+
+            if (dbUserBasic) {
+              token.id = dbUserBasic.id;
+              token.role = "user";
+            } else {
+              console.warn("[auth] No DB user found for email:", email);
+            }
           }
         }
       }

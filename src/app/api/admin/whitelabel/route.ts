@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     .select(`
       *,
       users!partner_branding_partner_id_fkey(email),
-      profiles!inner(full_name, business_name)
+      profiles(full_name, business_name)
     `, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);

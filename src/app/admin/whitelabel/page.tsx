@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Globe, Search, Eye, EyeOff, AlertCircle, CheckCircle,
-  ExternalLink, ChevronDown, DollarSign, BarChart3, X,
-  Shield, Loader2, RefreshCw, Download, Filter,
+  Globe, Search, Eye, EyeOff,
+  ExternalLink, DollarSign, X,
+  Shield, Loader2, Building2,
+  CheckCircle2, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,14 @@ interface WhiteLabelPartner {
   updated_at: string;
   users: { email: string };
   profiles: { full_name: string; business_name: string };
+}
+
+interface PartnerStudio {
+  id: string;
+  name: string;
+  city: string;
+  is_active: boolean;
+  review_status: string;
 }
 
 interface Payout {
@@ -73,6 +82,8 @@ export default function AdminWhiteLabelPage() {
   const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [payoutActionData, setPayoutActionData] = useState({ reference_number: "", notes: "" });
+  const [partnerStudios, setPartnerStudios] = useState<PartnerStudio[]>([]);
+  const [studiosLoading, setStudiosLoading] = useState(false);
 
   const fetchPartners = useCallback(() => {
     setLoading(true);
@@ -98,6 +109,35 @@ export default function AdminWhiteLabelPage() {
     if (activeTab === "partners") fetchPartners();
     else fetchPayouts();
   }, [activeTab, fetchPartners, fetchPayouts]);
+
+  useEffect(() => {
+    if (!selectedPartner) { setPartnerStudios([]); return; }
+    setStudiosLoading(true);
+    fetch(`/api/admin/studios?owner_id=${selectedPartner.partner_id}`)
+      .then((r) => r.json())
+      .then(({ studios }) => setPartnerStudios(studios || []))
+      .catch(console.error)
+      .finally(() => setStudiosLoading(false));
+  }, [selectedPartner]);
+
+  const toggleStudio = async (studio: PartnerStudio, action: "approve" | "activate" | "suspend" | "pause") => {
+    setActionLoading(`studio-${studio.id}`);
+    try {
+      await fetch(`/api/admin/studios/${studio.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      setPartnerStudios((prev) =>
+        prev.map((s) =>
+          s.id === studio.id
+            ? { ...s, is_active: action === "approve" || action === "activate", review_status: action === "suspend" ? "suspended" : action === "pause" ? "paused" : "approved" }
+            : s
+        )
+      );
+    } catch (e) { console.error(e); }
+    finally { setActionLoading(null); }
+  };
 
   const togglePartner = async (partner: WhiteLabelPartner, field: "admin_disabled" | "is_published") => {
     setActionLoading(partner.partner_id);
@@ -446,6 +486,58 @@ export default function AdminWhiteLabelPage() {
                   <ExternalLink className="w-4 h-4" />
                   View Live Page
                 </a>
+              )}
+            </div>
+
+            {/* Studios */}
+            <div className="space-y-3 pt-4 border-t border-white/10">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-white/40" />
+                <p className="text-sm font-medium text-white">White-Label Studios</p>
+                <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{partnerStudios.length}</span>
+              </div>
+              {studiosLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-white/30" />
+                </div>
+              ) : partnerStudios.length === 0 ? (
+                <p className="text-white/30 text-sm py-2">No studios found for this partner.</p>
+              ) : (
+                <div className="space-y-2">
+                  {partnerStudios.map((studio) => (
+                    <div key={studio.id} className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-xl border border-white/5">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full flex-shrink-0",
+                        studio.is_active ? "bg-green-400" : studio.review_status === "suspended" ? "bg-red-400" : "bg-yellow-400"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{studio.name}</p>
+                        <p className="text-white/40 text-xs">{studio.city} · <span className="capitalize">{studio.review_status?.replace("_", " ")}</span></p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {studio.is_active ? (
+                          <button
+                            onClick={() => toggleStudio(studio, "suspend")}
+                            disabled={actionLoading === `studio-${studio.id}`}
+                            title="Suspend studio"
+                            className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                          >
+                            {actionLoading === `studio-${studio.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => toggleStudio(studio, "activate")}
+                            disabled={actionLoading === `studio-${studio.id}`}
+                            title="Activate studio"
+                            className="p-1.5 text-green-400 hover:bg-green-400/10 rounded-lg transition-colors"
+                          >
+                            {actionLoading === `studio-${studio.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 

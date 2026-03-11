@@ -10,8 +10,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const search = searchParams.get('search');
+  const owner_id = searchParams.get('owner_id');
   const page = parseInt(searchParams.get('page') || '1');
-  const limit = 20;
+  const limit = owner_id ? 100 : 20;
   const offset = (page - 1) * limit;
 
   let query = supabaseAdmin
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (owner_id) query = query.eq('owner_id', owner_id);
   if (status) query = query.eq('review_status', status);
   if (search) query = query.ilike('name', `%${search}%`);
 
