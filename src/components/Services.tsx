@@ -1,60 +1,103 @@
 "use client";
 
-import Image from "next/image";
-import { Lightbulb, Mic, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
-const services = [
+interface ServiceItem {
+  title: string;
+  description: string;
+  image_url: string;
+}
+
+interface ServicesProps {
+  data?: ServiceItem[];
+}
+
+const DEFAULT_SERVICES: ServiceItem[] = [
   {
-    icon: Lightbulb,
-    title: "Hands-on podcast concept and strategy design",
+    title: "Hands-on Strategy Design",
     description:
-      "Our experts design tailored strategies to lay a strong foundation for your podcast. We work with you to conceptualise your show, and craft its bespoke branding identity. Your entire production calendar is managed for you.",
-    image: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=600",
+      "Expert podcast concept and strategy tailored to your brand. We help you define your niche, audience, and content calendar for maximum impact.",
+    image_url:
+      "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800&q=80",
   },
   {
-    icon: Mic,
-    title: "End-to-end turn-key podcast production",
+    title: "End-to-End Production",
     description:
-      "Record at our 9 podcast studios in Mumbai. Our operators will handle all the technical aspects for you. When you're done, our post-production team will edit your podcast.",
-    image: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600",
+      "Record in our industry-leading studios with trained operators. Full post-production including editing, mixing, mastering, and show notes.",
+    image_url:
+      "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&q=80",
   },
   {
-    icon: TrendingUp,
-    title: "Chart-topping distribution and promotion",
+    title: "Distribution & Promotion",
     description:
-      "Our team distributes your episodes and podcast clips across all platforms, following the latest best practices. We manage and monitor your show's growth through regular reporting, helping you to grow your podcast as trends evolve.",
-    image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600",
+      "Get your podcast on all major platforms. We handle distribution, create viral clips, and monitor your growth across channels.",
+    image_url:
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80",
   },
 ];
 
-export function Services() {
+export function Services({ data }: ServicesProps) {
+  const services = data && data.length > 0 ? data : DEFAULT_SERVICES;
+
   return (
-    <section className="py-20 lg:py-28 bg-background">
+    <section className="py-20 lg:py-28 bg-[#09090b]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Section header */}
+        <div className="mb-12">
+          <p className="text-[#D9FC67] text-sm uppercase tracking-[0.2em] font-medium mb-3">
+            What we offer
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight max-w-xl">
+            Everything you need to go from idea to published
+          </h2>
+        </div>
+
+        {/* Service Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {services.map((service, index) => (
-            <div key={index} className="flex flex-col">
-              {/* Bullet point */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-2 h-2 rounded-full bg-[#D9FC67]" />
-                <h3 className="text-lg font-semibold text-white">
+            <div
+              key={index}
+              className="group relative rounded-2xl overflow-hidden aspect-[3/4] cursor-pointer"
+            >
+              {/* Background image with hover zoom */}
+              <div className="absolute inset-0 transition-transform duration-700 ease-in-out group-hover:scale-105">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={service.image_url}
+                  alt={service.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Gradient overlay — always present, intensifies on hover */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10 transition-opacity duration-300 group-hover:opacity-90" />
+
+              {/* Content */}
+              <div className="absolute inset-0 flex flex-col justify-end p-6">
+                {/* Step number */}
+                <div className="text-[#D9FC67]/60 text-xs font-mono uppercase tracking-widest mb-3">
+                  0{index + 1}
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 leading-tight">
                   {service.title}
                 </h3>
-              </div>
-              
-              {/* Description */}
-              <p className="text-white/60 text-sm leading-relaxed mb-6 flex-grow">
-                {service.description}
-              </p>
-              
-              {/* Image */}
-              <div className="relative aspect-[4/3] rounded-xl overflow-hidden">
-                <Image
-                  src={service.image}
-                  alt={service.title}
-                  fill
-                  className="object-cover"
-                />
+
+                {/* Description — slides up on hover */}
+                <p className="text-white/60 text-sm leading-relaxed mb-4 max-h-0 overflow-hidden opacity-0 transition-all duration-500 group-hover:max-h-32 group-hover:opacity-100">
+                  {service.description}
+                </p>
+
+                {/* CTA link */}
+                <Link
+                  href="/services"
+                  className="inline-flex items-center gap-2 text-[#D9FC67] text-sm font-medium opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0"
+                >
+                  Learn More
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
           ))}

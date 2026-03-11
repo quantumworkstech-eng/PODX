@@ -1,88 +1,166 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Linkedin, Instagram } from "lucide-react";
+import { Instagram, Linkedin, Youtube, MapPin, Clock, Mail, Phone } from "lucide-react";
 
-export function Footer() {
+interface FooterData {
+  tagline?: string;
+  address?: string;
+  hours?: string;
+  email?: string;
+  phone?: string;
+  instagram_url?: string;
+  linkedin_url?: string;
+  youtube_url?: string;
+}
+
+interface FooterProps {
+  data?: FooterData;
+}
+
+const DEFAULT_DATA: FooterData = {
+  tagline: "India's premier podcast studio network. Book world-class studios in your city.",
+  address: "Mumbai, Delhi, Bangalore, Hyderabad & more",
+  hours: "Monday – Saturday, 9:00 AM – 9:00 PM",
+  email: "support@yanisa.in",
+  phone: "+91 98765 43210",
+  instagram_url: "https://instagram.com",
+  linkedin_url: "https://linkedin.com",
+  youtube_url: "https://youtube.com",
+};
+
+export function Footer({ data }: FooterProps) {
+  const footer = { ...DEFAULT_DATA, ...data };
+
   return (
-    <>
-      {/* Have Questions Section with Map Background */}
-      <section className="relative py-32 overflow-hidden">
-        {/* Map Background */}
-        <div 
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/50" />
+    <footer className="bg-black border-t border-white/5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 mb-12">
+          {/* Brand column */}
+          <div className="lg:col-span-2">
+            <Link href="/" className="inline-block mb-5">
+              <span className="text-2xl font-bold tracking-tight text-white">
+                Yanisa<span className="text-[#D9FC67]"> Studio</span>
+              </span>
+            </Link>
+            <p className="text-white/40 text-sm leading-relaxed max-w-sm mb-6">
+              {footer.tagline}
+            </p>
+            {/* Social links */}
+            <div className="flex items-center gap-3">
+              {footer.instagram_url && (
+                <Link
+                  href={footer.instagram_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all"
+                >
+                  <Instagram className="w-4 h-4" />
+                </Link>
+              )}
+              {footer.linkedin_url && (
+                <Link
+                  href={footer.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all"
+                >
+                  <Linkedin className="w-4 h-4" />
+                </Link>
+              )}
+              {footer.youtube_url && (
+                <Link
+                  href={footer.youtube_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all"
+                >
+                  <Youtube className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
+          </div>
 
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
-            Have questions?
-          </h2>
-          <p className="text-white/60 text-lg mb-10">
-            We have answers. Tell us what you want to know!
+          {/* Quick links */}
+          <div>
+            <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">Quick Links</h4>
+            <ul className="space-y-3">
+              {[
+                { label: "Browse Studios", href: "/studios" },
+                { label: "Book a Session", href: "/book" },
+                { label: "Services", href: "/services" },
+                { label: "Partner Program", href: "/partner" },
+                { label: "Contact Us", href: "/contact" },
+              ].map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-white/40 hover:text-white text-sm transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Contact info */}
+          <div>
+            <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">Contact</h4>
+            <ul className="space-y-4">
+              {footer.address && (
+                <li className="flex items-start gap-3">
+                  <MapPin className="w-4 h-4 text-[#D9FC67] mt-0.5 flex-shrink-0" />
+                  <span className="text-white/40 text-sm leading-snug">{footer.address}</span>
+                </li>
+              )}
+              {footer.hours && (
+                <li className="flex items-start gap-3">
+                  <Clock className="w-4 h-4 text-[#D9FC67] mt-0.5 flex-shrink-0" />
+                  <span className="text-white/40 text-sm leading-snug">{footer.hours}</span>
+                </li>
+              )}
+              {footer.email && (
+                <li className="flex items-start gap-3">
+                  <Mail className="w-4 h-4 text-[#D9FC67] mt-0.5 flex-shrink-0" />
+                  <a
+                    href={`mailto:${footer.email}`}
+                    className="text-white/40 hover:text-white text-sm transition-colors"
+                  >
+                    {footer.email}
+                  </a>
+                </li>
+              )}
+              {footer.phone && (
+                <li className="flex items-start gap-3">
+                  <Phone className="w-4 h-4 text-[#D9FC67] mt-0.5 flex-shrink-0" />
+                  <a
+                    href={`tel:${footer.phone}`}
+                    className="text-white/40 hover:text-white text-sm transition-colors"
+                  >
+                    {footer.phone}
+                  </a>
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom row */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-white/5">
+          <p className="text-white/25 text-xs">
+            &copy; {new Date().getFullYear()} Yanisa Studio. All rights reserved.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/contact">
-              <Button
-                size="lg"
-                className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 rounded-full text-black"
-              >
-                Contact Us
-              </Button>
+          <div className="flex items-center gap-6">
+            <Link href="/terms" className="text-white/25 hover:text-white/60 text-xs transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="text-white/25 hover:text-white/60 text-xs transition-colors">
+              Privacy Policy
             </Link>
           </div>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-12 bg-background border-t border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Logo centered */}
-          <div className="text-center mb-12">
-            <Link href="/" className="text-3xl font-bold">
-              <span className="text-white">Yanisa</span>
-              <span className="text-[#D9FC67]"> Studio</span>
-            </Link>
-          </div>
-
-          {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border">
-            {/* Copyright and Links */}
-            <div className="flex items-center gap-4 text-sm text-white/50">
-              <span>Copyright © Yanisa Studio</span>
-              <Link href="/terms" className="hover:text-white transition-colors">
-                Terms
-              </Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">
-                Privacy
-              </Link>
-            </div>
-
-            {/* Social Links */}
-            <div className="flex items-center gap-4">
-              <Link 
-                href="https://linkedin.com" 
-                target="_blank"
-                className="text-white/50 hover:text-white transition-colors"
-              >
-                <Linkedin className="w-5 h-5" />
-              </Link>
-              <Link 
-                href="https://instagram.com" 
-                target="_blank"
-                className="text-white/50 hover:text-white transition-colors"
-              >
-                <Instagram className="w-5 h-5" />
-              </Link>
-            </div>
-
-          </div>
-        </div>
-      </footer>
-    </>
+      </div>
+    </footer>
   );
 }
