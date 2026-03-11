@@ -100,9 +100,9 @@ export function StudioSection() {
                 className="object-cover"
               />
               
-              {/* PodX Watermark */}
+              {/* Watermark */}
               <div className="absolute top-6 left-6">
-                <span className="text-white/80 text-xl font-bold">podX</span>
+                <span className="text-white/80 text-xl font-bold">Yanisa Studio</span>
               </div>
 
               {/* Studio Name */}

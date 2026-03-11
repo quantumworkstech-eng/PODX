@@ -117,7 +117,7 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                   <a href={branding.twitter_url} target="_blank" rel="noreferrer" className="hover:opacity-80">Twitter</a>
                 )}
               </div>
-              <p className="text-xs opacity-30">Powered by PodX</p>
+              <p className="text-xs opacity-30">Powered by Yanisa Studio</p>
             </div>
           </div>
         </footer>

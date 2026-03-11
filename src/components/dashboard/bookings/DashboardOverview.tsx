@@ -33,9 +33,10 @@ interface DashboardOverviewProps {
   upcomingBookings: BookingData[];
   pastBookings: BookingData[];
   onNavigate: (section: string) => void;
+  unreviewedCount?: number;
 }
 
-export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate }: DashboardOverviewProps) {
+export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, unreviewedCount = 0 }: DashboardOverviewProps) {
   const totalSpent = pastBookings.reduce((sum, b) => sum + b.totalPrice, 0);
   const confirmedBookings = upcomingBookings.filter((b) => b.status === "confirmed").length;
 

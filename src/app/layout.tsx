@@ -17,7 +17,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "PodX - Book Professional Podcast Studios Near You",
+  title: "Yanisa Studio - Book Professional Podcast Studios Near You",
   description:
     "India's premier podcast studio booking platform. Find and book fully equipped professional podcast studios in Mumbai, Delhi, Bangalore, and more. Instant booking, verified studios, transparent pricing.",
   keywords: [
@@ -31,16 +31,16 @@ export const metadata: Metadata = {
     "content creation studio",
   ],
   openGraph: {
-    title: "PodX - Book Professional Podcast Studios Near You",
+    title: "Yanisa Studio - Book Professional Podcast Studios Near You",
     description:
       "Find and book fully equipped professional podcast studios in India. Instant booking, verified studios, transparent pricing.",
     type: "website",
     locale: "en_IN",
-    siteName: "PodX",
+    siteName: "Yanisa Studio",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PodX - Book Professional Podcast Studios Near You",
+    title: "Yanisa Studio - Book Professional Podcast Studios Near You",
     description:
       "Find and book fully equipped professional podcast studios in India.",
   },
@@ -57,7 +57,7 @@ export default function RootLayout({
         {/* Anti-FOUC: apply saved theme before first paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('podx_theme')||'dark';var r=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('yanisa_theme')||'dark';var r=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`,
           }}
         />
       </head>

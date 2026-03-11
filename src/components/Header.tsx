@@ -25,7 +25,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <span className="text-2xl font-bold tracking-tight text-white">
-              p<span className="text-[#D9FC67]">o</span>dX
+              Yanisa<span className="text-[#D9FC67]"> Studio</span>
             </span>
           </Link>
 

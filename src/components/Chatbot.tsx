@@ -61,7 +61,7 @@ const FAQ_PAIRS: { patterns: string[]; answer: string }[] = [
   {
     patterns: ["partner", "list", "own", "register studio"],
     answer:
-      "Interested in listing your studio on PodX? Head to the Partner section and apply. Our team will reach out within 24 hours.",
+      "Interested in listing your studio on Yanisa Studio? Head to the Partner section and apply. Our team will reach out within 24 hours.",
   },
   {
     patterns: ["help", "support", "contact", "talk", "human", "agent", "person"],
@@ -71,7 +71,7 @@ const FAQ_PAIRS: { patterns: string[]; answer: string }[] = [
   {
     patterns: ["hello", "hi", "hey", "hola", "namaste"],
     answer:
-      "Hey there! 👋 Welcome to PodX. I'm here to help with any questions about our podcast studios, bookings, pricing, or anything else. What can I help you with?",
+      "Hey there! 👋 Welcome to Yanisa Studio. I'm here to help with any questions about our podcast studios, bookings, pricing, or anything else. What can I help you with?",
   },
 ];
 
@@ -90,7 +90,7 @@ function findAnswer(input: string): string {
 
 const GREETING: Message = {
   role: "bot",
-  text: "Hi! I'm the PodX assistant 👋 Ask me anything about studios, bookings, pricing, or availability!",
+  text: "Hi! I'm the Yanisa Studio assistant 👋 Ask me anything about studios, bookings, pricing, or availability!",
 };
 
 export function Chatbot() {
@@ -152,10 +152,10 @@ export function Chatbot() {
           <div className="flex items-center justify-between px-4 py-3 bg-[#111111] border-b border-white/10">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-[#D9FC67]/20 border border-[#D9FC67]/40 flex items-center justify-center">
-                <span className="text-[#D9FC67] font-bold text-sm">pX</span>
+                <span className="text-[#D9FC67] font-bold text-sm">YS</span>
               </div>
               <div>
-                <div className="text-white text-sm font-semibold">PodX Assistant</div>
+                <div className="text-white text-sm font-semibold">Yanisa Studio Assistant</div>
                 <div className="flex items-center gap-1.5 text-xs text-white/50">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                   Online · replies in &lt;15 min

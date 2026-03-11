@@ -102,7 +102,7 @@ export default function LoginPage() {
     <div className="bg-[#141414] border border-white/10 rounded-2xl p-8 shadow-2xl">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-white mb-2">Welcome back</h1>
-        <p className="text-white/60 text-sm">Sign in to your PodX account</p>
+        <p className="text-white/60 text-sm">Sign in to your Yanisa Studio account</p>
       </div>
 
       {step === "email" && (

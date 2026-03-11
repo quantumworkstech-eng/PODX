@@ -510,7 +510,7 @@ export default function WhiteLabelSettingsPage() {
         {activeTab === "email" && (
           <>
             <SectionTitle>Email Branding</SectionTitle>
-            <p className="text-white/40 text-sm">Emails will be sent via PodX infrastructure with your branding applied.</p>
+            <p className="text-white/40 text-sm">Emails will be sent via Yanisa Studio infrastructure with your branding applied.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <Field label="Sender Name" hint="Shown as 'From' name">
                 <input value={branding.email_sender_name || ""} onChange={(e) => update("email_sender_name", e.target.value)}

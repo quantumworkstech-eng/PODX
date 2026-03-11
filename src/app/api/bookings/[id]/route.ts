@@ -65,9 +65,30 @@ export async function PATCH(
       const hoursUntil =
         (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
+      // Fetch studio-specific cancellation policies
+      const { data: customPolicies } = await supabaseAdmin
+        .from("cancellation_policies")
+        .select("hours_before, refund_percentage")
+        .eq("studio_id", booking.studio_id)
+        .order("hours_before", { ascending: false });
+
+      const policies =
+        customPolicies && customPolicies.length > 0
+          ? customPolicies
+          : [
+              { hours_before: 48, refund_percentage: 100 },
+              { hours_before: 24, refund_percentage: 50 },
+              { hours_before: 0, refund_percentage: 0 },
+            ];
+
+      // Find the applicable refund: highest hours_before threshold that hoursUntil meets
       let refundPercentage = 0;
-      if (hoursUntil >= 48) refundPercentage = 100;
-      else if (hoursUntil >= 24) refundPercentage = 50;
+      for (const policy of policies) {
+        if (hoursUntil >= policy.hours_before) {
+          refundPercentage = policy.refund_percentage;
+          break;
+        }
+      }
 
       const { error } = await supabaseAdmin
         .from("bookings")
@@ -91,6 +112,27 @@ export async function PATCH(
 
     // ── Reschedule ────────────────────────────────────────────────────────────
     if (action === "reschedule" && newDate && newTimeSlot) {
+      // Check reschedule cutoff
+      const nowCheck = new Date();
+      const currentStart = new Date(booking.start_time);
+      const hoursUntilCurrent =
+        (currentStart.getTime() - nowCheck.getTime()) / (1000 * 60 * 60);
+
+      const { data: studioData } = await supabaseAdmin
+        .from("studios")
+        .select("reschedule_cutoff_hours")
+        .eq("id", booking.studio_id)
+        .maybeSingle();
+
+      const cutoff = studioData?.reschedule_cutoff_hours ?? 48;
+      if (hoursUntilCurrent < cutoff) {
+        return NextResponse.json(
+          {
+            error: `Rescheduling is only allowed at least ${cutoff} hours before the session`,
+          },
+          { status: 400 }
+        );
+      }
       const dateObj = new Date(newDate);
       const [hours] = (newTimeSlot as string).split(":");
       const newStart = new Date(dateObj);

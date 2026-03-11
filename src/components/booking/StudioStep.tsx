@@ -247,11 +247,15 @@ export function StudioStep() {
                           <Users className="w-3.5 h-3.5" />
                           Up to {studio.capacity}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 text-yellow-400 fill-current" />
-                          <span className="text-white text-sm font-medium">{studio.rating}</span>
-                          <span className="text-white/40 text-xs">({studio.review_count})</span>
-                        </div>
+                        {studio.review_count > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <Star className="w-3.5 h-3.5 text-yellow-400 fill-current" />
+                            <span className="text-white text-sm font-medium">{studio.rating}</span>
+                            <span className="text-white/40 text-xs">({studio.review_count})</span>
+                          </div>
+                        ) : (
+                          <span className="text-white/30 text-xs">No reviews yet</span>
+                        )}
                       </div>
 
                       <p className="text-white/40 text-sm mb-4 line-clamp-2">

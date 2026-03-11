@@ -122,7 +122,7 @@ export default function SignupPage() {
         <>
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
-            <p className="text-white/60 text-sm">Start your podcasting journey with PodX</p>
+            <p className="text-white/60 text-sm">Start your podcasting journey with Yanisa Studio</p>
           </div>
           <GoogleButton />
           <div className="relative mb-6">

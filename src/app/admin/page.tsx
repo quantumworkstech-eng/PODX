@@ -147,7 +147,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Platform Overview</h2>
-          <p className="text-white/40 text-sm mt-1">Real-time stats across the PodX marketplace</p>
+          <p className="text-white/40 text-sm mt-1">Real-time stats across the Yanisa Studio marketplace</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full">
           <CheckCircle className="w-3.5 h-3.5 text-green-400" />

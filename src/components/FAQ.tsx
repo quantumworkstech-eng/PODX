@@ -5,15 +5,15 @@ import { Plus, Minus } from "lucide-react";
 
 const faqs = [
   {
-    question: "What is PodX and who uses your podcast studios?",
-    answer: "PodX is India's premier podcast studio network. We offer fully equipped podcast and video recording studios that you can rent by the hour. Our spaces are used by independent podcasters, content creators, founders, small business owners, entrepreneurs, agencies, and large corporate brands. Every studio is plug-and-play, and every session includes a trained studio operator who handles all the technical work for you."
+    question: "What is Yanisa Studio and who uses your podcast studios?",
+    answer: "Yanisa Studio is India's premier podcast studio network. We offer fully equipped podcast and video recording studios that you can rent by the hour. Our spaces are used by independent podcasters, content creators, founders, small business owners, entrepreneurs, agencies, and large corporate brands. Every studio is plug-and-play, and every session includes a trained studio operator who handles all the technical work for you."
   },
   {
-    question: "Where are PodX studios located?",
+    question: "Where are Yanisa Studio studios located?",
     answer: "We operate multiple studios across major Indian cities including Mumbai (Andheri, BKC), Delhi (Connaught Place), Bangalore (Koramangala, Indiranagar), Hyderabad (Jubilee Hills), Chennai, Pune, and Kolkata. All locations are easy for guests to find, with Google Maps links sent to you before your session."
   },
   {
-    question: "How much does it cost to record at PodX?",
+    question: "How much does it cost to record at Yanisa Studio?",
     answer: "Our studio rates start from ₹1,800 per hour depending on the location. This includes all gear, microphones, cameras, lighting, a studio operator, and your raw audio and video files. Premium studios with advanced equipment may have higher rates."
   },
   {

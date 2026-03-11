@@ -234,7 +234,7 @@ export default function ServicesPage() {
           </h1>
 
           <p className="text-lg text-white/60 max-w-3xl mx-auto mb-10">
-            From podcast recording to video production, live streaming to post-production — PodX has
+            From podcast recording to video production, live streaming to post-production — Yanisa Studio has
             every service a modern content creator needs under one roof in Mumbai.
           </p>
 
@@ -511,7 +511,7 @@ export default function ServicesPage() {
             Ready to Start Creating?
           </h2>
           <p className="text-white/60 text-lg mb-10">
-            Join 2,000+ creators who trust PodX for their podcast and video production needs.
+            Join 2,000+ creators who trust Yanisa Studio for their podcast and video production needs.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/book">

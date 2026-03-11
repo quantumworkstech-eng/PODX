@@ -85,13 +85,13 @@ const CONTACT_METHODS = [
 
 const LOCATIONS = [
   {
-    name: "PodX Andheri",
+    name: "Yanisa Studio Andheri",
     address: "4th Floor, Infinity Business Park, Andheri West, Mumbai 400053",
     hours: "Mon–Fri: 10 AM – 10 PM · Sat: 11 AM – 8 PM",
     map: "https://maps.google.com/?q=Andheri+West+Mumbai",
   },
   {
-    name: "PodX Bandra",
+    name: "Yanisa Studio Bandra",
     address: "2nd Floor, Hill Road, Bandra West, Mumbai 400050",
     hours: "Mon–Fri: 10 AM – 10 PM · Sat: 11 AM – 8 PM",
     map: "https://maps.google.com/?q=Bandra+West+Mumbai",
@@ -406,7 +406,7 @@ export default function ContactPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-white mb-3">Frequently Asked Questions</h2>
-            <p className="text-white/50">Quick answers to common questions about PodX.</p>
+            <p className="text-white/50">Quick answers to common questions about Yanisa Studio.</p>
           </div>
 
           <div className="space-y-3">

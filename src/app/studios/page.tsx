@@ -97,10 +97,10 @@ export default function StudiosPage() {
                     <MapPin className="w-4 h-4 text-[#D9FC67]" />
                     {featured.location?.area}, {featured.location?.city || "Mumbai"}
                   </span>
-                  {featured.rating && (
+                  {featured.review_count > 0 && (
                     <span className="flex items-center gap-1.5">
                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                      {featured.rating} ({featured.review_count || 0} reviews)
+                      {featured.rating} ({featured.review_count} reviews)
                     </span>
                   )}
                   <span className="flex items-center gap-1.5">
@@ -316,7 +316,7 @@ export default function StudiosPage() {
                     )}
 
                     {/* Rating badge */}
-                    {studio.rating && (
+                    {studio.review_count > 0 && (
                       <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/10">
                         <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                         <span className="text-white text-xs font-medium">{studio.rating}</span>

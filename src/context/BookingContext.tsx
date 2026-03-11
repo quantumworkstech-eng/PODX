@@ -59,6 +59,7 @@ interface BookingContextType extends BookingState {
   getSubtotal: () => number;
   getTax: () => number;
   getDiscount: () => number;
+  getConvenienceFee: () => number;
   getStudioPrice: () => number;
   getPackagePrice: () => number;
   getAddOnsPrice: () => number;
@@ -77,7 +78,7 @@ interface BookingContextType extends BookingState {
   setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
 }
 
-const PENDING_BOOKING_KEY = "podx_pending_booking";
+const PENDING_BOOKING_KEY = "yanisa_pending_booking";
 const TAX_RATE = 0.18; // 18% GST
 
 const initialState: BookingState = {
@@ -267,9 +268,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return Math.round(taxable * TAX_RATE);
   }, [getSubtotal, getDiscount]);
 
-  const getTotalPrice = useCallback(() => {
-    return Math.max(0, getSubtotal() - getDiscount()) + getTax();
+  const getConvenienceFee = useCallback(() => {
+    const preConvenience = Math.max(0, getSubtotal() - getDiscount()) + getTax();
+    return Math.ceil(preConvenience * 0.02);
   }, [getSubtotal, getDiscount, getTax]);
+
+  const getTotalPrice = useCallback(() => {
+    return Math.max(0, getSubtotal() - getDiscount()) + getTax() + getConvenienceFee();
+  }, [getSubtotal, getDiscount, getTax, getConvenienceFee]);
 
   const canProceed = useCallback(() => {
     switch (state.currentStep) {
@@ -364,6 +370,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     getSubtotal,
     getTax,
     getDiscount,
+    getConvenienceFee,
     getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,

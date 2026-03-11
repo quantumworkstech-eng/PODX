@@ -17,6 +17,7 @@ import {
   ChevronUp,
   ArrowLeft,
   Tag,
+  Info,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -54,7 +55,7 @@ interface BookingRecord {
   createdAt: string;
 }
 
-const BOOKINGS_STORAGE_KEY = "podx_bookings";
+const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
 
 export function saveBookingToHistory(booking: BookingRecord) {
   if (typeof window === "undefined") return;
@@ -82,6 +83,7 @@ export function PaymentStep() {
     getTax,
     getTotalPrice,
     getDiscount,
+    getConvenienceFee,
     appliedCoupon,
     resetBooking,
     prevStep,
@@ -136,6 +138,7 @@ export function PaymentStep() {
 
     const subtotal = getSubtotal();
     const tax = getTax();
+    const convenienceFee = getConvenienceFee();
     const total = getTotalPrice();
     const paymentId =
       paymentResponse?.razorpay_payment_id || `PAY-${Date.now()}`;
@@ -186,6 +189,7 @@ export function PaymentStep() {
           totalPrice: total,
           subtotal,
           tax,
+          convenienceFee,
           discountAmount: getDiscount(),
           couponCode: appliedCoupon?.code || null,
           paymentId,
@@ -242,7 +246,7 @@ export function PaymentStep() {
     };
 
     saveBookingToHistory(booking);
-    sessionStorage.setItem("podx_new_booking", JSON.stringify(booking));
+    sessionStorage.setItem("yanisa_new_booking", JSON.stringify(booking));
 
     paymentInFlight.current = false;
     setIsProcessing(false);
@@ -287,7 +291,7 @@ export function PaymentStep() {
         amount: orderData?.amount || amount * 100,
         currency: "INR",
         order_id: orderData?.orderId,
-        name: "PodX Studio",
+        name: "Yanisa Studio",
         description: `${selectedStudio.name} · ${duration} hr${duration > 1 ? "s" : ""}`,
         image: "/logo.png",
         prefill: {
@@ -515,6 +519,18 @@ export function PaymentStep() {
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">GST (18%)</span>
                 <span className="text-white">₹{getTax().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60 flex items-center gap-1.5">
+                  Convenience fee
+                  <span className="relative group">
+                    <Info className="w-3.5 h-3.5 text-white/30 cursor-default" />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-[#222] border border-white/10 px-3 py-2 text-xs text-white/70 opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center shadow-xl">
+                      2% of total (incl. taxes), rounded up
+                    </span>
+                  </span>
+                </span>
+                <span className="text-white">₹{getConvenienceFee().toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline pt-2 border-t border-white/10">
                 <span className="text-white font-semibold">Total</span>

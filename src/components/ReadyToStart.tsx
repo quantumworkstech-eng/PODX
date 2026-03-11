@@ -11,7 +11,7 @@ export function ReadyToStart() {
           Ready to get started?
         </h2>
         <p className="text-white/60 text-lg mb-10 max-w-2xl mx-auto">
-          Book your studio session today and join hundreds of creators who trust PodX 
+          Book your studio session today and join hundreds of creators who trust Yanisa Studio
           for their podcast production needs.
         </p>
         <Link href="/book">

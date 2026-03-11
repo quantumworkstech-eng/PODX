@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Calendar, Clock, MapPin, Users, Package, IndianRupee, AlertCircle, RefreshCw, Navigation, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Calendar, Clock, MapPin, Users, Package, IndianRupee, AlertCircle, RefreshCw, Navigation, Star, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -12,6 +12,8 @@ interface BookingDetailModalProps {
   onReschedule: () => void;
   onCancel: () => void;
   isPastBooking?: boolean;
+  isReviewed?: boolean;
+  onReviewSubmitted?: (dbId: string) => void;
 }
 
 export function BookingDetailModal({
@@ -20,8 +22,23 @@ export function BookingDetailModal({
   onReschedule,
   onCancel,
   isPastBooking = false,
+  isReviewed = false,
+  onReviewSubmitted,
 }: BookingDetailModalProps) {
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [policyRules, setPolicyRules] = useState<{ hours_before: number; refund_percentage: number }[] | null>(null);
+  const [rescheduleCutoff, setRescheduleCutoff] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!booking.studio?.id) return;
+    fetch(`/api/studios/${booking.studio.id}/policy`)
+      .then((r) => r.json())
+      .then(({ rules, reschedule_cutoff_hours }) => {
+        setPolicyRules(rules);
+        setRescheduleCutoff(reschedule_cutoff_hours ?? 48);
+      })
+      .catch(() => {});
+  }, [booking.studio?.id]);
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", {
@@ -187,12 +204,34 @@ export function BookingDetailModal({
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="text-yellow-400 font-medium">Cancellation Policy</p>
-                <p className="text-yellow-400/70 text-sm mt-1">
-                  Cancel up to 24 hours before your session for a full refund. Cancellations within
-                  24 hours are eligible for 50% refund. No refund for no-shows.
-                </p>
+                {policyRules ? (
+                  <ul className="text-yellow-400/70 text-sm mt-1 space-y-0.5">
+                    {policyRules.map((rule, i) => {
+                      const next = policyRules[i + 1];
+                      const label = next
+                        ? `${next.hours_before}–${rule.hours_before} hrs before`
+                        : rule.hours_before > 0
+                        ? `${rule.hours_before}+ hrs before`
+                        : `Under ${policyRules[i - 1]?.hours_before ?? 24} hrs`;
+                      return (
+                        <li key={i}>
+                          {label}: {rule.refund_percentage === 100 ? 'Full refund' : rule.refund_percentage === 0 ? 'No refund' : `${rule.refund_percentage}% refund`}
+                        </li>
+                      );
+                    })}
+                    {rescheduleCutoff !== null && (
+                      <li className="mt-1 pt-1 border-t border-yellow-400/20">
+                        Rescheduling allowed up to {rescheduleCutoff} hrs before session
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="text-yellow-400/70 text-sm mt-1">
+                    Cancel up to 48 hours before for a full refund. 24–48 hrs: 50% refund. Under 24 hrs: no refund.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -218,23 +257,34 @@ export function BookingDetailModal({
           )}
 
           {isPastBooking && booking.status === "completed" && (
-            <Button
-              onClick={() => setShowReviewModal(true)}
-              className="w-full bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold"
-            >
-              <Star className="w-4 h-4 mr-2" />
-              Leave a Review
-            </Button>
+            isReviewed ? (
+              <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium">
+                <CheckCircle2 className="w-4 h-4" />
+                You've reviewed this session
+              </div>
+            ) : (
+              <Button
+                onClick={() => setShowReviewModal(true)}
+                className="w-full bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Leave a Review
+              </Button>
+            )
           )}
         </div>
       </div>
 
-      {showReviewModal && (
+      {showReviewModal && (booking.dbId || booking.id) && (
         <ReviewModal
-          bookingId={booking.id}
+          bookingId={booking.dbId || booking.id}
           studioId={booking.studio.id}
           studioName={booking.studio.name}
           onClose={() => setShowReviewModal(false)}
+          onSuccess={() => {
+            setShowReviewModal(false);
+            if (booking.dbId) onReviewSubmitted?.(booking.dbId);
+          }}
         />
       )}
     </div>

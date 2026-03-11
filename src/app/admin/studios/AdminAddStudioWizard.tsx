@@ -115,7 +115,7 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
       const q = [data.address, data.city, data.state, data.country].filter(Boolean).join(", ");
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
-        { headers: { "User-Agent": "PodX-Admin/1.0" } }
+        { headers: { "User-Agent": "YanisaStudio-Admin/1.0" } }
       );
       const results = await res.json();
       if (results[0]) {

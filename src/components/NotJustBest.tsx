@@ -12,11 +12,11 @@ const cards = [
   {
     label: "PodClub",
     title: "Community",
-    description: "Join India's only podcaster community, powered by PodX. Get access to meet-ups, curated resources, collaborations, and grow alongside like-minded creators.",
+    description: "Join India's only podcaster community, powered by Yanisa Studio. Get access to meet-ups, curated resources, collaborations, and grow alongside like-minded creators.",
     image: "https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=600",
   },
   {
-    label: "PodX",
+    label: "Yanisa Studio",
     title: "Consulting",
     description: "A-to-Z support for independent and branded podcasts. We assemble a dream team of podcasting specialists to run your entire podcast.",
     image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=600",

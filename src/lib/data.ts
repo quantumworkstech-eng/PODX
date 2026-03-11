@@ -18,6 +18,28 @@ export async function getCities(): Promise<City[]> {
   }
 }
 
+// Build a per-studio rating map from published reviews
+async function fetchRatingMap(studioIds: string[]): Promise<Record<string, { avg: number; count: number }>> {
+  if (!supabase || studioIds.length === 0) return {};
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('studio_id, rating')
+    .eq('status', 'published')
+    .in('studio_id', studioIds);
+
+  const map: Record<string, { sum: number; count: number }> = {};
+  for (const r of reviews || []) {
+    if (!map[r.studio_id]) map[r.studio_id] = { sum: 0, count: 0 };
+    map[r.studio_id].sum += r.rating;
+    map[r.studio_id].count += 1;
+  }
+  const result: Record<string, { avg: number; count: number }> = {};
+  for (const [id, { sum, count }] of Object.entries(map)) {
+    result[id] = { avg: Math.round((sum / count) * 10) / 10, count };
+  }
+  return result;
+}
+
 export async function getAllStudios(): Promise<Studio[]> {
   if (!supabase) {
     console.warn('Supabase client not initialized');
@@ -40,6 +62,9 @@ export async function getAllStudios(): Promise<Studio[]> {
     return [];
   }
 
+  const studioIds = studios.map((s: any) => s.id);
+  const ratingMap = await fetchRatingMap(studioIds);
+
   return studios.map((studio: any) => {
     const rooms: any[] = studio.rooms || [];
     const activeRooms = rooms.filter((r: any) => r.is_active !== false);
@@ -56,6 +81,7 @@ export async function getAllStudios(): Promise<Studio[]> {
       sortedImages[0]?.image_url ||
       studio.featured_image_url ||
       'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+    const ratings = ratingMap[studio.id];
 
     return {
       id: studio.id,
@@ -67,8 +93,8 @@ export async function getAllStudios(): Promise<Studio[]> {
       currency: '₹',
       capacity: maxCapacity,
       equipment: [],
-      rating: 4.5,
-      review_count: 0,
+      rating: ratings?.avg ?? 0,
+      review_count: ratings?.count ?? 0,
       is_instant_bookable: true,
       description: studio.short_description || studio.description || '',
       amenities: ['WiFi', 'AC', 'Parking'],
@@ -88,6 +114,8 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
   if (error || !studio) return null;
 
   const coverImage = studio.studio_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+  const ratingMap = await fetchRatingMap([studio.id]);
+  const ratings = ratingMap[studio.id];
 
   return {
     id: studio.id,
@@ -99,8 +127,8 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
     currency: '₹',
     capacity: studio.rooms?.[0]?.capacity || 0,
     equipment: [],
-    rating: 4.5,
-    review_count: 0,
+    rating: ratings?.avg ?? 0,
+    review_count: ratings?.count ?? 0,
     is_instant_bookable: true,
     description: studio.short_description || studio.description || '',
     amenities: studio.studio_amenities?.map((sa: any) => sa.amenities?.name).filter(Boolean) || []
@@ -118,10 +146,14 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
 
   if (error || !studios) return [];
 
+  const studioIds = studios.map((s: any) => s.id);
+  const ratingMap = await fetchRatingMap(studioIds);
+
   return studios.map((studio: any) => {
     const rooms = studio.rooms || [];
     const minPrice = rooms.length > 0 ? Math.min(...rooms.map((r: any) => r.price_per_hour)) : 0;
     const coverImage = studio.studio_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+    const ratings = ratingMap[studio.id];
 
     return {
       id: studio.id,
@@ -133,8 +165,8 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
       currency: '₹',
       capacity: studio.capacity || 2,
       equipment: [],
-      rating: 4.5,
-      review_count: 0,
+      rating: ratings?.avg ?? 0,
+      review_count: ratings?.count ?? 0,
       is_instant_bookable: true,
       description: studio.short_description || '',
       amenities: ['WiFi', 'AC', 'Parking']

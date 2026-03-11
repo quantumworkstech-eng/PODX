@@ -30,6 +30,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+interface CancellationRule {
+  hours_before: number;
+  refund_percentage: number;
+}
+
 interface Studio {
   id: string;
   name: string;
@@ -39,6 +44,8 @@ interface Studio {
   price_per_hour: number;
   capacity: number;
   buffer_minutes: number;
+  reschedule_cutoff_hours?: number;
+  cancellation_rules?: CancellationRule[];
   equipment?: string[];
   images: string[];
   status: "active" | "inactive";
@@ -81,6 +88,12 @@ export default function PartnerStudiosPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const DEFAULT_CANCELLATION_RULES: CancellationRule[] = [
+    { hours_before: 48, refund_percentage: 100 },
+    { hours_before: 24, refund_percentage: 50 },
+    { hours_before: 0, refund_percentage: 0 },
+  ];
+
   const [formData, setFormData] = useState<Partial<Studio> & { status?: "active" | "inactive" }>({
     name: "",
     description: "",
@@ -89,6 +102,8 @@ export default function PartnerStudiosPage() {
     price_per_hour: 0,
     capacity: 2,
     buffer_minutes: 0,
+    reschedule_cutoff_hours: 48,
+    cancellation_rules: DEFAULT_CANCELLATION_RULES,
     equipment: [],
     images: [],
     status: "active",
@@ -108,7 +123,18 @@ export default function PartnerStudiosPage() {
   const handleOpenModal = (studio?: Studio) => {
     if (studio) {
       setEditingStudio(studio);
-      setFormData(studio);
+      // Fetch studio policy to pre-fill the form
+      fetch(`/api/studios/${studio.id}/policy`)
+        .then((r) => r.json())
+        .then(({ rules, reschedule_cutoff_hours }) => {
+          setFormData((prev) => ({
+            ...prev,
+            cancellation_rules: rules || DEFAULT_CANCELLATION_RULES,
+            reschedule_cutoff_hours: reschedule_cutoff_hours ?? 48,
+          }));
+        })
+        .catch(() => {});
+      setFormData({ ...studio, cancellation_rules: DEFAULT_CANCELLATION_RULES });
     } else {
       setEditingStudio(null);
       setFormData({
@@ -119,6 +145,8 @@ export default function PartnerStudiosPage() {
         price_per_hour: 0,
         capacity: 2,
         buffer_minutes: 0,
+        reschedule_cutoff_hours: 48,
+        cancellation_rules: DEFAULT_CANCELLATION_RULES,
         equipment: [],
         images: [],
         status: "active",
@@ -147,6 +175,8 @@ export default function PartnerStudiosPage() {
       price_per_hour: 0,
       capacity: 2,
       buffer_minutes: 0,
+      reschedule_cutoff_hours: 48,
+      cancellation_rules: DEFAULT_CANCELLATION_RULES,
       equipment: [],
       images: [],
       status: "active",
@@ -170,8 +200,15 @@ export default function PartnerStudiosPage() {
             pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
             buffer_minutes: formData.buffer_minutes ?? 0,
+            reschedule_cutoff_hours: formData.reschedule_cutoff_hours ?? 48,
             images: formData.images,
             is_active: formData.status !== "inactive",
+            useCustomPolicies: true,
+            cancellationRules: (formData.cancellation_rules || []).map((r) => ({
+              type: "hours",
+              value: r.hours_before,
+              refundPercent: r.refund_percentage,
+            })),
           }),
         });
       } else {
@@ -444,6 +481,85 @@ export default function PartnerStudiosPage() {
                       {opt.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Cancellation & Reschedule Policy */}
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Cancellation & Reschedule Policy</p>
+                  <p className="text-white/30 text-xs mt-0.5">Define refund tiers and the minimum notice required for rescheduling.</p>
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-xs mb-2 block uppercase tracking-wider">Reschedule cutoff (hours before session)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formData.reschedule_cutoff_hours ?? 48}
+                    onChange={(e) => setFormData({ ...formData, reschedule_cutoff_hours: parseInt(e.target.value) || 0 })}
+                    className="bg-white/5 border-white/10 text-white w-32"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-xs mb-2 block uppercase tracking-wider">Cancellation refund tiers</label>
+                  <div className="space-y-2">
+                    {(formData.cancellation_rules || DEFAULT_CANCELLATION_RULES).map((rule, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            value={rule.hours_before}
+                            onChange={(e) => {
+                              const rules = [...(formData.cancellation_rules || DEFAULT_CANCELLATION_RULES)];
+                              rules[i] = { ...rules[i], hours_before: parseInt(e.target.value) || 0 };
+                              setFormData({ ...formData, cancellation_rules: rules });
+                            }}
+                            className="bg-white/5 border-white/10 text-white w-20 text-sm"
+                          />
+                          <span className="text-white/40 text-xs whitespace-nowrap">hrs+</span>
+                          <span className="text-white/40 text-xs">→</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={rule.refund_percentage}
+                            onChange={(e) => {
+                              const rules = [...(formData.cancellation_rules || DEFAULT_CANCELLATION_RULES)];
+                              rules[i] = { ...rules[i], refund_percentage: parseInt(e.target.value) || 0 };
+                              setFormData({ ...formData, cancellation_rules: rules });
+                            }}
+                            className="bg-white/5 border-white/10 text-white w-16 text-sm"
+                          />
+                          <span className="text-white/40 text-xs">% refund</span>
+                        </div>
+                        {(formData.cancellation_rules || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rules = (formData.cancellation_rules || DEFAULT_CANCELLATION_RULES).filter((_, idx) => idx !== i);
+                              setFormData({ ...formData, cancellation_rules: rules });
+                            }}
+                            className="text-red-400/60 hover:text-red-400 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rules = [...(formData.cancellation_rules || DEFAULT_CANCELLATION_RULES), { hours_before: 0, refund_percentage: 0 }];
+                        setFormData({ ...formData, cancellation_rules: rules });
+                      }}
+                      className="text-[#D9FC67]/70 hover:text-[#D9FC67] text-xs flex items-center gap-1 mt-1 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add tier
+                    </button>
+                  </div>
                 </div>
               </div>
 

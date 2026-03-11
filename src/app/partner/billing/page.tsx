@@ -147,7 +147,7 @@ export default function BillingPage() {
         amount: data.amount,
         currency: data.currency,
         order_id: data.orderId,
-        name: "PodX",
+        name: "Yanisa Studio",
         description: `${data.plan.name} Subscription`,
         theme: { color: "#D9FC67" },
         handler: async (response: any) => {

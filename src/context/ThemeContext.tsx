@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
 
   useEffect(() => {
-    const stored = localStorage.getItem("podx_theme") as Theme | null;
+    const stored = localStorage.getItem("yanisa_theme") as Theme | null;
     if (stored && ["dark", "light", "system"].includes(stored)) {
       setThemeState(stored);
     }
@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const setTheme = (t: Theme) => {
-    localStorage.setItem("podx_theme", t);
+    localStorage.setItem("yanisa_theme", t);
     setThemeState(t);
   };
 

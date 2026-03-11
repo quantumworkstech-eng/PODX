@@ -8,13 +8,27 @@ async function getUserId(email: string): Promise<string | null> {
   return data?.id ?? null;
 }
 
-// GET reviews for a studio
+// GET reviews for a studio / user, or get current user's reviewed booking IDs (mine=true)
 export async function GET(request: NextRequest) {
   if (!supabaseAdmin) return NextResponse.json({ reviews: [] });
 
   const { searchParams } = new URL(request.url);
   const studioId = searchParams.get('studio_id');
   const userId = searchParams.get('user_id');
+  const mine = searchParams.get('mine') === 'true';
+
+  // Return just the booking_ids the current user has already reviewed
+  if (mine) {
+    const session = await auth();
+    if (!session?.user?.email) return NextResponse.json({ bookingIds: [] });
+    const myUserId = await getUserId(session.user.email);
+    if (!myUserId) return NextResponse.json({ bookingIds: [] });
+    const { data } = await supabaseAdmin
+      .from('reviews')
+      .select('booking_id')
+      .eq('user_id', myUserId);
+    return NextResponse.json({ bookingIds: (data || []).map((r: any) => r.booking_id) });
+  }
 
   if (!studioId && !userId) {
     return NextResponse.json({ error: 'studio_id or user_id required' }, { status: 400 });

@@ -97,7 +97,7 @@ export function Hero() {
                 <div className="text-white font-medium">
                   {stats.totalUsers > 0 ? formatCount(stats.totalUsers) : "2,000+"} Creators
                 </div>
-                <div className="text-white/50 text-xs">Trust PodX</div>
+                <div className="text-white/50 text-xs">Trust Yanisa Studio</div>
               </div>
             </div>
           </div>

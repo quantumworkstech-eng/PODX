@@ -39,6 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     pricePerHour, capacity, images, is_active,
     latitude, longitude,
     buffer_minutes,
+    reschedule_cutoff_hours,
     amenities, // string[] of amenity names like ['wifi', 'ac']
     availableDays, // string[] like ['Mon', 'Tue']
     workingHours, // { start: string, end: string }
@@ -61,6 +62,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (latitude !== undefined) studioUpdates.latitude = latitude;
   if (longitude !== undefined) studioUpdates.longitude = longitude;
   if (buffer_minutes !== undefined) studioUpdates.buffer_minutes = Math.max(0, parseInt(buffer_minutes) || 0);
+  if (reschedule_cutoff_hours !== undefined) studioUpdates.reschedule_cutoff_hours = Math.max(0, parseInt(reschedule_cutoff_hours) || 48);
 
   const { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
   if (studioErr) {

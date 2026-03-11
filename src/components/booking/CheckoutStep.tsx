@@ -49,6 +49,7 @@ export function CheckoutStep() {
     getTax,
     getTotalPrice,
     getDiscount,
+    getConvenienceFee,
     openAuthModal,
     saveBookingToStorage,
     proceedToPayment,
@@ -147,6 +148,7 @@ export function CheckoutStep() {
 
   const isReadyToCheckout = canProceed();
   const discount = getDiscount();
+  const convenienceFee = getConvenienceFee();
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -487,6 +489,18 @@ export function CheckoutStep() {
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">GST (18%)</span>
                 <span className="text-white">₹{getTax().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60 flex items-center gap-1.5">
+                  Convenience fee
+                  <span className="relative group">
+                    <Info className="w-3.5 h-3.5 text-white/30 cursor-default" />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-[#222] border border-white/10 px-3 py-2 text-xs text-white/70 opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center shadow-xl">
+                      2% of total (incl. taxes), rounded up
+                    </span>
+                  </span>
+                </span>
+                <span className="text-white">₹{convenienceFee.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline pt-2 border-t border-white/10">
                 <span className="text-white font-semibold">Total</span>

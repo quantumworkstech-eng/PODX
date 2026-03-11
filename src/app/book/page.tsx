@@ -18,9 +18,9 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const ONBOARDING_KEY = "podx_onboarding_complete";
-const SELECTION_MODE_KEY = "podx_selection_mode";
-const PENDING_BOOKING_KEY = "podx_pending_booking";
+const ONBOARDING_KEY = "yanisa_onboarding_complete";
+const SELECTION_MODE_KEY = "yanisa_selection_mode";
+const PENDING_BOOKING_KEY = "yanisa_pending_booking";
 
 function BookingContent() {
   const { data: session, status } = useSession();

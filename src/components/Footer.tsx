@@ -44,8 +44,8 @@ export function Footer() {
           {/* Logo centered */}
           <div className="text-center mb-12">
             <Link href="/" className="text-3xl font-bold">
-              <span className="text-white">pod</span>
-              <span className="text-[#D9FC67]">X</span>
+              <span className="text-white">Yanisa</span>
+              <span className="text-[#D9FC67]"> Studio</span>
             </Link>
           </div>
 
@@ -53,7 +53,7 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border">
             {/* Copyright and Links */}
             <div className="flex items-center gap-4 text-sm text-white/50">
-              <span>Copyright © PodX</span>
+              <span>Copyright © Yanisa Studio</span>
               <Link href="/terms" className="hover:text-white transition-colors">
                 Terms
               </Link>

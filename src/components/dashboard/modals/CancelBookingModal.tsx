@@ -24,12 +24,26 @@ export function CancelBookingModal({ booking, onClose, onConfirm }: CancelBookin
     const hours = Math.max(0, Math.floor((sessionDate.getTime() - now.getTime()) / (1000 * 60 * 60)));
     setHoursUntilSession(hours);
 
-    if (hours >= 24) {
-      setRefundPercentage(100);
-    } else if (hours >= 2) {
-      setRefundPercentage(50);
+    // Fetch studio-specific cancellation policy
+    const studioId = booking.studio?.id;
+    if (studioId) {
+      fetch(`/api/studios/${studioId}/policy`)
+        .then((r) => r.json())
+        .then(({ rules }) => {
+          if (!rules) return;
+          // rules are sorted descending by hours_before
+          let pct = 0;
+          for (const rule of rules) {
+            if (hours >= rule.hours_before) { pct = rule.refund_percentage; break; }
+          }
+          setRefundPercentage(pct);
+        })
+        .catch(() => {
+          // fallback to platform defaults
+          setRefundPercentage(hours >= 48 ? 100 : hours >= 24 ? 50 : 0);
+        });
     } else {
-      setRefundPercentage(0);
+      setRefundPercentage(hours >= 48 ? 100 : hours >= 24 ? 50 : 0);
     }
   }, [booking]);
 

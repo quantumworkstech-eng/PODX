@@ -26,7 +26,7 @@ interface PendingBookingInfo {
   selectedCity: string | null;
 }
 
-const PENDING_BOOKING_KEY = "podx_pending_booking";
+const PENDING_BOOKING_KEY = "yanisa_pending_booking";
 
 const stepNames = [
   "City Selection",

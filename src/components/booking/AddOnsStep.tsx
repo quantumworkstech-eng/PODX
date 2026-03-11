@@ -153,13 +153,21 @@ export function AddOnsStep() {
             })}
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center gap-3">
             <Button
               onClick={nextStep}
               className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black"
             >
               Review Booking
             </Button>
+            {selectedAddOns.length === 0 && (
+              <button
+                onClick={nextStep}
+                className="text-white/40 hover:text-white/70 text-sm transition-colors underline underline-offset-4"
+              >
+                Skip, no add-ons needed
+              </button>
+            )}
           </div>
         </div>
 

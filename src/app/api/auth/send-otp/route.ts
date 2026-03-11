@@ -30,13 +30,13 @@ async function sendOTPEmail(email: string, code: string): Promise<boolean> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: `PodX <${fromEmail}>`,
+      from: `Yanisa Studio <${fromEmail}>`,
       to: [email],
-      subject: `Your PodX verification code: ${code}`,
+      subject: `Your Yanisa Studio verification code: ${code}`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; background: #09090b; color: #fff; padding: 40px; border-radius: 16px;">
           <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 4px;">
-            p<span style="color: #D9FC67;">o</span>dX
+            <span style="color: #fff;">Yanisa</span><span style="color: #D9FC67;"> Studio</span>
           </h1>
           <p style="color: rgba(255,255,255,0.6); margin-bottom: 32px;">Your verification code</p>
           <div style="background: #141414; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 32px; text-align: center; margin-bottom: 24px;">

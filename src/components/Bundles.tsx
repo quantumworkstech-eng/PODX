@@ -11,7 +11,7 @@ const offers = [
     badge: "Only 20 Passes!",
     discount: "46% Off!",
     title: "Recording & Editing + Add-Ons: Power Pass!",
-    description: "46% OFF — Save ₹15,000! Get 4 Sessions + Episode Edits, Photos, Thumbnails, and 30-min Strategy Session. Use all sessions this month, and get ₹5,000 PodX Credit to use next month.",
+    description: "46% OFF — Save ₹15,000! Get 4 Sessions + Episode Edits, Photos, Thumbnails, and 30-min Strategy Session. Use all sessions this month, and get ₹5,000 Yanisa Studio Credit to use next month.",
     originalPrice: "₹37,500",
     salePrice: "₹22,500",
     image: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800",
@@ -20,7 +20,7 @@ const offers = [
     badge: "30 Passes Only!",
     discount: "64% Off!",
     title: "Recording + Live Mix + Add-Ons: Creator Pass!",
-    description: "64% OFF — Save ₹20,000! Get 4 Recording + Live Mix sessions, Session Photos, and 30-min Strategy Session. Use all sessions this month, and get ₹5,000 PodX Credit to use next month!",
+    description: "64% OFF — Save ₹20,000! Get 4 Recording + Live Mix sessions, Session Photos, and 30-min Strategy Session. Use all sessions this month, and get ₹5,000 Yanisa Studio Credit to use next month!",
     originalPrice: "₹50,000",
     salePrice: "₹18,000",
     image: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800",
@@ -72,7 +72,7 @@ export function Bundles() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Limited Time Offers</h2>
-            <p className="text-white/60">Top deals available at PodX right now. Don&apos;t miss out!</p>
+            <p className="text-white/60">Top deals available at Yanisa Studio right now. Don&apos;t miss out!</p>
           </div>
 
           {/* Mobile/Tablet Carousel */}

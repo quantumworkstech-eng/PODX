@@ -16,6 +16,7 @@ import {
   CreditCard,
   Home,
   Headphones,
+  Star,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -39,6 +40,7 @@ const menuItems = [
 
 interface BookingData {
   id: string;
+  dbId?: string;
   date: string;
   timeSlot: string;
   duration: number;
@@ -62,7 +64,7 @@ interface BookingData {
   createdAt: string;
 }
 
-const BOOKINGS_STORAGE_KEY = "podx_bookings";
+const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
 
 export default function DashboardContent() {
   const { data: session, status } = useSession();
@@ -70,6 +72,7 @@ export default function DashboardContent() {
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [bookings, setBookings] = useState<BookingData[]>([]);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newBooking, setNewBooking] = useState<BookingData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -142,19 +145,26 @@ export default function DashboardContent() {
     }
 
     loadBookings();
+    // Fetch which bookings the user has already reviewed
+    fetch("/api/reviews?mine=true")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.bookingIds) setReviewedBookingIds(new Set(d.bookingIds));
+      })
+      .catch(() => {});
   }, []);
 
   // Handle ?booking=success from payment redirect
   useEffect(() => {
     if (searchParams.get("booking") === "success") {
-      const stored = sessionStorage.getItem("podx_new_booking");
+      const stored = sessionStorage.getItem("yanisa_new_booking");
       if (stored) {
         try {
           const booking = JSON.parse(stored) as BookingData;
           setNewBooking(booking);
           setShowSuccessModal(true);
           setActiveMenu("upcoming");
-          sessionStorage.removeItem("podx_new_booking");
+          sessionStorage.removeItem("yanisa_new_booking");
         } catch { /* ignore */ }
       }
       router.replace("/dashboard");
@@ -253,6 +263,15 @@ export default function DashboardContent() {
     return null;
   }
 
+  // Completed bookings that haven't been reviewed yet
+  const unreviewedCompleted = pastBookings.filter(
+    (b) => b.status === "completed" && b.dbId && !reviewedBookingIds.has(b.dbId)
+  );
+
+  const handleReviewSubmitted = (bookingDbId: string) => {
+    setReviewedBookingIds((prev) => new Set([...prev, bookingDbId]));
+  };
+
   const renderContent = () => {
     switch (activeMenu) {
       case "dashboard":
@@ -261,6 +280,7 @@ export default function DashboardContent() {
             upcomingBookings={upcomingBookings}
             pastBookings={pastBookings}
             onNavigate={setActiveMenu}
+            unreviewedCount={unreviewedCompleted.length}
           />
         );
       case "upcoming":
@@ -272,7 +292,13 @@ export default function DashboardContent() {
           />
         );
       case "past":
-        return <PastBookings bookings={pastBookings} />;
+        return (
+          <PastBookings
+            bookings={pastBookings}
+            reviewedBookingIds={reviewedBookingIds}
+            onReviewSubmitted={handleReviewSubmitted}
+          />
+        );
       case "billing":
         return <BillingSection bookings={bookings} />;
       case "settings":
@@ -443,6 +469,34 @@ export default function DashboardContent() {
             </div>
           </header>
 
+          {/* Review nudge banner — shown on any tab when there are unreviewed completed sessions */}
+          {unreviewedCompleted.length > 0 && (
+            <div className="mx-6 mt-4">
+              <button
+                onClick={() => setActiveMenu("past")}
+                className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-xl bg-[#D9FC67]/10 border border-[#D9FC67]/25 hover:bg-[#D9FC67]/15 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#D9FC67]/20 flex items-center justify-center flex-shrink-0">
+                    <Star className="w-4 h-4 text-[#D9FC67]" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[#D9FC67] text-sm font-semibold">
+                      {unreviewedCompleted.length === 1
+                        ? "You have 1 completed session waiting for your review"
+                        : `You have ${unreviewedCompleted.length} completed sessions waiting for your review`}
+                    </p>
+                    <p className="text-white/40 text-xs mt-0.5">
+                      Share your experience to help others choose the right studio
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[#D9FC67] text-xs font-medium whitespace-nowrap group-hover:underline">
+                  Leave a Review →
+                </span>
+              </button>
+            </div>
+          )}
           <div className="p-6">{renderContent()}</div>
         </main>
       </div>
