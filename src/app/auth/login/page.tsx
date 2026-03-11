@@ -43,7 +43,22 @@ export default function LoginPage() {
     setError("");
     setRawErrorCode("");
     console.log("[Auth] Starting Google sign-in...");
-    await signIn("google", { callbackUrl: "/dashboard" });
+    try {
+      const result = await signIn("google", { callbackUrl: "/dashboard", redirect: false });
+      console.log("[Auth] signIn result:", JSON.stringify(result));
+      if (result?.url) {
+        console.log("[Auth] Redirecting to:", result.url);
+        window.location.href = result.url;
+      } else {
+        console.error("[Auth] No URL returned:", result);
+        setError("Sign-in failed — no redirect URL returned.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error("[Auth] signIn threw:", err);
+      setError("Sign-in error: " + String(err));
+      setIsLoading(false);
+    }
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
