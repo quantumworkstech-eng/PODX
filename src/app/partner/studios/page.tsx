@@ -47,6 +47,7 @@ interface Studio {
   reschedule_cutoff_hours?: number;
   cancellation_rules?: CancellationRule[];
   equipment?: string[];
+  addon_ids?: string[];
   images: string[];
   status: "active" | "inactive";
   review_status?: string;
@@ -94,7 +95,7 @@ export default function PartnerStudiosPage() {
     { hours_before: 0, refund_percentage: 0 },
   ];
 
-  const [formData, setFormData] = useState<Partial<Studio> & { status?: "active" | "inactive" }>({
+  const [formData, setFormData] = useState<Partial<Studio> & { status?: "active" | "inactive"; addonIds?: string[] }>({
     name: "",
     description: "",
     address: "",
@@ -105,6 +106,7 @@ export default function PartnerStudiosPage() {
     reschedule_cutoff_hours: 48,
     cancellation_rules: DEFAULT_CANCELLATION_RULES,
     equipment: [],
+    addonIds: [],
     images: [],
     status: "active",
   });
@@ -123,7 +125,12 @@ export default function PartnerStudiosPage() {
   const handleOpenModal = (studio?: Studio) => {
     if (studio) {
       setEditingStudio(studio);
-      // Fetch studio policy to pre-fill the form
+      setFormData({
+        ...studio,
+        cancellation_rules: DEFAULT_CANCELLATION_RULES,
+        addonIds: studio.addon_ids || [],
+      });
+      // Fetch studio policy to pre-fill cancellation rules
       fetch(`/api/studios/${studio.id}/policy`)
         .then((r) => r.json())
         .then(({ rules, reschedule_cutoff_hours }) => {
@@ -134,7 +141,6 @@ export default function PartnerStudiosPage() {
           }));
         })
         .catch(() => {});
-      setFormData({ ...studio, cancellation_rules: DEFAULT_CANCELLATION_RULES });
     } else {
       setEditingStudio(null);
       setFormData({
@@ -148,6 +154,7 @@ export default function PartnerStudiosPage() {
         reschedule_cutoff_hours: 48,
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
         equipment: [],
+        addonIds: [],
         images: [],
         status: "active",
       });
@@ -178,6 +185,7 @@ export default function PartnerStudiosPage() {
       reschedule_cutoff_hours: 48,
       cancellation_rules: DEFAULT_CANCELLATION_RULES,
       equipment: [],
+      addonIds: [],
       images: [],
       status: "active",
     });
@@ -203,6 +211,8 @@ export default function PartnerStudiosPage() {
             reschedule_cutoff_hours: formData.reschedule_cutoff_hours ?? 48,
             images: formData.images,
             is_active: formData.status !== "inactive",
+            equipment: formData.equipment || [],
+            addonIds: formData.addonIds || [],
             useCustomPolicies: true,
             cancellationRules: (formData.cancellation_rules || []).map((r) => ({
               type: "hours",
@@ -223,6 +233,8 @@ export default function PartnerStudiosPage() {
             pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
             images: formData.images,
+            equipment: formData.equipment || [],
+            addonIds: formData.addonIds || [],
           }),
         });
       }
@@ -295,6 +307,15 @@ export default function PartnerStudiosPage() {
     setFormData((prev) => ({
       ...prev,
       equipment: prev.equipment?.includes(item) ? prev.equipment.filter((e) => e !== item) : [...(prev.equipment || []), item],
+    }));
+  };
+
+  const toggleAddon = (addonId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      addonIds: (prev.addonIds || []).includes(addonId)
+        ? (prev.addonIds || []).filter((id) => id !== addonId)
+        : [...(prev.addonIds || []), addonId],
     }));
   };
 
@@ -577,7 +598,7 @@ export default function PartnerStudiosPage() {
               {/* Platform Add-ons */}
               <div>
                 <label className="text-white/60 text-sm mb-1 block">Platform Add-ons</label>
-                <p className="text-white/30 text-xs mb-3">Available booking add-ons customers can purchase during checkout</p>
+                <p className="text-white/30 text-xs mb-3">Select add-ons customers can purchase when booking this studio</p>
                 {addonsLoading ? (
                   <div className="flex items-center justify-center py-6">
                     <div className="w-5 h-5 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
@@ -588,22 +609,42 @@ export default function PartnerStudiosPage() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {platformAddons.map((addon) => (
-                      <div
-                        key={addon.id}
-                        className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-white/5 rounded-xl"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-white/80 text-sm font-medium">{addon.name}</p>
-                          {addon.description && (
-                            <p className="text-white/30 text-xs mt-0.5 truncate">{addon.description}</p>
+                    {platformAddons.map((addon) => {
+                      const selected = (formData.addonIds || []).includes(addon.id);
+                      return (
+                        <button
+                          key={addon.id}
+                          type="button"
+                          onClick={() => toggleAddon(addon.id)}
+                          className={cn(
+                            "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
+                            selected
+                              ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
+                              : "bg-white/[0.03] border-white/5 hover:border-white/15"
                           )}
-                        </div>
-                        <span className="ml-4 text-[#D9FC67] font-semibold text-sm flex-shrink-0">
-                          ₹{Number(addon.price).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("text-sm font-medium", selected ? "text-[#D9FC67]" : "text-white/80")}>
+                              {addon.name}
+                            </p>
+                            {addon.description && (
+                              <p className="text-white/30 text-xs mt-0.5 truncate">{addon.description}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                            <span className={cn("font-semibold text-sm", selected ? "text-[#D9FC67]" : "text-white/60")}>
+                              ₹{Number(addon.price).toLocaleString()}
+                            </span>
+                            <div className={cn(
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                              selected ? "bg-[#D9FC67] border-[#D9FC67]" : "border-white/20"
+                            )}>
+                              {selected && <Check className="w-3 h-3 text-black" />}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

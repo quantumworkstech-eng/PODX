@@ -168,3 +168,8 @@ CREATE TRIGGER on_subscription_expiry
     FOR EACH ROW
     WHEN (NEW.status = 'expired' AND OLD.status != 'expired')
     EXECUTE FUNCTION handle_subscription_expiry();
+
+-- ============================================================
+-- Add equipment column to studios table
+-- ============================================================
+ALTER TABLE studios ADD COLUMN IF NOT EXISTS equipment text[] DEFAULT '{}';

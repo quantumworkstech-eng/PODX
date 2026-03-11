@@ -40,7 +40,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     latitude, longitude,
     buffer_minutes,
     reschedule_cutoff_hours,
-    amenities, // string[] of amenity names like ['wifi', 'ac']
+    equipment,   // string[] of equipment names
+    addonIds,    // string[] of platform_addon UUIDs
+    amenities,   // string[] of amenity names like ['wifi', 'ac']
     availableDays, // string[] like ['Mon', 'Tue']
     workingHours, // { start: string, end: string }
     cancellationRules, // [{ type, value, refundPercent, deductionPercent }]
@@ -63,6 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (longitude !== undefined) studioUpdates.longitude = longitude;
   if (buffer_minutes !== undefined) studioUpdates.buffer_minutes = Math.max(0, parseInt(buffer_minutes) || 0);
   if (reschedule_cutoff_hours !== undefined) studioUpdates.reschedule_cutoff_hours = Math.max(0, parseInt(reschedule_cutoff_hours) || 48);
+  if (equipment !== undefined && Array.isArray(equipment)) studioUpdates.equipment = equipment;
 
   const { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
   if (studioErr) {
@@ -136,6 +139,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     await supabaseAdmin.from('studio_hours').delete().eq('studio_id', id);
     await supabaseAdmin.from('studio_hours').insert(hoursData);
+  }
+
+  // Update platform add-on associations
+  if (addonIds !== undefined && Array.isArray(addonIds)) {
+    await supabaseAdmin.from('studio_addons').delete().eq('studio_id', id);
+    if (addonIds.length > 0) {
+      await supabaseAdmin.from('studio_addons').insert(
+        addonIds.map((addon_id: string) => ({ studio_id: id, addon_id }))
+      );
+    }
   }
 
   // Update cancellation policies

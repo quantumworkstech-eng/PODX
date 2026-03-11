@@ -25,9 +25,10 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('studios')
     .select(`
-      id, name, slug, description, short_description, address, city, is_active, review_status, latitude, longitude, buffer_minutes, created_at,
+      id, name, slug, description, short_description, address, city, is_active, review_status, latitude, longitude, buffer_minutes, equipment, created_at,
       rooms(id, price_per_hour, capacity, is_active),
-      studio_images(image_url, display_order)
+      studio_images(image_url, display_order),
+      studio_addons(addon_id)
     `)
     .eq('owner_id', partnerId)
     .order('created_at', { ascending: false });
@@ -57,6 +58,8 @@ export async function GET() {
       price_per_hour: price,
       capacity,
       buffer_minutes: s.buffer_minutes ?? 0,
+      equipment: s.equipment || [],
+      addon_ids: (s.studio_addons || []).map((a: any) => a.addon_id),
       images: sortedImages.map((i: any) => i.image_url),
       status: s.is_active ? 'active' : 'inactive',
     };
@@ -94,7 +97,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, description, fullDescription, address, city, pricePerHour, capacity, equipment, images, latitude, longitude } = body;
+  const { name, description, fullDescription, address, city, pricePerHour, capacity, equipment, addonIds, images, latitude, longitude } = body;
 
   if (!name || !city) {
     return NextResponse.json({ error: 'Name and city are required' }, { status: 400 });
@@ -116,6 +119,7 @@ export async function POST(request: NextRequest) {
       latitude: latitude ?? null,
       longitude: longitude ?? null,
       owner_id: partnerId,
+      equipment: equipment && Array.isArray(equipment) ? equipment : [],
     })
     .select()
     .single();
@@ -142,6 +146,13 @@ export async function POST(request: NextRequest) {
       display_order: idx,
     }));
     await supabaseAdmin.from('studio_images').insert(imageRows);
+  }
+
+  // Link platform add-ons
+  if (addonIds && Array.isArray(addonIds) && addonIds.length > 0) {
+    await supabaseAdmin.from('studio_addons').insert(
+      addonIds.map((addon_id: string) => ({ studio_id: studio.id, addon_id }))
+    );
   }
 
   // Notify all admin users about the new studio pending review
