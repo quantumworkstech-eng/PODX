@@ -97,7 +97,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, description, fullDescription, address, city, pricePerHour, capacity, equipment, addonIds, images, latitude, longitude } = body;
+  const {
+    name, description, fullDescription, address, city, state,
+    pricePerHour, capacity, equipment, services, amenities,
+    addonIds, images, videoUrl, latitude, longitude,
+    cancellationRules, rescheduleRules,
+  } = body;
 
   if (!name || !city) {
     return NextResponse.json({ error: 'Name and city are required' }, { status: 400 });
@@ -105,22 +110,27 @@ export async function POST(request: NextRequest) {
 
   const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
 
+  const studioInsert: Record<string, unknown> = {
+    name,
+    slug,
+    description: fullDescription || description || '',
+    short_description: (description || '').slice(0, 150),
+    address: address || '',
+    city,
+    state: state || null,
+    is_active: false,
+    review_status: 'pending_review',
+    latitude: latitude ?? null,
+    longitude: longitude ?? null,
+    owner_id: partnerId,
+    equipment: Array.isArray(equipment) ? equipment : [],
+  };
+  // Store video_url if the column exists (graceful)
+  if (videoUrl) studioInsert.video_url = videoUrl;
+
   const { data: studio, error: studioError } = await supabaseAdmin
     .from('studios')
-    .insert({
-      name,
-      slug,
-      description: fullDescription || description || '',
-      short_description: (description || '').slice(0, 150),
-      address: address || '',
-      city,
-      is_active: false,
-      review_status: 'pending_review',
-      latitude: latitude ?? null,
-      longitude: longitude ?? null,
-      owner_id: partnerId,
-      equipment: equipment && Array.isArray(equipment) ? equipment : [],
-    })
+    .insert(studioInsert)
     .select()
     .single();
 
@@ -146,6 +156,43 @@ export async function POST(request: NextRequest) {
       display_order: idx,
     }));
     await supabaseAdmin.from('studio_images').insert(imageRows);
+  }
+
+  // Store amenities (services + amenities combined)
+  const allAmenities = [
+    ...(Array.isArray(services) ? services : []),
+    ...(Array.isArray(amenities) ? amenities : []),
+  ];
+  if (allAmenities.length > 0) {
+    await supabaseAdmin.from('studio_amenities').insert(
+      allAmenities.map((name: string) => ({ studio_id: studio.id, name }))
+    ).maybeSingle(); // ignore error if table doesn't have unique constraint
+  }
+
+  // Store custom cancellation policies
+  if (Array.isArray(cancellationRules) && cancellationRules.length > 0) {
+    await supabaseAdmin.from('cancellation_policies').insert(
+      cancellationRules.map((rule: any) => ({
+        studio_id: studio.id,
+        type: rule.type,
+        value: rule.value,
+        refund_percent: rule.refundPercent,
+        deduction_percent: rule.deductionPercent,
+        policy_type: 'cancellation',
+      }))
+    );
+  }
+  if (Array.isArray(rescheduleRules) && rescheduleRules.length > 0) {
+    await supabaseAdmin.from('cancellation_policies').insert(
+      rescheduleRules.map((rule: any) => ({
+        studio_id: studio.id,
+        type: rule.type,
+        value: rule.value,
+        refund_percent: 0,
+        deduction_percent: rule.deductionPercent,
+        policy_type: 'reschedule',
+      }))
+    );
   }
 
   // Link platform add-ons

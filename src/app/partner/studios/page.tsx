@@ -8,7 +8,6 @@ import {
   Trash2,
   MapPin,
   Users,
-  DollarSign,
   Image as ImageIcon,
   X,
   Upload,
@@ -415,8 +414,8 @@ export default function PartnerStudiosPage() {
                     {studio.capacity}
                   </div>
                   <div className="flex items-center gap-1 text-[#D9FC67] font-semibold">
-                    <DollarSign className="w-4 h-4" />
-                    {studio.price_per_hour}/hr
+                    <span className="text-sm">₹</span>
+                    {studio.price_per_hour.toLocaleString("en-IN")}/hr
                   </div>
                 </div>
 
