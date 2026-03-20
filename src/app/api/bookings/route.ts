@@ -122,6 +122,9 @@ export async function POST(request: NextRequest) {
       tax,
       paymentId,
       orderId,
+      partnerId,
+      bookingSource,
+      whitelabelSlug,
     } = body;
 
     if (!studioId || !date || !timeSlot || !duration || !totalPrice) {
@@ -221,6 +224,11 @@ export async function POST(request: NextRequest) {
     if (roomId) {
       insertData.room_id = roomId;
     }
+
+    // White-label partner tracking
+    if (partnerId) insertData.partner_id = partnerId;
+    if (bookingSource) insertData.booking_source = bookingSource;
+    if (whitelabelSlug) insertData.whitelabel_slug = whitelabelSlug;
 
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")

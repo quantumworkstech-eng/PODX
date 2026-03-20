@@ -107,3 +107,28 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({ branding });
 }
+
+// DELETE — partner resets (deletes) their entire white-label configuration
+export async function DELETE() {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", session.user.email)
+    .single();
+
+  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const { error } = await supabase
+    .from("partner_branding")
+    .delete()
+    .eq("partner_id", user.id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}

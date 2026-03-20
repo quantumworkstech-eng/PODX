@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookingProvider, useBooking } from "@/context/BookingContext";
+import type { PartnerBrandingBasic } from "@/context/BookingContext";
 import { StepProgress } from "@/components/booking/StepProgress";
 import { DateTimeStep } from "@/components/booking/DateTimeStep";
 import { StudioStep } from "@/components/booking/StudioStep";
@@ -14,6 +15,7 @@ import { PaymentStep } from "@/components/booking/PaymentStep";
 import { AuthModal } from "@/components/booking/AuthModal";
 import { CitySelection } from "@/components/booking/CitySelection";
 import { StudioOrDatePopup } from "@/components/booking/StudioOrDatePopup";
+import { getStudioBySlug } from "@/lib/data";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,17 +43,54 @@ function BookingContent() {
     setSelectionMode,
     setSelectedStudio,
     goToStep,
+    setPartnerContext,
+    setPartnerBranding,
+    partnerBranding,
+    partnerSlug,
   } = useBooking();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSelectionPopup, setShowSelectionPopup] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  // Pre-fill city in CitySelection when returning user hasn't made real progress
   const [initialCity, setInitialCity] = useState<string | undefined>(undefined);
+  const [loadingFromUrl, setLoadingFromUrl] = useState(false);
 
-  // Hydrate from stored state on first mount
+  // Hydrate and handle URL params on first mount
   useEffect(() => {
     setHydrated(true);
+
+    const studioParam = searchParams.get("studio");
+    const partnerParam = searchParams.get("partner");
+    const sourceParam = searchParams.get("source") as "marketplace" | "whitelabel" | "partner_direct" | null;
+
+    // Handle partner context from URL
+    if (partnerParam) {
+      setPartnerContext(partnerParam, null, sourceParam || "whitelabel");
+      // Fetch and apply partner branding
+      fetch(`/api/whitelabel/${partnerParam}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.branding) {
+            setPartnerBranding(data.branding as PartnerBrandingBasic);
+          }
+        })
+        .catch(() => {/* ignore */});
+    }
+
+    // Handle "Book Now" from white-label page — studio pre-selected via URL param
+    if (studioParam) {
+      setLoadingFromUrl(true);
+      getStudioBySlug(studioParam).then((studio) => {
+        if (studio) {
+          setSelectedStudio(studio);
+          setSelectionMode("studio");
+          localStorage.setItem(SELECTION_MODE_KEY, "studio");
+          goToStep(2); // jump to DateTimeStep
+        }
+      }).catch(() => {/* ignore */}).finally(() => setLoadingFromUrl(false));
+      // Don't show city selection while we fetch the studio
+      return;
+    }
 
     // Handle "Book Now" from studio listing — studio pre-selected, skip to date/time
     const preselect = searchParams.get("preselect");
@@ -64,7 +103,7 @@ function BookingContent() {
           setSelectedStudio(studio);
           setSelectionMode("studio");
           localStorage.setItem(SELECTION_MODE_KEY, "studio");
-          goToStep(2); // jump straight to DateTimeStep
+          goToStep(2);
           return;
         } catch {
           // fall through to normal onboarding
@@ -73,30 +112,26 @@ function BookingContent() {
     }
 
     const storedOnboarding = localStorage.getItem(ONBOARDING_KEY);
-    const storedMode = localStorage.getItem(SELECTION_MODE_KEY);
     const storedBooking = localStorage.getItem(PENDING_BOOKING_KEY);
 
-    // Only skip city selection when user has made real booking progress:
-    // both a studio AND a date are already selected (mid-booking resume).
     if (storedBooking) {
       try {
         const parsed = JSON.parse(storedBooking);
         if (parsed.selectedStudio && parsed.date) {
           if (parsed.selectedCity) setSelectedCity(parsed.selectedCity);
           if (parsed.selectionMode) setSelectionMode(parsed.selectionMode);
-          return; // resume mid-booking — skip city selection
+          return;
         }
       } catch {
         // ignore malformed storage
       }
     }
 
-    // Always show city selection. Pre-fill city if previously chosen.
     if (storedOnboarding) setInitialCity(storedOnboarding);
     setShowOnboarding(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // If user becomes authenticated while auth modal is open, proceed to payment
+  // When user becomes authenticated while auth modal is open, proceed to payment
   useEffect(() => {
     if (status === "authenticated" && session && showAuthModal) {
       setAuthenticated(true);
@@ -119,7 +154,11 @@ function BookingContent() {
       prevStep();
       return;
     }
-    // Step 1 → back to city + mode selection
+    // If partner context is active, go back to white-label page
+    if (partnerSlug) {
+      router.push(`/p/${partnerSlug}`);
+      return;
+    }
     setShowOnboarding(true);
     setShowSelectionPopup(false);
   };
@@ -133,8 +172,6 @@ function BookingContent() {
       setShowOnboarding(false);
       setShowSelectionPopup(false);
     }
-    // If no mode yet (shouldn't happen with new CitySelection but guard anyway)
-    // just keep showing onboarding so user can pick mode
   };
 
   const handleSelectStudio = () => {
@@ -187,8 +224,7 @@ function BookingContent() {
     }
   };
 
-  // Wait for hydration before showing onboarding state
-  if (!hydrated) {
+  if (!hydrated || loadingFromUrl) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
@@ -196,11 +232,10 @@ function BookingContent() {
     );
   }
 
-  if (showOnboarding) {
+  if (showOnboarding && !partnerSlug) {
     return <CitySelection onComplete={handleCitySelect} initialCity={initialCity} />;
   }
 
-  // showSelectionPopup kept as fallback (legacy) — shouldn't trigger anymore
   if (showSelectionPopup) {
     return (
       <StudioOrDatePopup
@@ -214,22 +249,48 @@ function BookingContent() {
     );
   }
 
-  // Back button shown on every booking step so user can always go back to city selection
-  const showBackButton = true;
+  // Partner branding colors (with fallbacks)
+  const wlPrimary = partnerBranding?.primary_color || "#D9FC67";
+  const wlBtnText = partnerBranding?.button_text_color || "#000000";
+  const wlSecondary = partnerBranding?.secondary_color || "";
+  const isPartnerMode = !!partnerSlug && !!partnerBranding;
 
   return (
     <div className="min-h-screen bg-black">
-      <header className="border-b border-white/10 bg-black/80 backdrop-blur-sm sticky top-0 z-50">
+      {/* ── Booking header ── */}
+      <header
+        className="border-b sticky top-0 z-50 backdrop-blur-sm"
+        style={isPartnerMode ? {
+          background: wlSecondary || "#0a0a0a",
+          borderColor: "rgba(255,255,255,0.08)",
+        } : {
+          background: "rgba(0,0,0,0.8)",
+          borderColor: "rgba(255,255,255,0.1)",
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {showBackButton ? (
-              <button
-                onClick={handleGoBack}
-                className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span className="hidden sm:inline">Back</span>
-              </button>
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+
+            {/* Show partner brand or PodX logo */}
+            {isPartnerMode ? (
+              partnerBranding.logo_url ? (
+                <img
+                  src={partnerBranding.logo_url}
+                  alt={partnerBranding.brand_name}
+                  className="h-7 w-auto object-contain"
+                />
+              ) : (
+                <span className="text-lg font-bold" style={{ color: wlPrimary }}>
+                  {partnerBranding.brand_name}
+                </span>
+              )
             ) : (
               <Link href="/" className="flex items-center gap-2 group">
                 <span className="text-2xl font-bold tracking-tight text-white">
@@ -237,12 +298,14 @@ function BookingContent() {
                 </span>
               </Link>
             )}
-            {selectedCity && (
+
+            {selectedCity && !isPartnerMode && (
               <span className="text-white/40 text-sm hidden sm:inline">
                 {selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}
               </span>
             )}
           </div>
+
           <Button
             variant="ghost"
             size="sm"

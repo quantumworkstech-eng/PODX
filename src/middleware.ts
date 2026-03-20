@@ -76,6 +76,30 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ── Partner routes — require authenticated NextAuth session ────
+  const PARTNER_PUBLIC = ['/partner/login', '/partner/signup'];
+  if (pathname.startsWith('/partner') && !PARTNER_PUBLIC.some((p) => pathname.startsWith(p))) {
+    // NextAuth v5 stores session in __Secure-next-auth.session-token (prod) or next-auth.session-token (dev)
+    const sessionToken =
+      request.cookies.get('__Secure-next-auth.session-token')?.value ||
+      request.cookies.get('next-auth.session-token')?.value;
+
+    if (!sessionToken) {
+      const loginUrl = new URL('/partner/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    try {
+      await jwtVerify(sessionToken, secret);
+      // Session is valid — role-level check is deferred to API routes + layout
+    } catch {
+      const loginUrl = new URL('/partner/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 

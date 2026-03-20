@@ -87,6 +87,10 @@ export function PaymentStep() {
     appliedCoupon,
     resetBooking,
     prevStep,
+    partnerId,
+    bookingSource,
+    partnerBranding,
+    partnerSlug,
   } = useBooking();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -194,6 +198,10 @@ export function PaymentStep() {
           couponCode: appliedCoupon?.code || null,
           paymentId,
           orderId,
+          // White-label partner context
+          partnerId: partnerId || null,
+          bookingSource: bookingSource || "marketplace",
+          whitelabelSlug: partnerSlug || null,
         }),
       });
 
@@ -286,19 +294,22 @@ export function PaymentStep() {
         // API might not be set up — fall through to test mode
       }
 
+      const rzpColor = partnerBranding?.primary_color || "#D9FC67";
+      const rzpName = partnerBranding?.brand_name || "PodX Studio";
+
       const options = {
         key: orderData?.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
         amount: orderData?.amount || amount * 100,
         currency: "INR",
         order_id: orderData?.orderId,
-        name: "Yanisa Studio",
+        name: rzpName,
         description: `${selectedStudio.name} · ${duration} hr${duration > 1 ? "s" : ""}`,
-        image: "/logo.png",
+        image: partnerBranding?.logo_url || "/logo.png",
         prefill: {
           name: session?.user?.name || "",
           email: session?.user?.email || "",
         },
-        theme: { color: "#D9FC67" },
+        theme: { color: rzpColor },
         handler: handlePaymentSuccess,
         modal: {
           ondismiss: () => {

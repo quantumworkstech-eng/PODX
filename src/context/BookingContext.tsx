@@ -11,6 +11,17 @@ interface AppliedCoupon {
   discountAmount: number;
 }
 
+export interface PartnerBrandingBasic {
+  brand_name: string;
+  logo_url?: string | null;
+  primary_color: string;
+  secondary_color: string;
+  button_text_color: string;
+  background_color: string;
+  text_color: string;
+  partner_id?: string;
+}
+
 interface BookingState {
   currentStep: number;
   date: Date | null;
@@ -26,6 +37,11 @@ interface BookingState {
   selectedCity: string | null;
   selectionMode: "studio" | "date" | null;
   appliedCoupon: AppliedCoupon | null;
+  // White-label partner context
+  partnerSlug: string | null;
+  partnerId: string | null;
+  bookingSource: "marketplace" | "whitelabel" | "partner_direct" | null;
+  partnerBranding: PartnerBrandingBasic | null;
 }
 
 interface StoredBooking {
@@ -40,6 +56,10 @@ interface StoredBooking {
   selectedCity: string | null;
   selectionMode: "studio" | "date" | null;
   showPayment: boolean;
+  // White-label partner context
+  partnerSlug: string | null;
+  partnerId: string | null;
+  bookingSource: "marketplace" | "whitelabel" | "partner_direct" | null;
 }
 
 interface BookingContextType extends BookingState {
@@ -76,6 +96,9 @@ interface BookingContextType extends BookingState {
   setSelectedCity: (city: string | null) => void;
   setSelectionMode: (mode: "studio" | "date") => void;
   setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
+  // White-label partner context
+  setPartnerContext: (slug: string | null, partnerId: string | null, source: "marketplace" | "whitelabel" | "partner_direct" | null) => void;
+  setPartnerBranding: (branding: PartnerBrandingBasic | null) => void;
 }
 
 const PENDING_BOOKING_KEY = "yanisa_pending_booking";
@@ -96,6 +119,10 @@ const initialState: BookingState = {
   selectedCity: null,
   selectionMode: null,
   appliedCoupon: null,
+  partnerSlug: null,
+  partnerId: null,
+  bookingSource: null,
+  partnerBranding: null,
 };
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -130,6 +157,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         selectedCity: parsed.selectedCity,
         selectionMode: parsed.selectionMode,
         showPayment: parsed.showPayment || false,
+        partnerSlug: parsed.partnerSlug || null,
+        partnerId: parsed.partnerId || null,
+        bookingSource: parsed.bookingSource || null,
       }));
     } catch {
       // Corrupt storage — ignore
@@ -150,6 +180,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       selectedCity: state.selectedCity,
       selectionMode: state.selectionMode,
       showPayment: state.showPayment,
+      partnerSlug: state.partnerSlug,
+      partnerId: state.partnerId,
+      bookingSource: state.bookingSource,
     };
     localStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(data));
   }, [state]);
@@ -340,6 +373,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, appliedCoupon: coupon }));
   }, []);
 
+  const setPartnerContext = useCallback(
+    (slug: string | null, partnerId: string | null, source: "marketplace" | "whitelabel" | "partner_direct" | null) => {
+      setState((prev) => ({ ...prev, partnerSlug: slug, partnerId, bookingSource: source }));
+    },
+    []
+  );
+
+  const setPartnerBranding = useCallback((branding: PartnerBrandingBasic | null) => {
+    setState((prev) => ({
+      ...prev,
+      partnerBranding: branding,
+      partnerId: branding?.partner_id ?? prev.partnerId,
+    }));
+  }, []);
+
   // Auto-save whenever booking state changes (debounced)
   useEffect(() => {
     if (!initialized) return;
@@ -387,6 +435,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setSelectedCity,
     setSelectionMode,
     setAppliedCoupon,
+    setPartnerContext,
+    setPartnerBranding,
   };
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>;

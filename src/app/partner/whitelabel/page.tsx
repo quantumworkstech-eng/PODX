@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   Globe, Palette, Link as LinkIcon, Mail, Image, Save,
   ExternalLink, Copy, CheckCircle, AlertCircle, Loader2,
-  Eye, RefreshCw, Shield, Smartphone,
+  Eye, RefreshCw, Shield, Trash2, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ interface Branding {
   tagline?: string;
   primary_color?: string;
   secondary_color?: string;
+  accent_color?: string;
   background_color?: string;
   text_color?: string;
   button_text_color?: string;
@@ -33,10 +34,12 @@ interface Branding {
   contact_address?: string;
   email_sender_name?: string;
   email_sender_address?: string;
+  email_footer_text?: string;
   subdomain?: string;
   custom_domain?: string;
   url_mode?: string;
   is_published?: boolean;
+  admin_disabled?: boolean;
   domain_verified?: boolean;
   domain_verification_token?: string;
 }
@@ -68,6 +71,8 @@ export default function WhiteLabelSettingsPage() {
   const [domainVerifying, setDomainVerifying] = useState(false);
   const [domainToken, setDomainToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch("/api/partner/branding")
@@ -144,6 +149,30 @@ export default function WhiteLabelSettingsPage() {
     }
   };
 
+  const resetBranding = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/partner/branding", { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to reset configuration");
+      // Reset state to initial
+      setBranding({
+        primary_color: "#D9FC67",
+        secondary_color: "#0a0a0a",
+        background_color: "#09090b",
+        text_color: "#ffffff",
+        button_text_color: "#000000",
+        url_mode: "slug",
+        is_published: false,
+      });
+      setShowDeleteConfirm(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Reset failed");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -209,6 +238,19 @@ export default function WhiteLabelSettingsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Admin-disabled warning — shown when admin has blocked this partner's white-label */}
+      {branding.admin_disabled && (
+        <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Your white-label site has been disabled by the platform admin.</p>
+            <p className="text-red-400/70 text-xs mt-1">
+              Your branding settings are preserved. Please contact support to re-enable your white-label platform.
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
@@ -527,6 +569,50 @@ export default function WhiteLabelSettingsPage() {
               </Field>
             </div>
           </>
+        )}
+      </div>
+
+      {/* ── Danger Zone ────────────────────────────────────────── */}
+      <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-6 space-y-4">
+        <div>
+          <h3 className="text-base font-semibold text-red-400 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            Danger Zone
+          </h3>
+          <p className="text-white/40 text-sm mt-1">
+            Permanently delete your white-label configuration. All branding, domain settings, and content will be lost. Your studios and bookings are not affected.
+          </p>
+        </div>
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Reset White-Label Configuration
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-red-400 font-medium">
+              Are you absolutely sure? This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={resetBranding}
+                disabled={deleting}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deleting ? "Deleting…" : "Yes, Reset Everything"}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-5 py-2 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

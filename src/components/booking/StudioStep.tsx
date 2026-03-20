@@ -54,6 +54,8 @@ export function StudioStep() {
     canProceed,
     selectionMode,
     selectedCity,
+    partnerSlug,
+    partnerBranding,
   } = useBooking();
 
   const [videoStudio, setVideoStudio] = useState<{ name: string } | null>(null);
@@ -63,9 +65,50 @@ export function StudioStep() {
   // studioId → array of already-booked hour slots for today
   const [bookedByStudio, setBookedByStudio] = useState<Record<string, string[]>>({});
 
+  const wlPrimary = partnerBranding?.primary_color || "#D9FC67";
+
   const loadStudios = () => {
     setLoading(true);
     setError(null);
+
+    // When in partner/white-label mode, only show partner's studios
+    if (partnerSlug) {
+      fetch(`/api/whitelabel/${partnerSlug}`)
+        .then((r) => r.ok ? r.json() : Promise.reject("Not found"))
+        .then(({ studios: wlStudios }) => {
+          // Convert white-label studio format to Studio type
+          const converted: Studio[] = (wlStudios || []).map((s: any) => {
+            const activeRooms = (s.rooms || []).filter((r: any) => r.is_active !== false);
+            const minPrice = activeRooms.length > 0 ? Math.min(...activeRooms.map((r: any) => r.price_per_hour || 0)) : 0;
+            const maxCap = activeRooms.length > 0 ? Math.max(...activeRooms.map((r: any) => r.capacity || 0)) : 2;
+            return {
+              id: s.id,
+              name: s.name,
+              slug: s.slug || s.name.toLowerCase().replace(/\s+/g, '-'),
+              cover_image: s.featured_image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90',
+              location: { city: s.city || '', area: s.city || '', address: s.address || '' },
+              price_per_hour: minPrice,
+              currency: '₹',
+              capacity: maxCap,
+              equipment: [],
+              rating: 0,
+              review_count: 0,
+              is_instant_bookable: true,
+              description: s.short_description || s.description || '',
+              amenities: ['WiFi', 'AC', 'Parking'],
+            };
+          });
+          setStudios(converted);
+          setLoading(false);
+          fetchAvailability(converted);
+        })
+        .catch(() => {
+          setError("Failed to load studios. Please try again.");
+          setLoading(false);
+        });
+      return;
+    }
+
     getAllStudios()
       .then((data) => {
         // Filter by selected city (case-insensitive match on city slug or name)
@@ -86,7 +129,7 @@ export function StudioStep() {
       });
   };
 
-  useEffect(() => { loadStudios(); }, [selectedCity]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadStudios(); }, [selectedCity, partnerSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAvailability = async (studioList: Studio[]) => {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
@@ -124,9 +167,22 @@ export function StudioStep() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Partner mode banner */}
+      {partnerSlug && partnerBranding && (
+        <div
+          className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
+          style={{ background: `${wlPrimary}15`, border: `1px solid ${wlPrimary}30`, color: wlPrimary }}
+        >
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: wlPrimary }} />
+          Showing studios available through {partnerBranding.brand_name}
+        </div>
+      )}
+
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-          {selectedCity
+          {partnerSlug && partnerBranding
+            ? `${partnerBranding.brand_name} Studios`
+            : selectedCity
             ? `Studios in ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}`
             : "Choose Your Studio"}
         </h1>
