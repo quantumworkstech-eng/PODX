@@ -181,14 +181,34 @@ export async function POST(request: NextRequest) {
     const endTime = new Date(startTime);
     endTime.setHours(startTime.getHours() + Number(duration));
 
-    // Double-booking check
+    // Fetch studio's buffer_minutes so we can enforce it in the conflict check.
+    // If studio A has buffer_minutes=30 and a booking ending at 14:00, a new
+    // booking starting at 14:15 must still be rejected because it falls inside
+    // the cleanup window.  We do this by shifting the conflict-check window
+    // backwards by buffer_minutes: any existing booking whose end_time is
+    // AFTER (newStart - bufferMinutes) is considered a conflict.
+    const { data: studioMeta } = await supabaseAdmin
+      .from("studios")
+      .select("buffer_minutes")
+      .eq("id", studioId)
+      .maybeSingle();
+
+    const bufferMinutes: number = studioMeta?.buffer_minutes ?? 0;
+
+    // The effective start for conflict detection is pushed back by the buffer
+    // so that a booking inside another booking's cleanup window is also caught.
+    const conflictCheckStart = new Date(
+      startTime.getTime() - bufferMinutes * 60 * 1000
+    );
+
+    // Double-booking check (includes buffer enforcement)
     const { data: conflicts } = await supabaseAdmin
       .from("bookings")
       .select("id")
       .eq("studio_id", studioId)
       .neq("status", "cancelled")
       .lt("start_time", endTime.toISOString())
-      .gt("end_time", startTime.toISOString());
+      .gt("end_time", conflictCheckStart.toISOString());
 
     if (conflicts && conflicts.length > 0) {
       return NextResponse.json(

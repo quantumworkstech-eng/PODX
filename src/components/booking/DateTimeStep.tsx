@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus, Loader2 } from "lucide-react";
 import { PARTICIPANT_OPTIONS, TIME_SLOTS } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ export function DateTimeStep() {
     timeSlot,
     duration,
     participants,
+    selectedStudio,
     setDate,
     setTimeSlot,
     setDuration,
@@ -31,6 +32,63 @@ export function DateTimeStep() {
   const [currentMonth, setCurrentMonth] = useState(() => {
     return date ? new Date(date.getFullYear(), date.getMonth(), 1) : new Date();
   });
+
+  // Live booked slots fetched from the DB for the selected date + studio
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+  const formatDateParam = useCallback((d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
+  // Fetch live availability whenever date or studio changes
+  useEffect(() => {
+    const studioId = selectedStudio?.id;
+    if (!date || !studioId) {
+      setBookedSlots([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingSlots(true);
+
+    const dateParam = formatDateParam(date);
+    fetch(`/api/studios/${studioId}/slots?date=${dateParam}`)
+      .then((r) => r.json())
+      .then((data: { bookedSlots?: string[] }) => {
+        if (cancelled) return;
+        const slots = data.bookedSlots ?? [];
+        setBookedSlots(slots);
+
+        // If the currently selected time slot falls inside the freshly-fetched
+        // booked window (considering the chosen duration), clear it so the
+        // customer has to pick a valid slot.
+        if (timeSlot) {
+          const [startH] = timeSlot.split(":").map(Number);
+          const isNowBlocked = Array.from({ length: duration }, (_, i) => {
+            const h = startH + i;
+            return `${String(h).padStart(2, "0")}:00`;
+          }).some((hStr) => slots.includes(hStr));
+          if (isNowBlocked) setTimeSlot(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBookedSlots([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSlots(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // duration intentionally omitted here — we only re-fetch when date/studio changes.
+    // duration changes only affect which already-fetched slots are considered blocked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, selectedStudio?.id, formatDateParam]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -96,18 +154,57 @@ export function DateTimeStep() {
     return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   };
 
-  // Filter out past time slots when today is selected
-  const isSlotDisabled = (slotTime: string, slotAvailable: boolean) => {
+  // Returns true when a slot button should be disabled.
+  // A slot is disabled if:
+  //  (a) the static config marks it unavailable (e.g. outside operating hours)
+  //  (b) any hour in [slotHour … slotHour+duration-1] is already booked in the DB
+  //      (including the partner's buffer window after a previous booking), or
+  //  (c) the slot is in the past when today is selected.
+  const isSlotDisabled = (slotTime: string, slotAvailable: boolean): boolean => {
     if (!slotAvailable) return true;
     if (!date) return false;
 
+    const [slotHour] = slotTime.split(":").map(Number);
+
+    // (c) Past-time check for today
     const isSelectedToday = date.toDateString() === now.toDateString();
-    if (!isSelectedToday) return false;
+    if (isSelectedToday) {
+      const endHour = slotHour + duration;
+      if (endHour <= now.getHours() || (slotHour <= now.getHours() && now.getMinutes() > 0)) {
+        return true;
+      }
+    }
+
+    // (b) Live DB check — block if ANY hour inside the booking window is taken
+    for (let h = slotHour; h < slotHour + duration; h++) {
+      const hourStr = `${String(h).padStart(2, "0")}:00`;
+      if (bookedSlots.includes(hourStr)) return true;
+    }
+
+    return false;
+  };
+
+  // Determine the reason a slot is unavailable (for the sub-label)
+  const getSlotLabel = (slotTime: string, slotAvailable: boolean): string | null => {
+    if (!slotAvailable) return "Unavailable";
+    if (!date) return null;
 
     const [slotHour] = slotTime.split(":").map(Number);
-    const endHour = slotHour + duration;
-    // Disable if the slot would end before or at current time, with 15min buffer
-    return endHour <= now.getHours() || (slotHour <= now.getHours() && now.getMinutes() > 0);
+
+    const isSelectedToday = date.toDateString() === now.toDateString();
+    if (isSelectedToday) {
+      const endHour = slotHour + duration;
+      if (endHour <= now.getHours() || (slotHour <= now.getHours() && now.getMinutes() > 0)) {
+        return "Past";
+      }
+    }
+
+    for (let h = slotHour; h < slotHour + duration; h++) {
+      const hourStr = `${String(h).padStart(2, "0")}:00`;
+      if (bookedSlots.includes(hourStr)) return "Booked";
+    }
+
+    return null;
   };
 
   const nextStepLabel =
@@ -259,53 +356,76 @@ export function DateTimeStep() {
           {/* Time Slots */}
           {date ? (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-[#D9FC67]" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-[#D9FC67]" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">Select Time Slot</h3>
+                    <p className="text-white/50 text-sm">{formatSelectedDate()}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-white font-semibold">Select Time Slot</h3>
-                  <p className="text-white/50 text-sm">{formatSelectedDate()}</p>
-                </div>
+                {isLoadingSlots && (
+                  <Loader2 className="w-4 h-4 text-[#D9FC67] animate-spin flex-shrink-0" />
+                )}
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {TIME_SLOTS.map((slot) => {
-                  const disabled = isSlotDisabled(slot.time, slot.available);
-                  const selected = timeSlot === slot.time;
-                  const isPast = !slot.available;
+              {isLoadingSlots ? (
+                /* Skeleton while fetching live availability */
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-12 rounded-xl bg-white/5 animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {TIME_SLOTS.map((slot) => {
+                    const disabled = isSlotDisabled(slot.time, slot.available);
+                    const selected = timeSlot === slot.time;
+                    const label = getSlotLabel(slot.time, slot.available);
 
-                  return (
-                    <button
-                      key={slot.time}
-                      onClick={() => !disabled && setTimeSlot(slot.time)}
-                      disabled={disabled}
-                      className={cn(
-                        "py-3 px-4 rounded-xl text-sm font-medium transition-all relative",
-                        disabled
-                          ? "bg-white/5 text-white/25 cursor-not-allowed"
-                          : selected
-                          ? "bg-[#D9FC67] text-black shadow-lg shadow-[#D9FC67]/20"
-                          : "bg-white/10 text-white hover:bg-white/20"
-                      )}
-                    >
-                      {slot.time}
-                      {isPast && (
-                        <span className="block text-[10px] text-white/30 leading-tight">Booked</span>
-                      )}
-                      {!isPast && disabled && (
-                        <span className="block text-[10px] text-white/30 leading-tight">Past</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {date.toDateString() === now.toDateString() && (
-                <p className="text-white/30 text-xs mt-3 text-center">
-                  Past time slots are disabled for today
-                </p>
+                    return (
+                      <button
+                        key={slot.time}
+                        onClick={() => !disabled && setTimeSlot(slot.time)}
+                        disabled={disabled}
+                        className={cn(
+                          "py-3 px-4 rounded-xl text-sm font-medium transition-all",
+                          disabled
+                            ? "bg-white/5 text-white/25 cursor-not-allowed"
+                            : selected
+                            ? "bg-[#D9FC67] text-black shadow-lg shadow-[#D9FC67]/20"
+                            : "bg-white/10 text-white hover:bg-white/20"
+                        )}
+                      >
+                        {slot.time}
+                        {label && (
+                          <span className="block text-[10px] text-white/30 leading-tight">
+                            {label}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
+
+              <div className="flex flex-wrap gap-4 mt-3">
+                {date.toDateString() === now.toDateString() && (
+                  <p className="text-white/30 text-xs">
+                    Past time slots are disabled for today
+                  </p>
+                )}
+                {bookedSlots.length > 0 && !isLoadingSlots && (
+                  <p className="text-white/30 text-xs">
+                    Grey slots are already booked or reserved for cleanup
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="bg-white/5 rounded-2xl border border-white/10 border-dashed p-8 flex flex-col items-center gap-3">

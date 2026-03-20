@@ -77,8 +77,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Partner routes — require authenticated NextAuth session ────
+  // Note: /partners (plural) is the public marketing landing page — never protected
   const PARTNER_PUBLIC = ['/partner/login', '/partner/signup'];
-  if (pathname.startsWith('/partner') && !PARTNER_PUBLIC.some((p) => pathname.startsWith(p))) {
+  if (
+    pathname.startsWith('/partner/') &&
+    !PARTNER_PUBLIC.some((p) => pathname.startsWith(p))
+  ) {
     // NextAuth v5 stores session in __Secure-next-auth.session-token (prod) or next-auth.session-token (dev)
     const sessionToken =
       request.cookies.get('__Secure-next-auth.session-token')?.value ||
