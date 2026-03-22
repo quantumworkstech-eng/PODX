@@ -97,34 +97,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         try {
-          const { data: existingUser } = await supabaseAdmin
+          // Upsert the user row — safe against concurrent sign-ins (no race condition)
+          const { data: upsertedUser, error: upsertError } = await supabaseAdmin
             .from("users")
-            .select("id")
-            .eq("email", user.email)
-            .maybeSingle();
-
-          if (!existingUser) {
-            const { data: newUser, error: insertError } = await supabaseAdmin
-              .from("users")
-              .insert({
+            .upsert(
+              {
                 email: user.email,
                 auth_provider: "google",
                 email_verified: true,
-              })
-              .select("id")
-              .single();
+              },
+              { onConflict: "email", ignoreDuplicates: false }
+            )
+            .select("id")
+            .single();
 
-            if (insertError) {
-              console.error("[auth] Failed to create user for Google sign-in:", insertError.message);
-            } else if (newUser) {
-              const { error: profileError } = await supabaseAdmin.from("profiles").insert({
-                user_id: newUser.id,
-                full_name: user.name ?? null,
-                avatar_url: user.image ?? null,
-              });
-              if (profileError) {
-                console.error("[auth] Failed to create profile:", profileError.message);
-              }
+          if (upsertError) {
+            console.error("[auth] Failed to upsert user for Google sign-in:", upsertError.message);
+          } else if (upsertedUser) {
+            // Upsert the profile row — keeps name and avatar in sync on every login
+            const { error: profileError } = await supabaseAdmin
+              .from("profiles")
+              .upsert(
+                {
+                  user_id: upsertedUser.id,
+                  full_name: user.name ?? null,
+                  avatar_url: user.image ?? null,
+                },
+                { onConflict: "user_id", ignoreDuplicates: false }
+              );
+            if (profileError) {
+              console.error("[auth] Failed to upsert profile:", profileError.message);
             }
           }
         } catch (error) {

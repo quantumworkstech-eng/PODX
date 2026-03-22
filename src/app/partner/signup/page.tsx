@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,18 @@ import { Mail, User, Phone, ArrowRight, Check, RotateCcw, Building2 } from "luci
 
 type Step = "email" | "otp" | "profile";
 
+const OAUTH_ERRORS: Record<string, string> = {
+  OAuthSignin: "Could not start Google sign-in. Please try again.",
+  OAuthCallback: "Google sign-in was cancelled or failed. Please try again.",
+  OAuthCreateAccount: "Could not create your account. Please try again.",
+  OAuthAccountNotLinked: "This email is already registered with a different sign-in method.",
+  Callback: "Sign-in callback error. Please try again.",
+  Default: "Sign-in failed. Please try again.",
+};
+
 export default function PartnerSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -22,9 +32,20 @@ export default function PartnerSignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Display OAuth errors returned by NextAuth via ?error= query param
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      setError(OAUTH_ERRORS[urlError] ?? OAUTH_ERRORS.Default);
+    }
+  }, [searchParams]);
+
   const handleGoogleSignup = async () => {
     setIsLoading(true);
-    await signIn("google", { callbackUrl: "/partner/dashboard" });
+    setError("");
+    // Redirect through /partner/google-onboarding so we can assign the
+    // "partner" role to new Google-OAuth users before they land on the dashboard.
+    await signIn("google", { callbackUrl: "/partner/google-onboarding" });
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -74,11 +95,20 @@ export default function PartnerSignupPage() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    await fetch("/api/auth/complete-profile", {
+
+    const profileRes = await fetch("/api/auth/complete-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, token: verificationToken, name, mobile, businessName, role: "partner" }),
     });
+
+    if (!profileRes.ok) {
+      const data = await profileRes.json().catch(() => ({}));
+      setError(data.error || "Failed to complete profile. Please try again.");
+      setIsLoading(false);
+      return;
+    }
+
     const result = await signIn("credentials", { email, token: verificationToken, redirect: false });
     if (result?.error) {
       setError("Sign in failed. Please try the partner login page.");

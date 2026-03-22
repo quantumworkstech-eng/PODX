@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getToken } from 'next-auth/jwt';
 
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'admin-fallback-secret');
+// Used only for admin_session cookie (a plain signed JWT, not a NextAuth JWE)
+const adminSecret = new TextEncoder().encode(
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'admin-fallback-secret'
+);
+
+// NextAuth v5 shared secret (used by getToken to decrypt the JWE session cookie)
+const NEXTAUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'admin-fallback-secret';
 
 // Known PodX host patterns (add your production domain here)
 const MAIN_HOSTS = ['localhost', 'podx.com', 'www.podx.com'];
@@ -61,6 +68,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Admin routes — verify admin_session cookie ─────────────────
+  // admin_session is a plain signed JWT (JWS), so jwtVerify is correct here.
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const adminToken = request.cookies.get('admin_session')?.value;
 
@@ -69,7 +77,7 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      const { payload } = await jwtVerify(adminToken, secret);
+      const { payload } = await jwtVerify(adminToken, adminSecret);
       if (payload.role !== 'admin') throw new Error('Not admin');
     } catch {
       return NextResponse.redirect(new URL('/admin/login', request.url));
@@ -77,31 +85,25 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Partner routes — require authenticated NextAuth session ────
-  // Note: /partners (plural) is the public marketing landing page — never protected
-  const PARTNER_PUBLIC = ['/partner/login', '/partner/signup'];
+  // Note: /partners (plural) is the public marketing landing page — never protected.
+  //
+  // IMPORTANT: NextAuth v5 issues encrypted JWTs (JWE / A256CBC-HS512), NOT signed
+  // JWTs (JWS). Using jwtVerify() on a JWE always throws. We must use getToken()
+  // from next-auth/jwt which internally calls jwtDecrypt() with the correct
+  // HKDF-derived key, matching exactly what Auth.js uses when it writes the cookie.
+  const PARTNER_PUBLIC = ['/partner/login', '/partner/signup', '/partner/google-onboarding'];
   if (
     pathname.startsWith('/partner/') &&
     !PARTNER_PUBLIC.some((p) => pathname.startsWith(p))
   ) {
-    // NextAuth v5 stores session in __Secure-next-auth.session-token (prod) or next-auth.session-token (dev)
-    const sessionToken =
-      request.cookies.get('__Secure-next-auth.session-token')?.value ||
-      request.cookies.get('next-auth.session-token')?.value;
+    const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
 
-    if (!sessionToken) {
+    if (!token) {
       const loginUrl = new URL('/partner/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
     }
-
-    try {
-      await jwtVerify(sessionToken, secret);
-      // Session is valid — role-level check is deferred to API routes + layout
-    } catch {
-      const loginUrl = new URL('/partner/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
+    // Session is valid — role-level check is deferred to layouts and API routes
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } });
