@@ -16,10 +16,11 @@ function generateOTP(): string {
 async function sendOTPEmail(email: string, code: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.SUPPORT_EMAIL || "onboarding@resend.dev";
+  const isDev = process.env.NODE_ENV !== "production";
 
-  if (!apiKey || apiKey === "re_...") {
-    // Dev fallback: log OTP to console
-    console.log(`[DEV] OTP for ${email}: ${code}`);
+  // In development or when no real API key is configured, just log OTP to console
+  if (!apiKey || apiKey === "re_..." || apiKey.endsWith("...")) {
+    console.log(`\n[DEV] ✉️  OTP for ${email}: ${code}\n`);
     return true;
   }
 
@@ -30,13 +31,13 @@ async function sendOTPEmail(email: string, code: string): Promise<boolean> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: `Yanisa Studio <${fromEmail}>`,
+      from: `PodX <${fromEmail}>`,
       to: [email],
-      subject: `Your Yanisa Studio verification code: ${code}`,
+      subject: `Your PodX verification code: ${code}`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; background: #09090b; color: #fff; padding: 40px; border-radius: 16px;">
           <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 4px;">
-            <span style="color: #fff;">Yanisa</span><span style="color: #D9FC67;"> Studio</span>
+            <span style="color: #fff;">p</span><span style="color: #D9FC67;">o</span><span style="color: #fff;">dX</span>
           </h1>
           <p style="color: rgba(255,255,255,0.6); margin-bottom: 32px;">Your verification code</p>
           <div style="background: #141414; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 32px; text-align: center; margin-bottom: 24px;">
@@ -53,6 +54,12 @@ async function sendOTPEmail(email: string, code: string): Promise<boolean> {
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     console.error("Resend error:", errBody);
+
+    // In development, fall back to console logging so OTP flow still works
+    if (isDev) {
+      console.log(`\n[DEV FALLBACK] ✉️  OTP for ${email}: ${code}\n`);
+      return true;
+    }
   }
 
   return res.ok;

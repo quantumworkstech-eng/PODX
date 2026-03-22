@@ -190,7 +190,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: "/auth/login",
-    error: "/auth/login",
+    // Route OAuth errors through a shared handler that redirects to the right
+    // login page (partner vs customer) based on the callbackUrl in the query.
+    error: "/auth/error",
   },
   session: {
     strategy: "jwt",

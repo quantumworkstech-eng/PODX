@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -19,7 +19,7 @@ const OAUTH_ERRORS: Record<string, string> = {
   Default: "Sign-in failed. Please try again.",
 };
 
-export default function PartnerLoginPage() {
+function PartnerLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("email");
@@ -188,5 +188,13 @@ export default function PartnerLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PartnerLoginPage() {
+  return (
+    <Suspense>
+      <PartnerLoginContent />
+    </Suspense>
   );
 }
