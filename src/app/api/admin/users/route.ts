@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
-async function requireAdmin(email: string): Promise<boolean> {
-  if (!supabaseAdmin) return false;
-  const { data: user } = await supabaseAdmin.from('users').select('id, role').eq('email', email).maybeSingle();
-  return user?.role === 'admin';
-}
-
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!await requireAdmin(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const adminEmail = await getAdminEmail();
+  if (!adminEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const { searchParams } = new URL(request.url);
@@ -44,7 +37,6 @@ export async function GET(request: NextRequest) {
   }
 
   const users = (data || []).map((u: any) => {
-    // Merge roles from: users.role column + user_roles junction table + studio ownership
     const allRoles = new Set<string>();
     if (u.role) allRoles.add(u.role);
     (u.user_roles || []).forEach((ur: any) => { if (ur.roles?.name) allRoles.add(ur.roles.name); });
@@ -71,9 +63,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!await requireAdmin(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const adminEmail = await getAdminEmail();
+  if (!adminEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const body = await request.json();

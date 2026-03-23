@@ -1,19 +1,10 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
-async function requireAdmin(email: string): Promise<boolean> {
-  if (!supabaseAdmin) return false;
-  const { data: user } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
-  if (!user) return false;
-  const { data: roleData } = await supabaseAdmin.from('user_roles').select('roles(name)').eq('user_id', user.id);
-  return (roleData || []).some((r: any) => r.roles?.name === 'admin');
-}
-
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!await requireAdmin(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const adminEmail = await getAdminEmail();
+  if (!adminEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   // Monthly revenue for last 12 months

@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
     owner_id: partnerId,
     equipment: allEquipment,
   };
-  if (videoUrl) studioInsert.video_url = videoUrl;
+  // video_url is stored after initial insert to avoid schema cache errors
+  // if the column has not yet been added via migration.
 
   const { data: studio, error: studioError } = await supabaseAdmin
     .from('studios')
@@ -146,6 +147,11 @@ export async function POST(request: NextRequest) {
       { error: studioError?.message || 'Failed to create studio' },
       { status: 500 }
     );
+  }
+
+  // Store video URL if provided and the column exists (best-effort — won't fail creation)
+  if (videoUrl) {
+    await supabaseAdmin.from('studios').update({ video_url: videoUrl }).eq('id', studio.id).catch(() => {});
   }
 
   // Create default room

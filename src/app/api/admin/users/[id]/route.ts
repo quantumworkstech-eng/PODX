@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-
-async function requireAdmin(email: string): Promise<{ ok: boolean; adminId?: string }> {
-  if (!supabaseAdmin) return { ok: false };
-  const { data: user } = await supabaseAdmin.from('users').select('id, role').eq('email', email).maybeSingle();
-  return { ok: user?.role === 'admin', adminId: user?.id };
-}
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { ok } = await requireAdmin(session.user.email);
-  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const adminEmail = await getAdminEmail();
+  if (!adminEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const body = await request.json();
@@ -59,10 +51,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { ok } = await requireAdmin(session.user.email);
-  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const adminEmail = await getAdminEmail();
+  if (!adminEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const [{ data: user }, { data: bookings }] = await Promise.all([
