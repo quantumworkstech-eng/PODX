@@ -151,7 +151,9 @@ export async function POST(request: NextRequest) {
 
   // Store video URL if provided and the column exists (best-effort — won't fail creation)
   if (videoUrl) {
-    await supabaseAdmin.from('studios').update({ video_url: videoUrl }).eq('id', studio.id).catch(() => {});
+    try {
+      await supabaseAdmin.from('studios').update({ video_url: videoUrl }).eq('id', studio.id);
+    } catch { /* column may not exist yet */ }
   }
 
   // Create default room
