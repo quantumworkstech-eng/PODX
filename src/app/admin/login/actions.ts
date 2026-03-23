@@ -64,12 +64,11 @@ export async function adminSignIn(email: string, password: string, rememberMe = 
   const valid = await bcrypt.compare(password, admin.password_hash);
   if (!valid) return { error: "Incorrect password." };
 
-  // Create signed JWT stored as httpOnly cookie
-  const sessionDays = rememberMe ? 30 : 1;
+  // Create signed JWT stored as httpOnly cookie (always 30-day session)
   const token = await new SignJWT({ email: admin.email, role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${sessionDays}d`)
+    .setExpirationTime("30d")
     .sign(secret);
 
   const cookieStore = await cookies();
@@ -77,7 +76,7 @@ export async function adminSignIn(email: string, password: string, rememberMe = 
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: rememberMe ? 30 * 24 * 60 * 60 : undefined, // undefined = session cookie
+    maxAge: 30 * 24 * 60 * 60,
     path: "/",
   });
 

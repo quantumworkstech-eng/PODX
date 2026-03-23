@@ -78,6 +78,7 @@ export async function GET() {
         tax: notes.tax || null,
         status: b.status,
         paymentId: notes.paymentId || "",
+        gstNumber: notes.gstNumber || null,
         createdAt: b.created_at,
       };
     });
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
       tax,
       paymentId,
       orderId,
+      gstNumber,
       partnerId,
       bookingSource,
       whitelabelSlug,
@@ -228,6 +230,7 @@ export async function POST(request: NextRequest) {
       tax,
       paymentId,
       orderId,
+      ...(gstNumber ? { gstNumber } : {}),
     });
 
     const insertData: Record<string, any> = {

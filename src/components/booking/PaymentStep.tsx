@@ -91,6 +91,7 @@ export function PaymentStep() {
     bookingSource,
     partnerBranding,
     partnerSlug,
+    gstNumber,
   } = useBooking();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -198,6 +199,7 @@ export function PaymentStep() {
           couponCode: appliedCoupon?.code || null,
           paymentId,
           orderId,
+          gstNumber: gstNumber || null,
           // White-label partner context
           partnerId: partnerId || null,
           bookingSource: bookingSource || "marketplace",

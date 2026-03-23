@@ -219,6 +219,7 @@ export default function CreateStudioPage() {
   const [submitError, setSubmitError] = useState("");
   const [stepError, setStepError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
@@ -279,13 +280,20 @@ export default function CreateStudioPage() {
     }
   }, [currentStep]);
 
-  // Autosave debounced
+  // Autosave debounced — skips blob/base64 data URLs to avoid quota errors
   useEffect(() => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
       try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
-      } catch {}
+        const draftData = {
+          ...formData,
+          // Only persist remote image URLs, not blob/base64 strings
+          images: formData.images.filter((url) => url.startsWith("http")),
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      } catch (e) {
+        console.warn("Draft save failed (storage quota?):", e);
+      }
     }, 800);
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
@@ -351,7 +359,7 @@ export default function CreateStudioPage() {
 
   // ─── Image Upload ────────────────────────────────────────────────────────────
 
-  const handleImageUpload = (files: FileList | null) => {
+  const handleImageUpload = async (files: FileList | null) => {
     if (!files) return;
     const remaining = 10 - formData.images.length;
     if (remaining <= 0) {
@@ -364,26 +372,36 @@ export default function CreateStudioPage() {
       setStepError("Only JPG, PNG, and WebP images are allowed.");
       return;
     }
-    const newImages: string[] = [];
-    let loaded = 0;
-    validFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) newImages.push(reader.result as string);
-        loaded++;
-        if (loaded === validFiles.length) {
-          updateFormData({ images: [...formData.images, ...newImages] });
+    setUploadingImages(true);
+    setStepError("");
+    const uploadedUrls: string[] = [];
+    for (const file of validFiles) {
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        const res = await fetch("/api/partner/upload-image", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) {
+          setStepError(data.error || "Failed to upload image. Please try again.");
+          setUploadingImages(false);
+          return;
         }
-      };
-      reader.readAsDataURL(file);
-    });
+        uploadedUrls.push(data.url);
+      } catch {
+        setStepError("Network error uploading image. Please try again.");
+        setUploadingImages(false);
+        return;
+      }
+    }
+    updateFormData({ images: [...formData.images, ...uploadedUrls] });
+    setUploadingImages(false);
   };
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      handleImageUpload(e.dataTransfer.files);
+      void handleImageUpload(e.dataTransfer.files);
     },
     [formData.images]
   );
@@ -991,12 +1009,13 @@ export default function CreateStudioPage() {
 
         {formData.images.length < 10 && (
           <div
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragOver={(e) => { e.preventDefault(); if (!uploadingImages) setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onDrop={uploadingImages ? undefined : handleDrop}
+            onClick={() => !uploadingImages && fileInputRef.current?.click()}
             className={cn(
-              "border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all",
+              "border-2 border-dashed rounded-2xl p-10 text-center transition-all",
+              uploadingImages ? "border-white/10 opacity-60 cursor-not-allowed" : "cursor-pointer",
               isDragging ? "border-[#D9FC67] bg-[#D9FC67]/10" : "border-white/10 hover:border-white/20"
             )}
           >
@@ -1005,13 +1024,23 @@ export default function CreateStudioPage() {
               type="file"
               accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/jpg,image/png,image/webp"
               multiple
-              onChange={(e) => handleImageUpload(e.target.files)}
+              disabled={uploadingImages}
+              onChange={(e) => void handleImageUpload(e.target.files)}
               className="hidden"
             />
-            <Upload className={cn("w-10 h-10 mx-auto mb-3", isDragging ? "text-[#D9FC67]" : "text-white/40")} />
-            <p className="text-white font-medium mb-1">
-              {isDragging ? "Drop images here" : "Drag & drop or click to upload"}
-            </p>
+            {uploadingImages ? (
+              <>
+                <Loader2 className="w-10 h-10 mx-auto mb-3 text-[#D9FC67] animate-spin" />
+                <p className="text-white font-medium mb-1">Uploading images…</p>
+              </>
+            ) : (
+              <>
+                <Upload className={cn("w-10 h-10 mx-auto mb-3", isDragging ? "text-[#D9FC67]" : "text-white/40")} />
+                <p className="text-white font-medium mb-1">
+                  {isDragging ? "Drop images here" : "Drag & drop or click to upload"}
+                </p>
+              </>
+            )}
             <p className="text-white/40 text-sm">JPG, PNG, WebP — up to 10MB each</p>
           </div>
         )}
@@ -1499,7 +1528,7 @@ export default function CreateStudioPage() {
     }
   };
 
-  const isSubmitDisabled = subscriptionStatus === "no_plan" || subscriptionStatus === "loading";
+  const isSubmitDisabled = subscriptionStatus === "no_plan" || subscriptionStatus === "loading" || uploadingImages;
 
   return (
     <div className="-m-6">
@@ -1546,10 +1575,10 @@ export default function CreateStudioPage() {
           {currentStep < 8 ? (
             <Button
               onClick={handleNext}
-              className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold"
+              disabled={uploadingImages}
+              className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50"
             >
-              Continue
-              <ArrowRight className="w-4 h-4 ml-2" />
+              {uploadingImages ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading…</> : <>Continue <ArrowRight className="w-4 h-4 ml-2" /></>}
             </Button>
           ) : (
             <div className="flex flex-col items-end gap-2">

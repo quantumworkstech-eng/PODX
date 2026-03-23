@@ -110,6 +110,13 @@ export async function POST(request: NextRequest) {
 
   const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
 
+  // Merge equipment + services + amenities into a single text[] for storage
+  const allEquipment = [
+    ...(Array.isArray(equipment) ? equipment : []),
+    ...(Array.isArray(services) ? services : []),
+    ...(Array.isArray(amenities) ? amenities : []),
+  ];
+
   const studioInsert: Record<string, unknown> = {
     name,
     slug,
@@ -123,9 +130,8 @@ export async function POST(request: NextRequest) {
     latitude: latitude ?? null,
     longitude: longitude ?? null,
     owner_id: partnerId,
-    equipment: Array.isArray(equipment) ? equipment : [],
+    equipment: allEquipment,
   };
-  // Store video_url if the column exists (graceful)
   if (videoUrl) studioInsert.video_url = videoUrl;
 
   const { data: studio, error: studioError } = await supabaseAdmin
@@ -136,7 +142,10 @@ export async function POST(request: NextRequest) {
 
   if (studioError || !studio) {
     console.error('Error creating studio:', studioError);
-    return NextResponse.json({ error: 'Failed to create studio' }, { status: 500 });
+    return NextResponse.json(
+      { error: studioError?.message || 'Failed to create studio' },
+      { status: 500 }
+    );
   }
 
   // Create default room
@@ -156,17 +165,6 @@ export async function POST(request: NextRequest) {
       display_order: idx,
     }));
     await supabaseAdmin.from('studio_images').insert(imageRows);
-  }
-
-  // Store amenities (services + amenities combined)
-  const allAmenities = [
-    ...(Array.isArray(services) ? services : []),
-    ...(Array.isArray(amenities) ? amenities : []),
-  ];
-  if (allAmenities.length > 0) {
-    await supabaseAdmin.from('studio_amenities').insert(
-      allAmenities.map((name: string) => ({ studio_id: studio.id, name }))
-    ).maybeSingle(); // ignore error if table doesn't have unique constraint
   }
 
   // Store custom cancellation policies

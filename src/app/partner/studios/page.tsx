@@ -112,6 +112,7 @@ export default function PartnerStudiosPage() {
 
   const [platformAddons, setPlatformAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   useEffect(() => {
     fetch("/api/partner/studios")
@@ -279,23 +280,28 @@ export default function PartnerStudiosPage() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
-    const newImages: string[] = [];
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          newImages.push(reader.result as string);
-          if (newImages.length === files.length) {
-            setFormData((prev) => ({ ...prev, images: [...(prev.images || []), ...newImages] }));
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    setUploadingImages(true);
+    const uploaded: string[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/partner/upload-image", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.url) uploaded.push(data.url);
+      } catch {
+        /* skip failed uploads */
+      }
+    }
+    if (uploaded.length > 0) {
+      setFormData((prev) => ({ ...prev, images: [...(prev.images || []), ...uploaded] }));
+    }
+    setUploadingImages(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (index: number) => {
@@ -650,11 +656,11 @@ export default function PartnerStudiosPage() {
 
               <div>
                 <label className="text-white/60 text-sm mb-2 block">Studio Photos</label>
-                <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center">
-                  <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[#D9FC67] hover:text-[#E8FF8A]">
+                <div className={cn("border-2 border-dashed rounded-xl p-6 text-center", uploadingImages ? "border-white/5 opacity-60" : "border-white/10")}>
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" disabled={uploadingImages} />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingImages} className="text-[#D9FC67] hover:text-[#E8FF8A] disabled:cursor-wait">
                     <Upload className="w-8 h-8 mx-auto mb-2" />
-                    <span className="text-sm">Click to upload or drag and drop</span>
+                    <span className="text-sm">{uploadingImages ? "Uploading..." : "Click to upload or drag and drop"}</span>
                   </button>
                 </div>
                 {formData.images && formData.images.length > 0 && (
@@ -676,9 +682,9 @@ export default function PartnerStudiosPage() {
               <Button type="button" variant="outline" onClick={handleCloseModal} className="border-white/10 text-white hover:bg-white/5">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black">
-                {isLoading ? "Saving..." : editingStudio ? "Update Studio" : "Create Studio"}
-                {!isLoading && <Check className="w-4 h-4 ml-2" />}
+              <Button type="submit" disabled={isLoading || uploadingImages} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black">
+                {uploadingImages ? "Uploading images..." : isLoading ? "Saving..." : editingStudio ? "Update Studio" : "Create Studio"}
+                {!isLoading && !uploadingImages && <Check className="w-4 h-4 ml-2" />}
               </Button>
             </DialogFooter>
           </form>

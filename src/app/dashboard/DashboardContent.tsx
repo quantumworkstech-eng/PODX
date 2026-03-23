@@ -106,13 +106,13 @@ export default function DashboardContent() {
           const { bookings: apiBookings } = await res.json();
           if (apiBookings && apiBookings.length > 0) {
             const sorted = [...apiBookings].sort((a: BookingData, b: BookingData) => {
-              const aDate = new Date(a.date).getTime();
-              const bDate = new Date(b.date).getTime();
               const now = Date.now();
-              const aUp = aDate >= now;
-              const bUp = bDate >= now;
-              if (aUp && bUp) return aDate - bDate;
-              if (!aUp && !bUp) return bDate - aDate;
+              const aEnd = new Date(a.date).getTime() + (a.duration || 1) * 3600000;
+              const bEnd = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
+              const aUp = aEnd >= now;
+              const bUp = bEnd >= now;
+              if (aUp && bUp) return new Date(a.date).getTime() - new Date(b.date).getTime();
+              if (!aUp && !bUp) return new Date(b.date).getTime() - new Date(a.date).getTime();
               return aUp ? -1 : 1;
             });
             setBookings(sorted);
@@ -129,13 +129,13 @@ export default function DashboardContent() {
         try {
           const parsed = JSON.parse(stored) as BookingData[];
           parsed.sort((a: BookingData, b: BookingData) => {
-            const aDate = new Date(a.date).getTime();
-            const bDate = new Date(b.date).getTime();
             const now = Date.now();
-            const aUp = aDate >= now;
-            const bUp = bDate >= now;
-            if (aUp && bUp) return aDate - bDate;
-            if (!aUp && !bUp) return bDate - aDate;
+            const aEnd = new Date(a.date).getTime() + (a.duration || 1) * 3600000;
+            const bEnd = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
+            const aUp = aEnd >= now;
+            const bUp = bEnd >= now;
+            if (aUp && bUp) return new Date(a.date).getTime() - new Date(b.date).getTime();
+            if (!aUp && !bUp) return new Date(b.date).getTime() - new Date(a.date).getTime();
             return aUp ? -1 : 1;
           });
           setBookings(parsed);
@@ -173,16 +173,19 @@ export default function DashboardContent() {
   const upcomingBookings = bookings
     .filter((b) => {
       if (!b.date) return false;
-      const bookingDate = new Date(b.date);
-      return bookingDate >= new Date() && (b.status === "confirmed" || b.status === "pending");
+      // A booking is upcoming until its END time passes (start + duration hours)
+      const startTime = new Date(b.date);
+      const endTime = new Date(startTime.getTime() + (b.duration || 1) * 60 * 60 * 1000);
+      return endTime >= new Date() && (b.status === "confirmed" || b.status === "pending");
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // nearest first
 
   const pastBookings = bookings
     .filter((b) => {
       if (!b.date) return false;
-      const bookingDate = new Date(b.date);
-      return bookingDate < new Date() || b.status === "completed" || b.status === "cancelled";
+      const startTime = new Date(b.date);
+      const endTime = new Date(startTime.getTime() + (b.duration || 1) * 60 * 60 * 1000);
+      return endTime < new Date() || b.status === "completed" || b.status === "cancelled";
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // most recent first
 

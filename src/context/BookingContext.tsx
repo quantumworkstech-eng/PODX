@@ -42,6 +42,8 @@ interface BookingState {
   partnerId: string | null;
   bookingSource: "marketplace" | "whitelabel" | "partner_direct" | null;
   partnerBranding: PartnerBrandingBasic | null;
+  // Tax invoice
+  gstNumber: string;
 }
 
 interface StoredBooking {
@@ -96,6 +98,7 @@ interface BookingContextType extends BookingState {
   setSelectedCity: (city: string | null) => void;
   setSelectionMode: (mode: "studio" | "date") => void;
   setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
+  setGstNumber: (gst: string) => void;
   // White-label partner context
   setPartnerContext: (slug: string | null, partnerId: string | null, source: "marketplace" | "whitelabel" | "partner_direct" | null) => void;
   setPartnerBranding: (branding: PartnerBrandingBasic | null) => void;
@@ -123,6 +126,7 @@ const initialState: BookingState = {
   partnerId: null,
   bookingSource: null,
   partnerBranding: null,
+  gstNumber: "",
 };
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -373,6 +377,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, appliedCoupon: coupon }));
   }, []);
 
+  const setGstNumber = useCallback((gst: string) => {
+    setState((prev) => ({ ...prev, gstNumber: gst }));
+  }, []);
+
   const setPartnerContext = useCallback(
     (slug: string | null, partnerId: string | null, source: "marketplace" | "whitelabel" | "partner_direct" | null) => {
       setState((prev) => ({ ...prev, partnerSlug: slug, partnerId, bookingSource: source }));
@@ -435,6 +443,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setSelectedCity,
     setSelectionMode,
     setAppliedCoupon,
+    setGstNumber,
     setPartnerContext,
     setPartnerBranding,
   };

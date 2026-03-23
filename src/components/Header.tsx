@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, X } from "lucide-react";
@@ -15,6 +16,9 @@ const navItems = [
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isLoggedIn = !!session?.user;
+  const dashboardHref = (session?.user as any)?.role === "partner" ? "/partner/dashboard" : "/dashboard";
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5">
@@ -46,11 +50,19 @@ export function Header() {
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-sm font-medium text-white/80 hover:text-white hover:bg-white/10">
-                Login
-              </Button>
-            </Link>
+            {isLoggedIn ? (
+              <Link href={dashboardHref} className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="text-sm font-medium text-white/80 hover:text-white hover:bg-white/10">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/auth/login" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="text-sm font-medium text-white/80 hover:text-white hover:bg-white/10">
+                  Login
+                </Button>
+              </Link>
+            )}
 
             <Link href="/book" className="hidden sm:block">
               <Button
@@ -100,11 +112,19 @@ export function Header() {
                   </nav>
 
                   <div className="p-5 border-t border-white/10 space-y-3">
-                    <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)} className="block">
-                      <Button variant="outline" className="w-full justify-center bg-white/5 border-white/20 text-white hover:bg-white/10">
-                        Login
-                      </Button>
-                    </Link>
+                    {isLoggedIn ? (
+                      <Link href={dashboardHref} onClick={() => setIsMobileMenuOpen(false)} className="block">
+                        <Button variant="outline" className="w-full justify-center bg-white/5 border-white/20 text-white hover:bg-white/10">
+                          Dashboard
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)} className="block">
+                        <Button variant="outline" className="w-full justify-center bg-white/5 border-white/20 text-white hover:bg-white/10">
+                          Login
+                        </Button>
+                      </Link>
+                    )}
                     <Link href="/book" onClick={() => setIsMobileMenuOpen(false)} className="block">
                       <Button className="w-full justify-center bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 text-black font-semibold rounded-full">
                         Book Now

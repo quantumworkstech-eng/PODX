@@ -58,6 +58,8 @@ export function CheckoutStep() {
     selectionMode,
     appliedCoupon,
     setAppliedCoupon,
+    gstNumber,
+    setGstNumber,
   } = useBooking();
 
   const { data: session } = useSession();
@@ -470,6 +472,21 @@ export function CheckoutStep() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* GST number for tax invoice */}
+            <div className="mb-5">
+              <label className="text-white/50 text-xs mb-1.5 block">
+                GST Number <span className="text-white/30">(optional — for tax invoice)</span>
+              </label>
+              <input
+                type="text"
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                placeholder="e.g. 27AABCU9603R1ZX"
+                maxLength={15}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#D9FC67]/50 uppercase"
+              />
             </div>
 
             <div className="border-t border-white/10 pt-4 mb-5 space-y-2">

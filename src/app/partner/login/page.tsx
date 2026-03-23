@@ -27,7 +27,6 @@ function PartnerLoginContent() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
 
   // Display OAuth errors returned by NextAuth via ?error= query param
   useEffect(() => {
@@ -87,7 +86,7 @@ function PartnerLoginContent() {
       setIsLoading(false);
       return;
     }
-    const result = await signIn("credentials", { email, token: verifyData.token, rememberMe: String(rememberMe), redirect: false });
+    const result = await signIn("credentials", { email, token: verifyData.token, rememberMe: "true", redirect: false });
     if (result?.error) {
       setError("Sign in failed. Please try again.");
       setIsLoading(false);
@@ -143,12 +142,6 @@ function PartnerLoginContent() {
                   <Input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:ring-[#D9FC67]/20 rounded-full" required />
                 </div>
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <div onClick={() => setRememberMe((v) => !v)} className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${rememberMe ? "bg-[#D9FC67] border-[#D9FC67]" : "bg-transparent border-white/30"}`}>
-                    {rememberMe && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </div>
-                  <span className="text-sm text-white/60">Remember me for 30 days</span>
-                </label>
                 <Button type="submit" disabled={isLoading} className="w-full h-12 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-full disabled:opacity-50">
                   {isLoading ? "Sending code…" : "Send verification code"} <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
