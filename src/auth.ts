@@ -27,6 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         token: { label: "Verification Token", type: "text" },
+        rememberMe: { label: "Remember Me", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.token) return null;
@@ -57,7 +58,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null;
 
-        return { id: user.id, email: user.email, name: user.email.split("@")[0] };
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.email.split("@")[0],
+          rememberMe: credentials.rememberMe !== "false",
+        };
       },
     }),
     // Admin password login — credentials already verified by the server action before this runs
@@ -143,6 +149,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return token;
       }
 
+      // Handle "Remember Me" — set a short expiry (1 day) if not remembered.
+      // Remembered sessions use the default 30-day maxAge set in session config.
+      const isNewSignIn = !!(user || account);
+      if (isNewSignIn) {
+        const rememberMe = (user as any)?.rememberMe !== false; // default true
+        if (!rememberMe) {
+          // Expire this token in 24 hours regardless of cookie maxAge
+          token.exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+        }
+      }
+
       // Look up the DB user to get our internal UUID and role.
       // Runs on first sign-in (user/account populated) or when id is missing from token.
       if (supabaseAdmin && (user || account || !token.id)) {
@@ -196,6 +213,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30-day cookie lifetime (overridden per-session by token.exp when rememberMe=false)
   },
   secret: NEXTAUTH_SECRET,
   trustHost: true,

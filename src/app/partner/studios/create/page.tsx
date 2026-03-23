@@ -225,6 +225,12 @@ export default function CreateStudioPage() {
   const [platformAddons, setPlatformAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<"active" | "no_plan" | "loading" | null>(null);
+
+  // Dynamic equipment/services/amenities from DB
+  const [platformEquipment, setPlatformEquipment] = useState<{ id: string; category: string; slug: string; name: string }[]>([]);
+  const [customEquipment, setCustomEquipment] = useState<{ id: string; category: string; name: string }[]>([]);
+  const [equipmentLoaded, setEquipmentLoaded] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -232,6 +238,20 @@ export default function CreateStudioPage() {
   useEffect(() => {
     getCities().then(setCities).catch(console.error);
   }, []);
+
+  // Load equipment options when reaching step 4
+  useEffect(() => {
+    if (currentStep === 4 && !equipmentLoaded) {
+      Promise.all([
+        fetch("/api/admin/equipment").then((r) => r.json()),
+        fetch("/api/partner/custom-equipment").then((r) => r.json()),
+      ]).then(([platform, custom]) => {
+        setPlatformEquipment(platform.items || []);
+        setCustomEquipment(custom.items || []);
+        setEquipmentLoaded(true);
+      }).catch(() => setEquipmentLoaded(true));
+    }
+  }, [currentStep, equipmentLoaded]);
 
   // Load platform add-ons when reaching step 5
   useEffect(() => {
@@ -789,118 +809,114 @@ export default function CreateStudioPage() {
 
   // ─── Step 4: Equipment & Services ────────────────────────────────────────────
 
-  const renderStep4 = () => (
-    <div className="space-y-6 animate-fade-in">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Equipment & Services</h2>
-        <p className="text-white/60">What equipment and services does your studio offer?</p>
+  const renderEquipmentGrid = (
+    items: { id: string; slug?: string; name: string }[],
+    field: "equipment" | "services" | "amenities"
+  ) => {
+    const selected: string[] = formData[field];
+    return items.map((item) => {
+      const key = item.slug ?? item.id;
+      const isSelected = selected.includes(key);
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => {
+            const next = isSelected ? selected.filter((v) => v !== key) : [...selected, key];
+            updateFormData({ [field]: next });
+          }}
+          className={cn(
+            "relative p-4 rounded-xl border transition-all flex flex-col items-center gap-2 text-center",
+            isSelected ? "border-[#D9FC67] bg-[#D9FC67]/10" : "border-white/10 bg-white/5 hover:border-white/20"
+          )}
+        >
+          <span className={cn("text-xs leading-tight", isSelected ? "text-white" : "text-white/60")}>{item.name}</span>
+          {isSelected && <CheckCircle className="absolute top-2 right-2 w-4 h-4 text-[#D9FC67]" />}
+        </button>
+      );
+    });
+  };
+
+  const renderStep4 = () => {
+    // Merge platform defaults + custom (custom items use custom_ prefix to avoid collision)
+    const equipItems = [
+      ...(platformEquipment.filter((i) => i.category === "equipment").length > 0
+        ? platformEquipment.filter((i) => i.category === "equipment")
+        : EQUIPMENT_OPTIONS.map((o) => ({ id: o.id, category: "equipment", slug: o.id, name: o.name }))),
+      ...customEquipment.filter((i) => i.category === "equipment").map((i) => ({ ...i, slug: `custom_${i.id}` })),
+    ];
+    const serviceItems = [
+      ...(platformEquipment.filter((i) => i.category === "service").length > 0
+        ? platformEquipment.filter((i) => i.category === "service")
+        : SERVICES_OPTIONS.map((o) => ({ id: o.id, category: "service", slug: o.id, name: o.name }))),
+      ...customEquipment.filter((i) => i.category === "service").map((i) => ({ ...i, slug: `custom_${i.id}` })),
+    ];
+    const amenityItems = [
+      ...(platformEquipment.filter((i) => i.category === "amenity").length > 0
+        ? platformEquipment.filter((i) => i.category === "amenity")
+        : AMENITIES_OPTIONS.map((o) => ({ id: o.id, category: "amenity", slug: o.id, name: o.name }))),
+      ...customEquipment.filter((i) => i.category === "amenity").map((i) => ({ ...i, slug: `custom_${i.id}` })),
+    ];
+
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-white mb-2">Equipment & Services</h2>
+          <p className="text-white/60">What equipment and services does your studio offer?</p>
+        </div>
+
+        {!equipmentLoaded && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 text-[#D9FC67] animate-spin mr-2" />
+            <span className="text-white/40 text-sm">Loading options…</span>
+          </div>
+        )}
+
+        {equipmentLoaded && (
+          <div className="space-y-8">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Equipment</p>
+                  <p className="text-white/40 text-xs mt-0.5">Select all equipment available in your studio</p>
+                </div>
+                <a href="/partner/equipment" target="_blank" className="text-xs text-[#D9FC67]/70 hover:text-[#D9FC67] transition-colors">
+                  + Manage custom →
+                </a>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {renderEquipmentGrid(equipItems, "equipment")}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Services Offered</p>
+                  <p className="text-white/40 text-xs mt-0.5">Select services your studio provides to clients</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {renderEquipmentGrid(serviceItems, "services")}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Amenities</p>
+                  <p className="text-white/40 text-xs mt-0.5">Additional facilities available at your studio</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {renderEquipmentGrid(amenityItems, "amenities")}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="space-y-8">
-        <div>
-          <div className="mb-3">
-            <p className="text-white/80 text-sm font-medium">Equipment</p>
-            <p className="text-white/40 text-xs mt-0.5">Select all equipment available in your studio</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {EQUIPMENT_OPTIONS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  const newEquipment = formData.equipment.includes(item.id)
-                    ? formData.equipment.filter((e) => e !== item.id)
-                    : [...formData.equipment, item.id];
-                  updateFormData({ equipment: newEquipment });
-                }}
-                className={cn(
-                  "relative p-4 rounded-xl border transition-all flex flex-col items-center gap-2",
-                  formData.equipment.includes(item.id)
-                    ? "border-[#D9FC67] bg-[#D9FC67]/10"
-                    : "border-white/10 bg-white/5 hover:border-white/20"
-                )}
-              >
-                <item.icon className={cn("w-6 h-6", formData.equipment.includes(item.id) ? "text-[#D9FC67]" : "text-white/60")} />
-                <span className={cn("text-xs text-center leading-tight", formData.equipment.includes(item.id) ? "text-white" : "text-white/60")}>
-                  {item.name}
-                </span>
-                {formData.equipment.includes(item.id) && (
-                  <CheckCircle className="absolute top-2 right-2 w-4 h-4 text-[#D9FC67]" />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-3">
-            <p className="text-white/80 text-sm font-medium">Services Offered</p>
-            <p className="text-white/40 text-xs mt-0.5">Select services your studio provides to clients</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {SERVICES_OPTIONS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  const newServices = formData.services.includes(item.id)
-                    ? formData.services.filter((s) => s !== item.id)
-                    : [...formData.services, item.id];
-                  updateFormData({ services: newServices });
-                }}
-                className={cn(
-                  "relative p-4 rounded-xl border transition-all flex flex-col items-center gap-2",
-                  formData.services.includes(item.id)
-                    ? "border-[#D9FC67] bg-[#D9FC67]/10"
-                    : "border-white/10 bg-white/5 hover:border-white/20"
-                )}
-              >
-                <item.icon className={cn("w-6 h-6", formData.services.includes(item.id) ? "text-[#D9FC67]" : "text-white/60")} />
-                <span className={cn("text-xs text-center", formData.services.includes(item.id) ? "text-white" : "text-white/60")}>
-                  {item.name}
-                </span>
-                {formData.services.includes(item.id) && (
-                  <CheckCircle className="absolute top-2 right-2 w-4 h-4 text-[#D9FC67]" />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-3">
-            <p className="text-white/80 text-sm font-medium">Amenities</p>
-            <p className="text-white/40 text-xs mt-0.5">Additional facilities available at your studio</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {AMENITIES_OPTIONS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  const newAmenities = formData.amenities.includes(item.id)
-                    ? formData.amenities.filter((a) => a !== item.id)
-                    : [...formData.amenities, item.id];
-                  updateFormData({ amenities: newAmenities });
-                }}
-                className={cn(
-                  "relative p-4 rounded-xl border transition-all flex flex-col items-center gap-2",
-                  formData.amenities.includes(item.id)
-                    ? "border-[#D9FC67] bg-[#D9FC67]/10"
-                    : "border-white/10 bg-white/5 hover:border-white/20"
-                )}
-              >
-                <item.icon className={cn("w-6 h-6", formData.amenities.includes(item.id) ? "text-[#D9FC67]" : "text-white/60")} />
-                <span className={cn("text-xs text-center", formData.amenities.includes(item.id) ? "text-white" : "text-white/60")}>
-                  {item.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // ─── Step 5: Add-ons ─────────────────────────────────────────────────────────
 
@@ -1486,23 +1502,21 @@ export default function CreateStudioPage() {
   const isSubmitDisabled = subscriptionStatus === "no_plan" || subscriptionStatus === "loading";
 
   return (
-    <div className="min-h-screen bg-[#09090b]">
-      <header className="border-b border-white/5 px-6 py-4 sticky top-0 bg-[#09090b]/95 backdrop-blur-sm z-10">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+    <div className="-m-6">
+      <header className="border-b border-white/5 px-6 py-3 bg-[#09090b]">
+        <div className="flex items-center justify-between">
           <Link href="/partner/studios" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
             <ChevronLeft className="w-4 h-4" />
             Back to Studios
           </Link>
           <h1 className="text-lg font-bold text-white">Create New Studio</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-white/30 text-xs">
-              {typeof window !== "undefined" && localStorage.getItem(DRAFT_KEY) ? "Draft saved" : ""}
-            </span>
-          </div>
+          <span className="text-white/30 text-xs">
+            {typeof window !== "undefined" && localStorage.getItem(DRAFT_KEY) ? "Draft saved" : ""}
+          </span>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
         {renderStepIndicator()}
 
         <div className="bg-[#141414] border border-white/5 rounded-2xl p-6 sm:p-8">

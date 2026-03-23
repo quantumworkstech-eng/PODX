@@ -11,8 +11,6 @@ import {
 import { cn } from "@/lib/utils";
 import { adminSignOut } from "./login/actions";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { ThemeToggle } from "@/components/ThemeToggle";
-
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
   { id: "users", label: "Users", icon: Users, href: "/admin/users" },
@@ -22,6 +20,7 @@ const menuItems = [
   { id: "payments", label: "Payments", icon: CreditCard, href: "/admin/payments" },
   { id: "reviews", label: "Reviews", icon: Star, href: "/admin/reviews" },
   { id: "addons", label: "Add-ons", icon: Package, href: "/admin/addons" },
+  { id: "equipment", label: "Equipment & Services", icon: Package, href: "/admin/equipment" },
   { id: "landing", label: "Landing Page", icon: Layout, href: "/admin/landing" },
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { id: "notifications", label: "Notifications", icon: Bell, href: "/admin/notifications" },
@@ -148,8 +147,6 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
                 <Shield className="w-3.5 h-3.5 text-red-400" />
                 <span className="text-xs text-red-400 font-medium">Admin Panel</span>
               </div>
-
-              <ThemeToggle />
 
               <NotificationBell userEmail={email} />
 

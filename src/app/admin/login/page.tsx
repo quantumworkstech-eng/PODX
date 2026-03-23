@@ -14,6 +14,7 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +41,7 @@ export default function AdminLoginPage() {
       const setResult = await adminSetPassword(email, password);
       if ("error" in setResult) { setError(setResult.error); return; }
       // Password saved — now sign in (server action sets cookie + redirects)
-      const signInResult = await adminSignIn(email, password);
+      const signInResult = await adminSignIn(email, password, rememberMe);
       if (signInResult && "error" in signInResult) setError(signInResult.error);
     } catch {
       setError("Something went wrong. Please try again.");
@@ -54,7 +55,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError("");
     try {
-      const result = await adminSignIn(email, password);
+      const result = await adminSignIn(email, password, rememberMe);
       // If result returned (not redirected), it's an error
       if (result && "error" in result) setError(result.error);
     } catch {
@@ -176,6 +177,12 @@ export default function AdminLoginPage() {
                     </button>
                   </div>
                 </div>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <div onClick={() => setRememberMe((v) => !v)} className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${rememberMe ? "bg-red-500 border-red-500" : "bg-transparent border-white/30"}`}>
+                    {rememberMe && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <span className="text-sm text-white/60">Remember me for 30 days</span>
+                </label>
                 <button type="submit" disabled={loading}
                   className="w-full h-12 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {loading

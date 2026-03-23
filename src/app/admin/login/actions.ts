@@ -48,7 +48,7 @@ export async function adminCheckEmail(email: string): Promise<{ error: string } 
 }
 
 // Signs in admin by setting a custom cookie — no NextAuth involved
-export async function adminSignIn(email: string, password: string): Promise<{ error: string } | void> {
+export async function adminSignIn(email: string, password: string, rememberMe = true): Promise<{ error: string } | void> {
   if (!supabaseAdmin) return { error: "DB not configured." };
 
   const { data: admin, error: dbErr } = await supabaseAdmin
@@ -65,10 +65,11 @@ export async function adminSignIn(email: string, password: string): Promise<{ er
   if (!valid) return { error: "Incorrect password." };
 
   // Create signed JWT stored as httpOnly cookie
+  const sessionDays = rememberMe ? 30 : 1;
   const token = await new SignJWT({ email: admin.email, role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(`${sessionDays}d`)
     .sign(secret);
 
   const cookieStore = await cookies();
@@ -76,7 +77,7 @@ export async function adminSignIn(email: string, password: string): Promise<{ er
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60,
+    maxAge: rememberMe ? 30 * 24 * 60 * 60 : undefined, // undefined = session cookie
     path: "/",
   });
 

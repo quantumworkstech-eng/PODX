@@ -24,7 +24,6 @@ import {
   Tag,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
@@ -37,6 +36,7 @@ const menuItems = [
   { id: "analytics", label: "Analytics", icon: TrendingUp, href: "/partner/analytics" },
   { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings" },
   { id: "billing", label: "Billing & Plans", icon: CreditCard, href: "/partner/billing" },
+  { id: "equipment", label: "Equipment & Services", icon: Settings, href: "/partner/equipment" },
   { id: "coupons", label: "Coupons", icon: Tag, href: "/partner/coupons" },
   { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
   { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel", badge: "New" },
@@ -238,8 +238,6 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                       {activeStudios} Active Studio{activeStudios !== 1 ? "s" : ""}
                     </span>
                   </div>
-
-                  <ThemeToggle />
 
                   <NotificationBell userEmail={session?.user?.email} />
 
