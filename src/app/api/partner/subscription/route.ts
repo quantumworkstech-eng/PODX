@@ -28,7 +28,7 @@ export async function GET() {
     getPartnerSubscription(partnerId),
     supabaseAdmin
       .from('subscription_payments')
-      .select('id, amount, billing_cycle, status, period_start, period_end, created_at, plan:subscription_plans(name, tier)')
+      .select('id, amount, billing_cycle, status, period_start, period_end, created_at, razorpay_order_id, plan:subscription_plans(name, tier)')
       .eq('partner_id', partnerId)
       .order('created_at', { ascending: false })
       .limit(10),

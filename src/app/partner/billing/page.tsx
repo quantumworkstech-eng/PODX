@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   CreditCard, CheckCircle2, AlertTriangle, XCircle,
-  Sparkles, Building2, Globe, BarChart3, Cpu, ChevronDown, X,
+  Sparkles, Building2, Globe, BarChart3, Cpu, ChevronDown, X, CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -40,6 +40,7 @@ interface PaymentRecord {
   period_start: string;
   period_end: string;
   created_at: string;
+  razorpay_order_id?: string;
   plan: { name: string; tier: string };
 }
 
@@ -102,6 +103,8 @@ export default function BillingPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null); // plan detail modal
+  const [resumeLoading, setResumeLoading] = useState<string | null>(null); // payment id being resumed
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -191,6 +194,56 @@ export default function BillingPage() {
       fetchData();
     } else {
       setErrorMsg(data.error);
+    }
+  };
+
+  // Resume a pending Razorpay order (use existing order_id instead of creating new one)
+  const handleResumePayment = async (payment: PaymentRecord) => {
+    if (!payment.razorpay_order_id) return;
+    setResumeLoading(payment.id);
+    setErrorMsg(null);
+    try {
+      await new Promise<void>((resolve) => {
+        if ((window as any).Razorpay) { resolve(); return; }
+        const s = document.createElement("script");
+        s.src = "https://checkout.razorpay.com/v1/checkout.js";
+        s.onload = () => resolve();
+        document.body.appendChild(s);
+      });
+
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const rp = new (window as any).Razorpay({
+        key: keyId,
+        amount: payment.amount * 100,
+        currency: "INR",
+        order_id: payment.razorpay_order_id,
+        name: "PodX",
+        description: `${payment.plan?.name || "Subscription"} Plan`,
+        theme: { color: "#D9FC67" },
+        handler: async (response: any) => {
+          const verifyRes = await fetch("/api/partner/subscription/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyRes.ok) {
+            setSuccessMsg(`Payment completed! You're now on the ${payment.plan?.name || ""} plan.`);
+            fetchData();
+          } else {
+            setErrorMsg(verifyData.error || "Payment verification failed");
+          }
+        },
+      });
+      rp.open();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setResumeLoading(null);
     }
   };
 
@@ -365,7 +418,7 @@ export default function BillingPage() {
 
                 <Button
                   disabled={isCurrent || checkoutLoading}
-                  onClick={() => handleCheckout(plan)}
+                  onClick={() => !isCurrent && setSelectedPlan(plan)}
                   className={`w-full rounded-xl font-semibold text-sm ${
                     isCurrent
                       ? "bg-white/10 text-white/40 cursor-default"
@@ -376,7 +429,7 @@ export default function BillingPage() {
                       : "bg-white/10 hover:bg-white/20 text-white"
                   }`}
                 >
-                  {isCurrent ? "Current Plan" : checkoutLoading ? "Processing…" : subscription ? "Switch Plan" : "Subscribe"}
+                  {isCurrent ? "Current Plan" : "View Plan Details"}
                 </Button>
               </div>
             );
@@ -397,6 +450,7 @@ export default function BillingPage() {
                   <th className="text-left px-4 py-3 text-white/40 font-medium">Amount</th>
                   <th className="text-left px-4 py-3 text-white/40 font-medium">Period</th>
                   <th className="text-left px-4 py-3 text-white/40 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 text-white/40 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -419,6 +473,17 @@ export default function BillingPage() {
                         {p.status}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      {p.status === "pending" && p.razorpay_order_id && (
+                        <button
+                          onClick={() => handleResumePayment(p)}
+                          disabled={resumeLoading === p.id}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-[#D9FC67]/10 text-[#D9FC67] hover:bg-[#D9FC67]/20 transition-colors disabled:opacity-50"
+                        >
+                          {resumeLoading === p.id ? "Opening…" : "Complete Payment"}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -436,6 +501,66 @@ export default function BillingPage() {
           >
             Cancel Subscription
           </button>
+        </div>
+      )}
+
+      {/* ── Plan Detail Modal ── */}
+      {selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg bg-[#111111] border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium mb-2 inline-block ${TIER_COLORS[selectedPlan.tier]}`}>
+                  {selectedPlan.tier.toUpperCase()}
+                </span>
+                <h3 className="text-xl font-bold text-white">{selectedPlan.name}</h3>
+                <p className="text-white/40 text-sm">{formatPrice(selectedPlan.price)} / {selectedPlan.billing_cycle === "annual" ? "year" : "month"}</p>
+              </div>
+              <button onClick={() => setSelectedPlan(null)} className="text-white/40 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <p className="text-white/50 text-xs uppercase tracking-wider font-medium">What&apos;s included</p>
+
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { label: "Studio Listings", value: selectedPlan.max_studios === null ? "Unlimited" : `Up to ${selectedPlan.max_studios}`, icon: Building2 },
+                  { label: "Platform Commission", value: `${selectedPlan.commission_pct}% per booking`, icon: Sparkles },
+                  { label: "Analytics", value: selectedPlan.analytics_level === "full" ? "Full analytics (studio performance, top clients, peak hours)" : "Basic analytics (revenue & bookings summary)", icon: BarChart3 },
+                  { label: "White-Label Booking Page", value: selectedPlan.whitelabel_enabled ? "Included — custom branded booking link" : "Not included", icon: Globe },
+                  { label: "API Access", value: selectedPlan.api_access ? "Full REST API access" : "Not included", icon: Cpu },
+                  { label: "Billing Cycle", value: selectedPlan.billing_cycle === "annual" ? "Annual (billed once a year)" : "Monthly (billed every month)", icon: CreditCard },
+                ].map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="flex items-start gap-3 p-3 bg-white/[0.03] rounded-xl border border-white/5">
+                    <Icon className="w-4 h-4 text-white/30 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-white/60 text-xs">{label}</p>
+                      <p className="text-white text-sm font-medium">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setSelectedPlan(null)} className="flex-1 border border-white/10 text-white/70 hover:text-white">
+                Back to Plans
+              </Button>
+              <Button
+                disabled={checkoutLoading}
+                onClick={() => { setSelectedPlan(null); handleCheckout(selectedPlan); }}
+                className={`flex-1 font-semibold ${
+                  selectedPlan.tier === "enterprise" ? "bg-amber-400 hover:bg-amber-300 text-black" :
+                  selectedPlan.tier === "pro" ? "bg-blue-500 hover:bg-blue-400 text-white" :
+                  "bg-[#D9FC67] hover:bg-[#E8FF8A] text-black"
+                }`}
+              >
+                {checkoutLoading ? "Processing…" : subscription ? "Switch to This Plan" : "Subscribe Now"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

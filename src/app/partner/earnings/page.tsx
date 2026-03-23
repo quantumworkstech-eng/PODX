@@ -59,12 +59,18 @@ export default function PartnerEarningsPage() {
   else filterDate.setFullYear(now.getFullYear() - 1);
 
   const filteredBookings = bookings.filter((b) => new Date(b.date) >= filterDate);
+  // Count both confirmed (paid, running) and completed bookings as earned revenue
+  const earnedBookings = filteredBookings.filter((b) => b.status === "confirmed" || b.status === "completed");
   const completedBookings = filteredBookings.filter((b) => b.status === "completed");
   const confirmedBookings = filteredBookings.filter((b) => b.status === "confirmed");
   const cancelledBookings = filteredBookings.filter((b) => b.status === "cancelled");
 
-  const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
-  const pendingEarnings = confirmedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+  const totalRevenue = earnedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+  // Pending earnings = confirmed sessions not yet marked complete
+  const pendingEarnings = confirmedBookings.reduce((sum, b) => {
+    const endTime = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
+    return endTime > Date.now() ? sum + b.totalPrice : sum;
+  }, 0);
   const platformFee = totalRevenue * 0.1;
   const netEarnings = totalRevenue - platformFee;
 

@@ -36,17 +36,23 @@ export default function PartnerAnalyticsPage() {
   const [period, setPeriod] = useState("30");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`/api/partner/analytics?period=${period}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Failed to load analytics");
+        return json;
+      })
       .then(setData)
-      .catch(console.error)
+      .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [period]);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
@@ -54,7 +60,21 @@ export default function PartnerAnalyticsPage() {
     );
   }
 
-  const { summary, studioPerformance, dailyChart, peakHours, topClients } = data;
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <BarChart3 className="w-12 h-12 text-white/20" />
+        <p className="text-white/40 text-sm">{error || "No analytics data available."}</p>
+      </div>
+    );
+  }
+
+  // Normalise — basic tier omits studioPerformance / topClients
+  const summary = data.summary ?? { totalRevenue: 0, netEarnings: 0, pendingPayout: 0, totalBookings: 0, cancelledCount: 0, cancellationRate: 0, totalClients: 0, newClients: 0, repeatClients: 0 };
+  const studioPerformance = data.studioPerformance ?? [];
+  const dailyChart = data.dailyChart ?? [];
+  const peakHours = data.peakHours ?? [];
+  const topClients = data.topClients ?? [];
 
   // Find max for bar chart normalization
   const maxDailyRevenue = Math.max(...dailyChart.map((d) => d.revenue), 1);

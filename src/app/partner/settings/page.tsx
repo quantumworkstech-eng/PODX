@@ -5,15 +5,16 @@ import {
   User,
   Mail,
   Phone,
-  Lock,
   Bell,
   Shield,
   CreditCard,
-  LogOut,
   Camera,
   Save,
   Check,
   Building2,
+  X,
+  Smartphone,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ export default function PartnerSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("Settings saved successfully!");
 
   const [profile, setProfile] = useState({
     name: "",
@@ -31,6 +33,23 @@ export default function PartnerSettingsPage() {
     phone: "",
     businessName: "",
   });
+
+  // Bank account form state
+  const [bankForm, setBankForm] = useState({
+    accountHolderName: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifscCode: "",
+    bankName: "",
+    accountType: "savings" as "savings" | "current",
+    upiId: "",
+  });
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankError, setBankError] = useState<string | null>(null);
+  const [bankSuccess, setBankSuccess] = useState(false);
+
+  // 2FA modal
+  const [show2FAModal, setShow2FAModal] = useState(false);
 
   useEffect(() => {
     fetch("/api/partner/profile")
@@ -50,6 +69,12 @@ export default function PartnerSettingsPage() {
     emailDigest: false,
   });
 
+  const showSuccessFor = (msg = "Settings saved successfully!") => {
+    setSuccessMsg(msg);
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -58,12 +83,46 @@ export default function PartnerSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: profile.name, phone: profile.phone, businessName: profile.businessName }),
       });
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
+      showSuccessFor();
     } catch (err) {
       console.error("Failed to save profile:", err);
     }
     setIsSaving(false);
+  };
+
+  const handleBankSave = async () => {
+    setBankError(null);
+    if (!bankForm.accountHolderName.trim()) return setBankError("Account holder name is required.");
+    if (!bankForm.accountNumber.trim()) return setBankError("Account number is required.");
+    if (bankForm.accountNumber !== bankForm.confirmAccountNumber) return setBankError("Account numbers do not match.");
+    if (!bankForm.ifscCode.trim() || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankForm.ifscCode.toUpperCase())) return setBankError("Enter a valid IFSC code (e.g. HDFC0001234).");
+    if (!bankForm.bankName.trim()) return setBankError("Bank name is required.");
+
+    setBankSaving(true);
+    try {
+      const res = await fetch("/api/partner/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bank_account: bankForm.accountNumber,
+          ifsc_code: bankForm.ifscCode.toUpperCase(),
+          account_holder_name: bankForm.accountHolderName,
+          bank_name: bankForm.bankName,
+          account_type: bankForm.accountType,
+          upi_id: bankForm.upiId || null,
+          payment_method: "bank_transfer",
+          action: "save_bank_details",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save bank details");
+      setBankSuccess(true);
+      showSuccessFor("Bank account saved successfully!");
+    } catch (err: any) {
+      setBankError(err.message);
+    } finally {
+      setBankSaving(false);
+    }
   };
 
   const tabs = [
@@ -83,7 +142,7 @@ export default function PartnerSettingsPage() {
       {showSuccess && (
         <div className="flex items-center gap-3 p-4 bg-green-400/10 border border-green-400/20 rounded-xl text-green-400">
           <Check className="w-5 h-5" />
-          Settings saved successfully!
+          {successMsg}
         </div>
       )}
 
@@ -203,12 +262,25 @@ export default function PartnerSettingsPage() {
               </div>
 
               <div className="p-4 bg-white/5 rounded-xl">
-                <div className="flex items-center gap-3 mb-2">
-                  <Shield className="w-5 h-5 text-[#D9FC67]" />
-                  <span className="text-white font-medium">Two-Factor Authentication</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-[#D9FC67]/10 flex items-center justify-center">
+                      <Smartphone className="w-5 h-5 text-[#D9FC67]" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">Two-Factor Authentication</p>
+                      <p className="text-white/40 text-xs">Extra layer of security for your account</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShow2FAModal(true)}
+                    className="border-white/10 text-white hover:bg-white/5 text-xs"
+                  >
+                    Enable 2FA
+                  </Button>
                 </div>
-                <p className="text-white/60 text-sm">Add an extra layer of security to your account</p>
-                <Button variant="outline" className="mt-4 border-white/10 text-white hover:bg-white/5">Enable 2FA</Button>
               </div>
 
               <div className="flex justify-end">
@@ -266,36 +338,175 @@ export default function PartnerSettingsPage() {
 
           {activeTab === "payment" && (
             <div className="bg-[#141414] border border-white/5 rounded-2xl p-6 space-y-6">
-              <h3 className="text-lg font-semibold text-white">Payment Settings</h3>
-
-              <div className="p-4 bg-white/5 rounded-xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <CreditCard className="w-5 h-5 text-[#D9FC67]" />
-                  <span className="text-white font-medium">Bank Account</span>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#D9FC67]/10 flex items-center justify-center">
+                  <Landmark className="w-5 h-5 text-[#D9FC67]" />
                 </div>
-                <p className="text-white/60 text-sm mb-4">Payments will be transferred to this account</p>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <p className="text-white text-sm">**** **** **** 1234</p>
-                  <p className="text-white/40 text-xs">HDFC Bank • Primary Account</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Bank Account</h3>
+                  <p className="text-white/40 text-sm">Earnings are transferred to this account</p>
                 </div>
-                <Button variant="outline" className="mt-4 border-white/10 text-white hover:bg-white/5">Update Bank Account</Button>
               </div>
 
-              <div className="p-4 bg-[#D9FC67]/10 rounded-xl border border-[#D9FC67]/20">
-                <p className="text-[#D9FC67] font-medium mb-2">Payout Schedule</p>
-                <p className="text-white/60 text-sm">Payouts are processed every Monday for the previous week's earnings</p>
+              {bankError && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  <X className="w-4 h-4 flex-shrink-0" />
+                  {bankError}
+                </div>
+              )}
+              {bankSuccess && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                  <Check className="w-4 h-4 flex-shrink-0" />
+                  Bank account saved successfully!
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="text-white/60 text-sm mb-2 block">Account Holder Name *</label>
+                  <Input
+                    value={bankForm.accountHolderName}
+                    onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
+                    placeholder="As per bank records"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Account Number *</label>
+                  <Input
+                    type="password"
+                    value={bankForm.accountNumber}
+                    onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+                    placeholder="Enter account number"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Confirm Account Number *</label>
+                  <Input
+                    value={bankForm.confirmAccountNumber}
+                    onChange={(e) => setBankForm({ ...bankForm, confirmAccountNumber: e.target.value })}
+                    placeholder="Re-enter account number"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">IFSC Code *</label>
+                  <Input
+                    value={bankForm.ifscCode}
+                    onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value.toUpperCase() })}
+                    placeholder="e.g. HDFC0001234"
+                    maxLength={11}
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40 uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Bank Name *</label>
+                  <Input
+                    value={bankForm.bankName}
+                    onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                    placeholder="e.g. HDFC Bank"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Account Type</label>
+                  <div className="flex gap-2">
+                    {(["savings", "current"] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setBankForm({ ...bankForm, accountType: type })}
+                        className={cn(
+                          "flex-1 py-2 rounded-lg border text-sm capitalize transition-colors",
+                          bankForm.accountType === type
+                            ? "border-[#D9FC67]/50 bg-[#D9FC67]/10 text-[#D9FC67]"
+                            : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                        )}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">UPI ID <span className="text-white/30">(optional)</span></label>
+                  <Input
+                    value={bankForm.upiId}
+                    onChange={(e) => setBankForm({ ...bankForm, upiId: e.target.value })}
+                    placeholder="e.g. yourname@upi"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-[#D9FC67]/5 rounded-xl border border-[#D9FC67]/15">
+                <p className="text-[#D9FC67] font-medium text-sm mb-1">Payout Schedule</p>
+                <p className="text-white/50 text-sm">Payouts are processed every Monday for the previous week's confirmed earnings.</p>
               </div>
 
               <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={isSaving} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold">
-                  {isSaving ? "Saving..." : "Save Settings"}
-                  {!isSaving && <Save className="w-4 h-4 ml-2" />}
+                <Button onClick={handleBankSave} disabled={bankSaving} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold">
+                  {bankSaving ? "Saving..." : "Save Bank Account"}
+                  {!bankSaving && <Save className="w-4 h-4 ml-2" />}
                 </Button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── 2FA Modal ── */}
+      {show2FAModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md bg-[#111111] border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/10 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-[#D9FC67]" />
+                </div>
+                <h3 className="text-white font-semibold">Two-Factor Authentication</h3>
+              </div>
+              <button onClick={() => setShow2FAModal(false)} className="text-white/40 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                <p className="text-white font-medium text-sm mb-1">How it works</p>
+                <p className="text-white/50 text-sm">
+                  2FA adds a second verification step when you sign in. After entering your password,
+                  you&apos;ll be asked for a one-time code from an authenticator app (e.g. Google Authenticator, Authy).
+                </p>
+              </div>
+              <div className="flex items-start gap-3 p-4 bg-[#D9FC67]/5 rounded-xl border border-[#D9FC67]/15">
+                <Shield className="w-5 h-5 text-[#D9FC67] mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-[#D9FC67] font-medium text-sm mb-1">Coming Soon</p>
+                  <p className="text-white/50 text-sm">
+                    Authenticator-app based 2FA is currently being rolled out. You&apos;ll receive an email
+                    at <span className="text-white">{profile.email || "your registered email"}</span> as soon as it&apos;s available for your account.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setShow2FAModal(false)}
+              className="w-full bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
