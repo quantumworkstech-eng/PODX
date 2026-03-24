@@ -33,7 +33,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const owned = await verifyOwnership(id, partnerId);
   if (!owned) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: studio, error } = await supabaseAdmin
+  let studio: any = null;
+  let error: any = null;
+  // Some deployments may not have all optional columns yet.
+  // Try full projection first, then fallback to a minimal projection.
+  const fullRes = await supabaseAdmin
     .from('studios')
     .select(`
       id, name, description, short_description, address, city, is_active,
@@ -44,6 +48,23 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     `)
     .eq('id', id)
     .maybeSingle();
+  studio = fullRes.data;
+  error = fullRes.error;
+
+  if (error) {
+    const fallbackRes = await supabaseAdmin
+      .from('studios')
+      .select(`
+        id, name, description, short_description, address, city, is_active,
+        rooms(id, price_per_hour, capacity, is_active),
+        studio_images(image_url, display_order),
+        studio_addons(addon_id)
+      `)
+      .eq('id', id)
+      .maybeSingle();
+    studio = fallbackRes.data;
+    error = fallbackRes.error;
+  }
 
   if (error || !studio) {
     return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
@@ -121,10 +142,26 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (reschedule_cutoff_hours !== undefined) studioUpdates.reschedule_cutoff_hours = Math.max(0, parseInt(reschedule_cutoff_hours) || 48);
   if (equipment !== undefined && Array.isArray(equipment)) studioUpdates.equipment = equipment;
 
-  const { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
+  let { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
+  if (studioErr) {
+    // Backward-compatible retry for tenants where optional columns are missing.
+    const retryUpdates = { ...studioUpdates };
+    const msg = String(studioErr.message || '').toLowerCase();
+    if (msg.includes('buffer_minutes')) delete (retryUpdates as any).buffer_minutes;
+    if (msg.includes('reschedule_cutoff_hours')) delete (retryUpdates as any).reschedule_cutoff_hours;
+    if (msg.includes('equipment')) delete (retryUpdates as any).equipment;
+
+    if (Object.keys(retryUpdates).length > 1) {
+      const retry = await supabaseAdmin.from('studios').update(retryUpdates).eq('id', id);
+      studioErr = retry.error;
+    }
+  }
   if (studioErr) {
     console.error('Studio update error:', studioErr);
-    return NextResponse.json({ error: 'Failed to update studio' }, { status: 500 });
+    return NextResponse.json(
+      { error: studioErr.message || 'Failed to update studio' },
+      { status: 500 }
+    );
   }
 
   // Update rooms table for price and capacity
