@@ -66,7 +66,7 @@ export function StudioCardMedia({
 
   return (
     <div
-      className={`${className ?? ""} relative`}
+      className={className}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
