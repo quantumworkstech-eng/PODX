@@ -21,6 +21,60 @@ async function verifyOwnership(studioId: string, partnerId: string): Promise<boo
   return !!data;
 }
 
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+
+  const partnerId = await getPartnerId(session.user.email);
+  if (!partnerId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+  const owned = await verifyOwnership(id, partnerId);
+  if (!owned) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { data: studio, error } = await supabaseAdmin
+    .from('studios')
+    .select(`
+      id, name, description, short_description, address, city, is_active,
+      buffer_minutes, reschedule_cutoff_hours, equipment,
+      rooms(id, price_per_hour, capacity, is_active),
+      studio_images(image_url, display_order),
+      studio_addons(addon_id)
+    `)
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error || !studio) {
+    return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
+  }
+
+  const activeRooms = (studio.rooms || []).filter((r: any) => r.is_active !== false);
+  const pricePerHour = activeRooms.length > 0 ? Math.min(...activeRooms.map((r: any) => r.price_per_hour || 0)) : 0;
+  const capacity = activeRooms.length > 0 ? Math.max(...activeRooms.map((r: any) => r.capacity || 0)) : 2;
+  const images = [...(studio.studio_images || [])]
+    .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    .map((i: any) => i.image_url);
+
+  return NextResponse.json({
+    studio: {
+      id: studio.id,
+      name: studio.name || '',
+      description: studio.short_description || studio.description || '',
+      address: studio.address || '',
+      city: studio.city || '',
+      price_per_hour: pricePerHour,
+      capacity,
+      buffer_minutes: studio.buffer_minutes ?? 0,
+      reschedule_cutoff_hours: studio.reschedule_cutoff_hours ?? 48,
+      equipment: studio.equipment || [],
+      addon_ids: (studio.studio_addons || []).map((a: any) => a.addon_id),
+      images,
+      status: studio.is_active ? 'active' : 'inactive',
+    },
+  });
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();

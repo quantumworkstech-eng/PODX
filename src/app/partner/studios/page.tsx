@@ -84,6 +84,8 @@ export default function PartnerStudiosPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudio, setEditingStudio] = useState<Studio | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFormHydrating, setIsFormHydrating] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,7 +124,8 @@ export default function PartnerStudiosPage() {
       .finally(() => setIsFetching(false));
   }, []);
 
-  const handleOpenModal = (studio?: Studio) => {
+  const handleOpenModal = async (studio?: Studio) => {
+    setFormError(null);
     if (studio) {
       setEditingStudio(studio);
       setFormData({
@@ -130,6 +133,23 @@ export default function PartnerStudiosPage() {
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
         addonIds: studio.addon_ids || [],
       });
+      setIsFormHydrating(true);
+      // Fetch latest studio details (single source of truth) so popup always
+      // reflects the partner's latest changes, not stale list data.
+      fetch(`/api/partner/studios/${studio.id}`)
+        .then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load studio details")))
+        .then(({ studio: fresh }) => {
+          if (!fresh) return;
+          setFormData((prev) => ({
+            ...prev,
+            ...fresh,
+            addonIds: fresh.addon_ids || [],
+          }));
+        })
+        .catch(() => {
+          setFormError("Could not load latest studio details. Showing current values.");
+        })
+        .finally(() => setIsFormHydrating(false));
       // Fetch studio policy to pre-fill cancellation rules
       fetch(`/api/studios/${studio.id}/policy`)
         .then((r) => r.json())
@@ -174,6 +194,8 @@ export default function PartnerStudiosPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingStudio(null);
+    setFormError(null);
+    setIsFormHydrating(false);
     setFormData({
       name: "",
       description: "",
@@ -194,10 +216,11 @@ export default function PartnerStudiosPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setFormError(null);
 
     try {
       if (editingStudio) {
-        await fetch(`/api/partner/studios/${editingStudio.id}`, {
+        const res = await fetch(`/api/partner/studios/${editingStudio.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -221,8 +244,12 @@ export default function PartnerStudiosPage() {
             })),
           }),
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error || "Failed to update studio");
+        }
       } else {
-        await fetch("/api/partner/studios", {
+        const res = await fetch("/api/partner/studios", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -237,17 +264,22 @@ export default function PartnerStudiosPage() {
             addonIds: formData.addonIds || [],
           }),
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error || "Failed to create studio");
+        }
       }
       // Refresh list from API
       const r = await fetch("/api/partner/studios");
       const d = await r.json();
       setStudios(d.studios || []);
+      handleCloseModal();
     } catch (err) {
       console.error("Failed to save studio:", err);
+      setFormError(err instanceof Error ? err.message : "Failed to save studio");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
-    handleCloseModal();
   };
 
   const handleDelete = async (id: string) => {
@@ -448,13 +480,23 @@ export default function PartnerStudiosPage() {
         </div>
       )}
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => (open ? setIsModalOpen(true) : handleCloseModal())}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#141414] border-white/10">
           <DialogHeader>
             <DialogTitle className="text-white">{editingStudio ? "Edit Studio" : "Add New Studio"}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {(isFormHydrating || formError) && (
+              <div className={cn(
+                "rounded-lg px-3 py-2 text-sm",
+                isFormHydrating
+                  ? "bg-white/5 text-white/60 border border-white/10"
+                  : "bg-red-500/10 text-red-300 border border-red-500/30"
+              )}>
+                {isFormHydrating ? "Loading latest studio details..." : formError}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="text-white/60 text-sm mb-2 block">Studio Name *</label>
