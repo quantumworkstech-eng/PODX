@@ -3,22 +3,29 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import Link from "next/link";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
+import { StudioDetailModal } from "@/components/StudioDetailModal";
 
 export function StudioSection() {
   const [activeStudio, setActiveStudio] = useState(0);
   const [studios, setStudios] = useState<Studio[]>([]);
+  const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
 
   useEffect(() => {
     getAllStudios().then(setStudios);
   }, []);
 
   if (studios.length === 0) return null;
-  
+
   const currentStudio = studios[activeStudio];
+
+  const handleBookNow = () => {
+    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(currentStudio));
+    window.location.href = "/book?preselect=1";
+  };
 
   return (
     <section id="studios" className="py-20 bg-background">
@@ -118,21 +125,41 @@ export function StudioSection() {
                 </div>
               </div>
 
-              {/* Book Now Button */}
-              <div className="absolute bottom-8 right-8">
-                <Link href="/book">
-                  <Button
-                    size="lg"
-                    className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 rounded-full text-black"
-                  >
-                    Book Now
-                  </Button>
-                </Link>
+              {/* Action Buttons */}
+              <div className="absolute bottom-8 right-8 flex items-center gap-2">
+                {/* View Details icon button */}
+                <button
+                  onClick={() => setDetailStudioId(currentStudio.id)}
+                  title="View studio details"
+                  className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/70 hover:border-white/40 transition-all"
+                >
+                  <Info className="w-5 h-5" />
+                </button>
+
+                <Button
+                  size="lg"
+                  onClick={handleBookNow}
+                  className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 rounded-full text-black"
+                >
+                  Book Now
+                </Button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Studio Detail Modal */}
+      <StudioDetailModal
+        studioId={detailStudioId}
+        studioName={currentStudio?.name}
+        coverImage={currentStudio?.cover_image}
+        onClose={() => setDetailStudioId(null)}
+        onBookNow={() => {
+          setDetailStudioId(null);
+          handleBookNow();
+        }}
+      />
     </section>
   );
 }

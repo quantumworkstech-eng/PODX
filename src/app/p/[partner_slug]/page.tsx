@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { StudioDetailModal } from "@/components/StudioDetailModal";
 import {
   MapPin,
   Users,
@@ -18,6 +19,7 @@ import {
   Shield,
   Zap,
   Globe,
+  Info,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -90,6 +92,8 @@ export default function WhiteLabelLandingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const studiosRef = useRef<HTMLElement>(null);
+  const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
+  const [detailStudio, setDetailStudio] = useState<Studio | null>(null);
 
   useEffect(() => {
     fetch(`/api/whitelabel/${partner_slug}`)
@@ -431,18 +435,35 @@ export default function WhiteLabelLandingPage() {
                             </p>
                           )}
                         </div>
-                        <button
-                          onClick={() => handleBookNow(studio)}
-                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 hover:shadow-lg"
-                          style={{
-                            background: primary,
-                            color: btnText,
-                            boxShadow: `0 4px 20px ${primary}20`,
-                          }}
-                        >
-                          Book Now
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {/* View Details icon button */}
+                          <button
+                            onClick={() => {
+                              setDetailStudio(studio);
+                              setDetailStudioId(studio.id);
+                            }}
+                            title="View studio details"
+                            className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105"
+                            style={{
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(255,255,255,0.12)",
+                            }}
+                          >
+                            <Info className="w-4 h-4" style={{ opacity: 0.6 }} />
+                          </button>
+                          <button
+                            onClick={() => handleBookNow(studio)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 hover:shadow-lg"
+                            style={{
+                              background: primary,
+                              color: btnText,
+                              boxShadow: `0 4px 20px ${primary}20`,
+                            }}
+                          >
+                            Book Now
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -567,6 +588,21 @@ export default function WhiteLabelLandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Studio Detail Modal ──────────────────────────────────── */}
+      <StudioDetailModal
+        studioId={detailStudioId}
+        studioName={detailStudio?.name}
+        coverImage={detailStudio?.featured_image_url}
+        onClose={() => { setDetailStudioId(null); setDetailStudio(null); }}
+        onBookNow={() => {
+          if (detailStudio) handleBookNow(detailStudio);
+          setDetailStudioId(null);
+          setDetailStudio(null);
+        }}
+        primaryColor={primary}
+        buttonTextColor={btnText}
+      />
 
       {/* ── Contact Section ──────────────────────────────────────── */}
       {(branding.contact_email || branding.contact_phone || branding.contact_address) && (

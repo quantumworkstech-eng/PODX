@@ -8,11 +8,12 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
   MapPin, Clock, Users, Star, ChevronLeft, ChevronRight,
-  Mic2, Video, Headphones, Wifi, Car, Coffee, Search, Wind,
+  Mic2, Video, Headphones, Wifi, Car, Coffee, Search, Wind, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
+import { StudioDetailModal } from "@/components/StudioDetailModal";
 
 const CITIES = ["All Cities", "Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad"];
 
@@ -35,6 +36,8 @@ export default function StudiosPage() {
   const [featuredIdx, setFeaturedIdx] = useState(0);
   const [imageIndices, setImageIndices] = useState<Record<string, number>>({});
   const autoRef = useRef<NodeJS.Timeout | null>(null);
+  const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
+  const [detailStudio, setDetailStudio] = useState<Studio | null>(null);
 
   const handleBookNow = (studio: Studio) => {
     sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studio));
@@ -120,13 +123,25 @@ export default function StudiosPage() {
                   {featured.description || "Professional podcast studio with premium equipment for content creators."}
                 </p>
 
-                <div className="flex gap-4 items-center">
+                <div className="flex flex-wrap gap-3 items-center">
                   <Button
                     onClick={() => featured && handleBookNow(featured)}
                     className="px-8 py-6 text-base font-semibold bg-[#D9FC67] hover:bg-[#E8FF8A] text-black rounded-full border-0"
                   >
                     Book This Studio
                   </Button>
+                  <button
+                    onClick={() => {
+                      if (featured) {
+                        setDetailStudio(featured);
+                        setDetailStudioId(featured.id);
+                      }
+                    }}
+                    title="View studio details"
+                    className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 hover:border-white/40 transition-all"
+                  >
+                    <Info className="w-5 h-5" />
+                  </button>
                   <span className="text-white font-bold text-xl">
                     ₹{featured.price_per_hour?.toLocaleString("en-IN")}<span className="text-white/50 text-sm font-normal">/hr</span>
                   </span>
@@ -384,12 +399,24 @@ export default function StudiosPage() {
                       <span>Min 1 hr · Available Today</span>
                     </div>
 
-                    <Button
-                      onClick={() => handleBookNow(studio)}
-                      className="w-full bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-2xl py-6 transition-all group-hover:shadow-lg group-hover:shadow-[#D9FC67]/20"
-                    >
-                      Book Now
-                    </Button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setDetailStudio(studio);
+                          setDetailStudioId(studio.id);
+                        }}
+                        title="View studio details"
+                        className="flex-shrink-0 w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                      <Button
+                        onClick={() => handleBookNow(studio)}
+                        className="flex-1 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-2xl py-6 transition-all group-hover:shadow-lg group-hover:shadow-[#D9FC67]/20"
+                      >
+                        Book Now
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -400,6 +427,19 @@ export default function StudiosPage() {
       </section>
 
       <Footer />
+
+      {/* Studio Detail Modal */}
+      <StudioDetailModal
+        studioId={detailStudioId}
+        studioName={detailStudio?.name}
+        coverImage={detailStudio?.cover_image}
+        onClose={() => { setDetailStudioId(null); setDetailStudio(null); }}
+        onBookNow={() => {
+          if (detailStudio) handleBookNow(detailStudio);
+          setDetailStudioId(null);
+          setDetailStudio(null);
+        }}
+      />
     </div>
   );
 }
