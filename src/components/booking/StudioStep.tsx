@@ -5,10 +5,10 @@ import { useBooking } from "@/context/BookingContext";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Check, Play, Star, Clock } from "lucide-react";
+import { Users, MapPin, Check, Star, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
-import { VideoModal } from "@/components/booking/VideoModal";
+import { StudioCardMedia } from "@/components/StudioCardMedia";
+import { StudioDetailModal } from "@/components/StudioDetailModal";
 
 const ALL_SLOTS = [
   "09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00",
@@ -58,10 +58,11 @@ export function StudioStep() {
     partnerBranding,
   } = useBooking();
 
-  const [videoStudio, setVideoStudio] = useState<{ name: string } | null>(null);
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
+  const [detailStudio, setDetailStudio] = useState<Studio | null>(null);
   // studioId → array of already-booked hour slots for today
   const [bookedByStudio, setBookedByStudio] = useState<Record<string, string[]>>({});
 
@@ -86,6 +87,11 @@ export function StudioStep() {
               name: s.name,
               slug: s.slug || s.name.toLowerCase().replace(/\s+/g, '-'),
               cover_image: s.featured_image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90',
+              image_urls: (s.studio_images || [])
+                .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+                .map((img: any) => img.image_url)
+                .filter(Boolean),
+              video_url: s.video_url || undefined,
               location: { city: s.city || '', area: s.city || '', address: s.address || '' },
               price_per_hour: minPrice,
               currency: '₹',
@@ -219,7 +225,10 @@ export function StudioStep() {
                 return (
                   <div
                     key={studio.id}
-                    onClick={() => !disabled && setSelectedStudio(studio)}
+                    onClick={() => {
+                      setDetailStudio(studio);
+                      setDetailStudioId(studio.id);
+                    }}
                     className={cn(
                       "relative group rounded-2xl border overflow-hidden transition-all duration-300 cursor-pointer",
                       isSelected
@@ -231,24 +240,16 @@ export function StudioStep() {
                   >
                     {/* Image */}
                     <div className="relative h-48 overflow-hidden">
-                      <Image
-                        src={studio.cover_image}
+                      <StudioCardMedia
                         alt={studio.name}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        coverImage={studio.cover_image}
+                        imageUrls={studio.image_urls}
+                        videoUrl={studio.video_url}
+                        className="absolute inset-0"
+                        imageClassName="object-cover"
+                        hoverScaleClassName="transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVideoStudio({ name: studio.name });
-                        }}
-                        className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/60 transition-colors"
-                      >
-                        <Play className="w-3 h-3" />
-                        Preview
-                      </button>
+                      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                       {isSelected && (
                         <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#D9FC67] flex items-center justify-center shadow-lg">
@@ -358,21 +359,34 @@ export function StudioStep() {
                           </span>
                           <span className="text-white/40 text-sm">/hr</span>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!disabled) setSelectedStudio(isSelected ? null : studio);
-                          }}
-                          disabled={disabled}
-                          className={cn(
-                            "px-5 py-2 rounded-lg text-sm font-semibold transition-all",
-                            isSelected
-                              ? "bg-[#D9FC67] text-black"
-                              : "bg-white/10 text-white hover:bg-white/20"
-                          )}
-                        >
-                          {isSelected ? "Selected" : "Select"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailStudio(studio);
+                              setDetailStudioId(studio.id);
+                            }}
+                            title="View studio details"
+                            className="w-9 h-9 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-all flex items-center justify-center"
+                          >
+                            <Info className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!disabled) setSelectedStudio(isSelected ? null : studio);
+                            }}
+                            disabled={disabled}
+                            className={cn(
+                              "px-5 py-2 rounded-lg text-sm font-semibold transition-all",
+                              isSelected
+                                ? "bg-[#D9FC67] text-black"
+                                : "bg-white/10 text-white hover:bg-white/20"
+                            )}
+                          >
+                            {isSelected ? "Selected" : "Select"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -391,10 +405,19 @@ export function StudioStep() {
         </Button>
       </div>
 
-      <VideoModal
-        isOpen={!!videoStudio}
-        onClose={() => setVideoStudio(null)}
-        studioName={videoStudio?.name || ""}
+      <StudioDetailModal
+        studioId={detailStudioId}
+        studioName={detailStudio?.name}
+        coverImage={detailStudio?.cover_image}
+        onClose={() => {
+          setDetailStudioId(null);
+          setDetailStudio(null);
+        }}
+        onBookNow={() => {
+          if (detailStudio) setSelectedStudio(detailStudio);
+          setDetailStudioId(null);
+          setDetailStudio(null);
+        }}
       />
     </div>
   );

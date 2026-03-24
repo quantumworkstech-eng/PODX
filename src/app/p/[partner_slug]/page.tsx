@@ -360,7 +360,7 @@ export default function WhiteLabelLandingPage() {
                       )}
                       {/* Overlay gradient */}
                       <div
-                        className="absolute inset-0"
+                        className="absolute inset-0 pointer-events-none"
                         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)" }}
                       />
                       {studio.is_verified && (
