@@ -256,10 +256,10 @@ export function StudioDetailModal({
       />
 
       {/* Modal container */}
-      <div className="relative w-full sm:w-[90vw] sm:max-w-3xl max-h-[95vh] sm:max-h-[90vh] bg-[#111111] rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col border border-white/10 shadow-2xl">
+      <div className="relative w-full sm:w-[90vw] sm:max-w-3xl max-h-[95vh] sm:max-h-[90vh] bg-[#111111] rounded-t-3xl sm:rounded-3xl overflow-y-auto border border-white/10 shadow-2xl">
 
         {/* ── Banner / Image Slider ─────────────────────────── */}
-        <div className="relative w-full aspect-video flex-shrink-0 bg-black">
+        <div className="relative w-full aspect-video bg-black">
           {slides.length > 0 ? (
             <>
               <Image
@@ -352,11 +352,8 @@ export function StudioDetailModal({
           )}
         </div>
 
-        {/* ── Scrollable Body ───────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
-
-          {/* Studio Header */}
-          <div className="px-5 pt-5 pb-4 border-b border-white/5">
+        {/* ── Content ─────────────────────────────────────────── */}
+        <div className="px-5 pt-5 pb-4 border-b border-white/5 bg-[#111111]">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-bold text-white leading-tight">
@@ -405,22 +402,22 @@ export function StudioDetailModal({
             </div>
           </div>
 
-          {/* Description */}
-          {(details?.description || details?.short_description) && (
-            <div className="px-5 py-4 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-2">About</h3>
+        {/* Description */}
+        {(details?.description || details?.short_description) && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-2">About Studio</h3>
               <p className="text-white/70 text-sm leading-relaxed">
                 {details.description || details.short_description}
               </p>
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Rooms */}
-          {activeRooms.length > 0 && (
-            <div className="px-5 py-4 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
-                Rooms & Pricing
-              </h3>
+        {/* Rooms */}
+        {activeRooms.length > 0 && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+              Rooms ({activeRooms.length})
+            </h3>
               <div className="space-y-2">
                 {activeRooms.map((room) => (
                   <div
@@ -456,15 +453,15 @@ export function StudioDetailModal({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Amenities */}
-          {details?.amenities && details.amenities.length > 0 && (
-            <div className="px-5 py-4 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
-                Amenities
-              </h3>
+        {/* Amenities */}
+        {details?.amenities && details.amenities.length > 0 && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+              Amenities ({details.amenities.length})
+            </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {details.amenities.map((amenity) => (
                   <div
@@ -478,15 +475,15 @@ export function StudioDetailModal({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Equipment */}
-          {details?.equipment && details.equipment.length > 0 && (
-            <div className="px-5 py-4 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
-                Equipment
-              </h3>
+        {/* Equipment */}
+        {details?.equipment && details.equipment.length > 0 && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+              Equipment ({details.equipment.length})
+            </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {details.equipment.map((item: string, i: number) => (
                   <div
@@ -500,15 +497,15 @@ export function StudioDetailModal({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Add-ons */}
-          {details?.addons && details.addons.length > 0 && (
-            <div className="px-5 py-4 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
-                Available Add-ons
-              </h3>
+        {/* Add-ons */}
+        {details?.addons && details.addons.length > 0 && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+              Add-ons ({details.addons.length})
+            </h3>
               <div className="space-y-2">
                 {details.addons.map((addon) => (
                   <div
@@ -529,15 +526,50 @@ export function StudioDetailModal({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Contact info */}
-          {(details?.phone || details?.email || details?.website) && (
-            <div className="px-5 py-4 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
-                Contact
-              </h3>
+        {/* Other details */}
+        {(details?.address || details?.city || details?.state || details?.country) && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+              Other Details
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {details.address && (
+                <div className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <p className="text-white/35 text-xs mb-0.5">Address</p>
+                  <p className="text-white/75 text-sm">{details.address}</p>
+                </div>
+              )}
+              {details.city && (
+                <div className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <p className="text-white/35 text-xs mb-0.5">City</p>
+                  <p className="text-white/75 text-sm">{details.city}</p>
+                </div>
+              )}
+              {details.state && (
+                <div className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <p className="text-white/35 text-xs mb-0.5">State</p>
+                  <p className="text-white/75 text-sm">{details.state}</p>
+                </div>
+              )}
+              {details.country && (
+                <div className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <p className="text-white/35 text-xs mb-0.5">Country</p>
+                  <p className="text-white/75 text-sm">{details.country}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Contact info */}
+        {(details?.phone || details?.email || details?.website) && (
+          <div className="px-5 py-4 border-b border-white/5">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+              Contact
+            </h3>
               <div className="flex flex-wrap gap-3">
                 {details.phone && (
                   <a
@@ -569,15 +601,14 @@ export function StudioDetailModal({
                   </a>
                 )}
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Bottom padding so sticky bar doesn't cover last content */}
-          <div className="h-4" />
-        </div>
+        {/* Bottom padding so sticky bar doesn't cover last content */}
+        <div className="h-4" />
 
         {/* ── Sticky Book Now Bar ───────────────────────────── */}
-        <div className="flex-shrink-0 px-5 py-4 bg-[#111111] border-t border-white/10">
+        <div className="sticky bottom-0 px-5 py-4 bg-[#111111]/95 backdrop-blur-sm border-t border-white/10">
           <div className="flex items-center gap-3">
             {minPrice !== null && (
               <div className="flex-1 min-w-0">
