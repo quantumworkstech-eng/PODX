@@ -156,12 +156,10 @@ export function DateTimeStep() {
 
   // Returns true when a slot button should be disabled.
   // A slot is disabled if:
-  //  (a) the static config marks it unavailable (e.g. outside operating hours)
-  //  (b) any hour in [slotHour … slotHour+duration-1] is already booked in the DB
+  //  (a) any hour in [slotHour … slotHour+duration-1] is already booked in the DB
   //      (including the partner's buffer window after a previous booking), or
-  //  (c) the slot is in the past when today is selected.
-  const isSlotDisabled = (slotTime: string, slotAvailable: boolean): boolean => {
-    if (!slotAvailable) return true;
+  //  (b) the slot is in the past when today is selected.
+  const isSlotDisabled = (slotTime: string): boolean => {
     if (!date) return false;
 
     const [slotHour] = slotTime.split(":").map(Number);
@@ -185,8 +183,7 @@ export function DateTimeStep() {
   };
 
   // Determine the reason a slot is unavailable (for the sub-label)
-  const getSlotLabel = (slotTime: string, slotAvailable: boolean): string | null => {
-    if (!slotAvailable) return "Unavailable";
+  const getSlotLabel = (slotTime: string): string | null => {
     if (!date) return null;
 
     const [slotHour] = slotTime.split(":").map(Number);
@@ -384,9 +381,9 @@ export function DateTimeStep() {
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {TIME_SLOTS.map((slot) => {
-                    const disabled = isSlotDisabled(slot.time, slot.available);
+                    const disabled = isSlotDisabled(slot.time);
                     const selected = timeSlot === slot.time;
-                    const label = getSlotLabel(slot.time, slot.available);
+                    const label = getSlotLabel(slot.time);
 
                     return (
                       <button
