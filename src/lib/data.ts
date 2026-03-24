@@ -50,7 +50,7 @@ export async function getAllStudios(): Promise<Studio[]> {
   const { data: studios, error } = await supabase
     .from('studios')
     .select(`
-      id, name, slug, description, short_description, address, city, featured_image_url, created_at,
+      id, name, slug, description, short_description, address, city, featured_image_url, video_url, created_at,
       rooms (id, price_per_hour, capacity, is_active),
       studio_images (image_url, display_order)
     `)
@@ -81,6 +81,7 @@ export async function getAllStudios(): Promise<Studio[]> {
       sortedImages[0]?.image_url ||
       studio.featured_image_url ||
       'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+    const imageUrls = sortedImages.map((img: any) => img.image_url).filter(Boolean);
     const ratings = ratingMap[studio.id];
 
     return {
@@ -88,6 +89,8 @@ export async function getAllStudios(): Promise<Studio[]> {
       name: studio.name,
       slug: studio.slug || studio.name.toLowerCase().replace(/\s+/g, '-'),
       cover_image: coverImage,
+      image_urls: imageUrls.length > 0 ? imageUrls : [coverImage],
+      video_url: studio.video_url || undefined,
       location: { city: studio.city || '', area: studio.city || '', address: studio.address || '' },
       price_per_hour: minPrice,
       currency: '₹',
@@ -107,13 +110,17 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
 
   const { data: studio, error } = await supabase
     .from('studios')
-    .select(`*, rooms (*), studio_amenities (amenities (name, icon)), studio_images (*)`)
+    .select(`*, rooms (*), studio_amenities (amenities (name, icon)), studio_images (*), video_url`)
     .eq('slug', slug)
     .single();
 
   if (error || !studio) return null;
 
   const coverImage = studio.studio_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+  const imageUrls = (studio.studio_images || [])
+    .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    .map((img: any) => img.image_url)
+    .filter(Boolean);
   const ratingMap = await fetchRatingMap([studio.id]);
   const ratings = ratingMap[studio.id];
 
@@ -122,6 +129,8 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
     name: studio.name,
     slug: studio.slug,
     cover_image: coverImage,
+    image_urls: imageUrls.length > 0 ? imageUrls : [coverImage],
+    video_url: studio.video_url || undefined,
     location: { city: studio.city || '', area: '', address: studio.address || '' },
     price_per_hour: studio.rooms?.[0]?.price_per_hour || 0,
     currency: '₹',
@@ -140,7 +149,7 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
 
   const { data: studios, error } = await supabase
     .from('studios')
-    .select(`*, rooms (id, price_per_hour, capacity), studio_images (image_url)`)
+    .select(`*, rooms (id, price_per_hour, capacity), studio_images (image_url, display_order), video_url`)
     .eq('city', city)
     .eq('is_active', true);
 
@@ -153,6 +162,10 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
     const rooms = studio.rooms || [];
     const minPrice = rooms.length > 0 ? Math.min(...rooms.map((r: any) => r.price_per_hour)) : 0;
     const coverImage = studio.studio_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
+    const imageUrls = (studio.studio_images || [])
+      .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+      .map((img: any) => img.image_url)
+      .filter(Boolean);
     const ratings = ratingMap[studio.id];
 
     return {
@@ -160,6 +173,8 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
       name: studio.name,
       slug: studio.slug,
       cover_image: coverImage,
+      image_urls: imageUrls.length > 0 ? imageUrls : [coverImage],
+      video_url: studio.video_url || undefined,
       location: { city: studio.city || '', area: '', address: studio.address || '' },
       price_per_hour: minPrice,
       currency: '₹',

@@ -30,7 +30,8 @@ export async function GET(
     .from("studios")
     .select(`
       id, name, slug, description, short_description, city, address,
-      featured_image_url, is_active, is_verified,
+      featured_image_url, video_url, is_active, is_verified,
+      studio_images(image_url, display_order),
       rooms(id, name, capacity, price_per_hour, min_booking_hours, max_booking_hours, is_active)
     `)
     .eq("owner_id", branding.partner_id)

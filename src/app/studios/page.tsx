@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
+import { StudioCardMedia } from "@/components/StudioCardMedia";
 
 const CITIES = ["All Cities", "Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad"];
 
@@ -34,7 +35,6 @@ export default function StudiosPage() {
   const [activeCity, setActiveCity] = useState("All Cities");
   const [search, setSearch] = useState("");
   const [featuredIdx, setFeaturedIdx] = useState(0);
-  const [imageIndices, setImageIndices] = useState<Record<string, number>>({});
   const autoRef = useRef<NodeJS.Timeout | null>(null);
   const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
   const [detailStudio, setDetailStudio] = useState<Studio | null>(null);
@@ -64,11 +64,6 @@ export default function StudiosPage() {
   });
 
   const featured = studios[featuredIdx];
-
-  const nextImage = (studioId: string, total: number) =>
-    setImageIndices((prev) => ({ ...prev, [studioId]: ((prev[studioId] || 0) + 1) % total }));
-  const prevImage = (studioId: string, total: number) =>
-    setImageIndices((prev) => ({ ...prev, [studioId]: ((prev[studioId] || 0) - 1 + total) % total }));
 
   return (
     <div className="min-h-screen bg-[#09090b]">
@@ -291,52 +286,27 @@ export default function StudiosPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((studio) => {
-              const images = studio.cover_image ? [studio.cover_image] : [];
-              const currentImageIdx = imageIndices[studio.id] || 0;
-              const currentImage = images[currentImageIdx] || images[0] || "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800";
-
               return (
                 <div
                   key={studio.id}
-                  className="group bg-[#111111] rounded-3xl overflow-hidden border border-white/5 hover:border-[#D9FC67]/30 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#D9FC67]/5"
+                  onClick={() => {
+                    setDetailStudio(studio);
+                    setDetailStudioId(studio.id);
+                  }}
+                  className="group bg-[#111111] rounded-3xl overflow-hidden border border-white/5 hover:border-[#D9FC67]/30 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#D9FC67]/5 cursor-pointer"
                 >
                   {/* Image Carousel */}
                   <div className="relative aspect-[4/3] overflow-hidden">
-                    <Image
-                      src={currentImage}
+                    <StudioCardMedia
                       alt={studio.name}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      coverImage={studio.cover_image}
+                      imageUrls={studio.image_urls}
+                      videoUrl={studio.video_url}
+                      className="absolute inset-0"
+                      imageClassName="object-cover"
+                      hoverScaleClassName="transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                    {/* Image nav (show on hover) */}
-                    {images.length > 1 && (
-                      <>
-                        <button
-                          onClick={(e) => { e.preventDefault(); prevImage(studio.id, images.length); }}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                        >
-                          <ChevronLeft className="w-4 h-4 text-white" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.preventDefault(); nextImage(studio.id, images.length); }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                        >
-                          <ChevronRight className="w-4 h-4 text-white" />
-                        </button>
-                        {/* Image dots */}
-                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-                          {images.map((_, i) => (
-                            <button
-                              key={i}
-                              onClick={(e) => { e.preventDefault(); setImageIndices((prev) => ({ ...prev, [studio.id]: i })); }}
-                              className={`rounded-full transition-all ${i === currentImageIdx ? "w-4 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40"}`}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
 
                     {/* Rating badge */}
                     {studio.review_count > 0 && (
@@ -401,7 +371,8 @@ export default function StudiosPage() {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setDetailStudio(studio);
                           setDetailStudioId(studio.id);
                         }}
@@ -411,7 +382,10 @@ export default function StudiosPage() {
                         <Info className="w-4 h-4" />
                       </button>
                       <Button
-                        onClick={() => handleBookNow(studio)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBookNow(studio);
+                        }}
                         className="flex-1 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-2xl py-6 transition-all group-hover:shadow-lg group-hover:shadow-[#D9FC67]/20"
                       >
                         Book Now

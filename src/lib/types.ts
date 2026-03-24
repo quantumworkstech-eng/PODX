@@ -3,6 +3,8 @@ export interface Studio {
   name: string;
   slug: string;
   cover_image: string;
+  image_urls?: string[];
+  video_url?: string;
   location: {
     city: string;
     area: string;

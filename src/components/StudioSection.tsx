@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MapPin, ChevronLeft, ChevronRight, Info } from "lucide-react";
-import Link from "next/link";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
+import { StudioCardMedia } from "@/components/StudioCardMedia";
 
 export function StudioSection() {
   const [activeStudio, setActiveStudio] = useState(0);
@@ -99,12 +99,17 @@ export function StudioSection() {
 
           {/* Main Studio Card */}
           <div className="max-w-4xl mx-auto">
-            <div className="relative aspect-video rounded-3xl overflow-hidden">
-              <Image
-                src={currentStudio.cover_image}
+            <div
+              className="relative aspect-video rounded-3xl overflow-hidden cursor-pointer"
+              onClick={() => setDetailStudioId(currentStudio.id)}
+            >
+              <StudioCardMedia
                 alt={currentStudio.name}
-                fill
-                className="object-cover"
+                coverImage={currentStudio.cover_image}
+                imageUrls={currentStudio.image_urls}
+                videoUrl={currentStudio.video_url}
+                className="absolute inset-0"
+                imageClassName="object-cover"
               />
               
               {/* Watermark */}
@@ -129,7 +134,10 @@ export function StudioSection() {
               <div className="absolute bottom-8 right-8 flex items-center gap-2">
                 {/* View Details icon button */}
                 <button
-                  onClick={() => setDetailStudioId(currentStudio.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDetailStudioId(currentStudio.id);
+                  }}
                   title="View studio details"
                   className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/70 hover:border-white/40 transition-all"
                 >
@@ -138,7 +146,10 @@ export function StudioSection() {
 
                 <Button
                   size="lg"
-                  onClick={handleBookNow}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBookNow();
+                  }}
                   className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 rounded-full text-black"
                 >
                   Book Now
