@@ -98,6 +98,7 @@ export default function AdminBookingsPage() {
   const [detailSection, setDetailSection] = useState("overview");
   const [editMode, setEditMode] = useState(false);
   const [editFields, setEditFields] = useState<Record<string, any>>({});
+  const [bookingFlash, setBookingFlash] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Reschedule state
   const [rescheduleRequests, setRescheduleRequests] = useState<RescheduleRequest[]>([]);
@@ -166,6 +167,12 @@ export default function AdminBookingsPage() {
   };
 
   useEffect(() => { fetchBookings(); }, [bookingPage, statusFilter]);
+
+  useEffect(() => {
+    if (!bookingFlash) return;
+    const t = setTimeout(() => setBookingFlash(null), 4500);
+    return () => clearTimeout(t);
+  }, [bookingFlash]);
   useEffect(() => { if (activeTab === "reschedule") fetchReschedule(); }, [activeTab, reschedulePage, rescheduleStatusFilter]);
 
   useEffect(() => {
@@ -226,16 +233,24 @@ export default function AdminBookingsPage() {
   const saveBookingEdit = async () => {
     if (!detailData) return;
     setDetailSaving(true);
-    await fetch(`/api/admin/bookings/${detailData.booking.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingFields: editFields }),
-    });
-    setDetailSaving(false);
-    setEditMode(false);
-    // Refresh the detail data
-    openDetail(detailData.booking.id);
-    fetchBookings();
+    try {
+      const res = await fetch(`/api/admin/bookings/${detailData.booking.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingFields: editFields }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBookingFlash({ type: "error", message: (data as { error?: string }).error || "Failed to save booking" });
+        return;
+      }
+      setBookingFlash({ type: "success", message: "Booking updated successfully" });
+      setEditMode(false);
+      await openDetail(detailData.booking.id);
+      fetchBookings();
+    } finally {
+      setDetailSaving(false);
+    }
   };
 
   const DETAIL_SECTIONS = [
@@ -521,6 +536,17 @@ export default function AdminBookingsPage() {
               </div>
             ) : detailData && (
               <>
+                {bookingFlash && (
+                  <div
+                    className={`mx-6 mt-4 px-4 py-2 rounded-xl text-sm border ${
+                      bookingFlash.type === "success"
+                        ? "border-[#D9FC67]/30 bg-[#D9FC67]/10 text-[#D9FC67]"
+                        : "border-red-500/30 bg-red-500/10 text-red-300"
+                    }`}
+                  >
+                    {bookingFlash.message}
+                  </div>
+                )}
                 {/* Drawer header */}
                 <div className="sticky top-0 z-10 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between">
                   <div>

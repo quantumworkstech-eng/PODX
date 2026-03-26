@@ -1,13 +1,18 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search, CheckCircle, XCircle, PauseCircle, RefreshCw, Building2,
   Pencil, Trash2, Play, X, Save, Check, Mic, Music, Video, Lightbulb,
-  Volume2, Monitor, MapPin, Plus, Ban,
+  Volume2, Monitor, MapPin, Plus, Ban, Upload, Loader2, Image as ImageIcon,
+  ChevronUp, ChevronDown, Eye, EyeOff,
 } from "lucide-react";
 import { AdminAddStudioWizard } from "./AdminAddStudioWizard";
+import { getCities, type City } from "@/lib/data";
+import { PartnerStudioLocationPicker } from "@/components/maps/PartnerStudioLocationPicker";
+import type { StudioLocation } from "@/types/location";
+import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
   { value: "all", label: "All Studios" },
@@ -144,6 +149,57 @@ function AdminStudiosPageInner() {
   // Add studio wizard
   const [addOpen, setAddOpen] = useState(false);
 
+  /** Gallery order = cover first (same as partner). */
+  const [photoDraftUrls, setPhotoDraftUrls] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [mapCities, setMapCities] = useState<City[]>([]);
+  /** When true, form fields are display-only (tabs still work). */
+  const [studioDrawerViewOnly, setStudioDrawerViewOnly] = useState(false);
+
+  useEffect(() => {
+    getCities().then(setMapCities).catch(() => setMapCities([]));
+  }, []);
+
+  const locationPickerValue: StudioLocation = useMemo(
+    () => ({
+      address: editFields.address || "",
+      city: editFields.city || "",
+      state: editFields.state || "",
+      country: editFields.country || "India",
+      latitude:
+        editFields.latitude !== "" && editFields.latitude != null
+          ? Number(editFields.latitude)
+          : undefined,
+      longitude:
+        editFields.longitude !== "" && editFields.longitude != null
+          ? Number(editFields.longitude)
+          : undefined,
+    }),
+    [
+      editFields.address,
+      editFields.city,
+      editFields.state,
+      editFields.country,
+      editFields.latitude,
+      editFields.longitude,
+    ]
+  );
+
+  const patchLocationFields = (patch: Partial<StudioLocation>) => {
+    setEditFields((f) => ({
+      ...f,
+      address: patch.address ?? f.address,
+      city: patch.city ?? f.city,
+      state: patch.state ?? f.state,
+      country: patch.country ?? f.country,
+      latitude:
+        patch.latitude !== undefined ? String(patch.latitude) : f.latitude,
+      longitude:
+        patch.longitude !== undefined ? String(patch.longitude) : f.longitude,
+    }));
+  };
+
   const fetchStudios = () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
@@ -263,6 +319,12 @@ function AdminStudiosPageInner() {
       reschedule: [{ id: crypto.randomUUID(), type: "hours", value: 24, deductionPercent: 0 }],
     });
 
+    const sortedImgs = [...(data.images || [])].sort(
+      (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
+    );
+    setPhotoDraftUrls(sortedImgs.map((img: any) => img.image_url).filter(Boolean));
+    setStudioDrawerViewOnly(false);
+
     setEditLoading(false);
   }, []);
 
@@ -280,8 +342,51 @@ function AdminStudiosPageInner() {
     });
   }, [searchParams, router, openEdit]);
 
+  const handleAdminPhotoFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploadingPhotos(true);
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+        const data = await res.json();
+        if (res.ok && data.url) urls.push(data.url);
+      }
+      if (urls.length) setPhotoDraftUrls((prev) => [...prev, ...urls]);
+    } finally {
+      setUploadingPhotos(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  };
+
+  const movePhoto = (index: number, dir: -1 | 1) => {
+    setPhotoDraftUrls((prev) => {
+      const to = index + dir;
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[to]] = [next[to], next[index]];
+      return next;
+    });
+  };
+
+  const setCoverPhotoAt = (index: number) => {
+    if (index === 0) return;
+    setPhotoDraftUrls((prev) => {
+      if (index < 0 || index >= prev.length) return prev;
+      const n = [...prev];
+      const [picked] = n.splice(index, 1);
+      return [picked, ...n];
+    });
+  };
+
+  const removePhotoAt = (index: number) => {
+    setPhotoDraftUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const saveEdit = async () => {
-    if (!editData) return;
+    if (!editData || studioDrawerViewOnly) return;
     setEditSaving(true);
     setSaveError(null);
 
@@ -323,6 +428,7 @@ function AdminStudiosPageInner() {
         addonIds: selectedAddonIds,
         hoursData,
         policyUpdates,
+        imageUrls: photoDraftUrls,
       }),
     });
 
@@ -354,6 +460,7 @@ function AdminStudiosPageInner() {
     { id: "pricing", label: "Pricing & Availability" },
     { id: "amenities", label: "Amenities" },
     { id: "addons", label: "Add-ons" },
+    { id: "inventory", label: "Equipment" },
     { id: "photos", label: "Photos" },
     { id: "policies", label: "Policies" },
   ];
@@ -582,21 +689,37 @@ function AdminStudiosPageInner() {
             ) : editData && (
               <>
                 {/* Drawer header */}
-                <div className="sticky top-0 z-10 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">{editData.studio.name}</h3>
+                <div className="sticky top-0 z-10 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-white font-semibold text-lg truncate">{editData.studio.name}</h3>
+                      {editData.studio.admin_last_edited_at && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0">
+                          Edited by admin
+                        </span>
+                      )}
+                    </div>
                     <p className="text-white/40 text-xs">Owner: {editData.studio.owner_email}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
+                      type="button"
+                      onClick={() => setStudioDrawerViewOnly((v) => !v)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-white/10 text-white/70 hover:bg-white/5"
+                    >
+                      {studioDrawerViewOnly ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      {studioDrawerViewOnly ? "Edit" : "View only"}
+                    </button>
+                    <button
+                      type="button"
                       onClick={saveEdit}
-                      disabled={editSaving}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#D9FC67] text-black rounded-xl text-sm font-semibold hover:bg-[#c9ec57] transition-colors disabled:opacity-50"
+                      disabled={editSaving || studioDrawerViewOnly}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#D9FC67] text-black rounded-xl text-sm font-semibold hover:bg-[#c9ec57] transition-colors disabled:opacity-40"
                     >
                       {editSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       Save
                     </button>
-                    <button onClick={() => setEditOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white">
+                    <button type="button" onClick={() => setEditOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
@@ -624,7 +747,17 @@ function AdminStudiosPageInner() {
                 </div>
 
                 {/* Section content */}
-                <div className="p-6 space-y-4">
+                <div
+                  className={cn(
+                    "p-6 space-y-4",
+                    studioDrawerViewOnly && "pointer-events-none opacity-55 select-none"
+                  )}
+                >
+                  {studioDrawerViewOnly && (
+                    <p className="text-amber-200/90 text-xs border border-amber-500/20 bg-amber-500/5 rounded-lg px-3 py-2 -mt-4 mb-2 pointer-events-auto">
+                      View only — click <span className="font-semibold">Edit</span> in the header to change fields.
+                    </p>
+                  )}
                   {/* ── BASIC INFO ── */}
                   {activeSection === "basic" && (
                     <>
@@ -640,8 +773,19 @@ function AdminStudiosPageInner() {
                     <>
                       <div className="flex items-center gap-2 mb-2">
                         <MapPin className="w-4 h-4 text-white/40" />
-                        <span className="text-white/50 text-xs">Studio location details</span>
+                        <span className="text-white/50 text-xs">Search, map pin, and fields stay in sync.</span>
                       </div>
+                      {mapCities.length > 0 ? (
+                        <div className="rounded-xl border border-white/10 overflow-hidden mb-4">
+                          <PartnerStudioLocationPicker
+                            cities={mapCities}
+                            value={locationPickerValue}
+                            onChange={patchLocationFields}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-white/40 text-xs mb-3">Loading map… or enter coordinates manually below.</p>
+                      )}
                       <InputField label="Address" value={editFields.address} onChange={(v) => setField("address", v)} />
                       <div className="grid grid-cols-2 gap-4">
                         <InputField label="City" value={editFields.city} onChange={(v) => setField("city", v)} />
@@ -810,20 +954,107 @@ function AdminStudiosPageInner() {
                     </div>
                   )}
 
+                  {/* ── EQUIPMENT (partner inventory) ── */}
+                  {activeSection === "inventory" && (
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
+                      <p className="text-white/80 text-sm font-medium">Equipment &amp; services</p>
+                      <p className="text-white/45 text-xs leading-relaxed">
+                        Detailed equipment, services, and custom add-ons are stored as partner inventory. Partners manage them from{" "}
+                        <span className="text-white/60">Partner → Equipment &amp; Services</span> and per-studio picks in{" "}
+                        <span className="text-white/60">Edit studio</span>. Admin saves here still override listing text, photos, pricing, hours, amenities, platform add-ons, and policies.
+                      </p>
+                    </div>
+                  )}
+
                   {/* ── PHOTOS ── */}
                   {activeSection === "photos" && (
-                    <div className="space-y-3">
-                      <p className="text-white/40 text-xs">Studio images (managed via partner dashboard)</p>
-                      {(editData.images || []).length === 0 ? (
-                        <p className="text-white/30 text-sm py-8 text-center">No images uploaded</p>
+                    <div className="space-y-4">
+                      <p className="text-white/50 text-sm">
+                        First image is the <span className="text-[#D9FC67]">cover</span> everywhere on the site. Drag new files or use arrows to reorder.
+                      </p>
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => void handleAdminPhotoFiles(e.target.files)}
+                      />
+                      <div
+                        className={cn(
+                          "border-2 border-dashed rounded-xl p-6 text-center transition-colors",
+                          uploadingPhotos ? "border-white/5 opacity-60" : "border-white/10 hover:border-[#D9FC67]/40 cursor-pointer"
+                        )}
+                        onClick={() => !uploadingPhotos && !studioDrawerViewOnly && photoInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (!studioDrawerViewOnly) void handleAdminPhotoFiles(e.dataTransfer.files);
+                        }}
+                      >
+                        {uploadingPhotos ? (
+                          <Loader2 className="w-8 h-8 mx-auto text-[#D9FC67] animate-spin" />
+                        ) : (
+                          <Upload className="w-8 h-8 mx-auto text-white/30 mb-2" />
+                        )}
+                        <p className="text-white/70 text-sm font-medium">Upload or drop images</p>
+                        <p className="text-white/35 text-xs mt-1">JPG, PNG, WebP — up to 10MB each</p>
+                      </div>
+
+                      {photoDraftUrls.length === 0 ? (
+                        <p className="text-white/30 text-sm py-6 text-center border border-dashed border-white/10 rounded-xl">No photos yet — upload above.</p>
                       ) : (
-                        <div className="grid grid-cols-3 gap-3">
-                          {editData.images.map((img: any, idx: number) => (
-                            <div key={img.id} className="relative rounded-xl overflow-hidden border border-white/5">
-                              <img src={img.image_url} alt={img.caption || `Image ${idx + 1}`} className="w-full h-32 object-cover" />
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                <p className="text-white text-xs truncate">{img.caption || `Image ${idx + 1}`}</p>
-                              </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {photoDraftUrls.map((url, idx) => (
+                            <div key={`${url}-${idx}`} className="relative group aspect-square rounded-xl overflow-hidden border border-white/10">
+                              <img src={url} alt={`Studio ${idx + 1}`} className="w-full h-full object-cover" />
+                              {idx === 0 && (
+                                <span className="absolute bottom-2 left-2 bg-[#D9FC67] text-black text-[10px] px-2 py-0.5 rounded-full font-semibold z-10">
+                                  Cover
+                                </span>
+                              )}
+                              {!studioDrawerViewOnly && (
+                                <>
+                                  <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); movePhoto(idx, -1); }}
+                                      disabled={idx === 0}
+                                      className="p-1 rounded-md bg-black/70 text-white hover:bg-[#D9FC67] hover:text-black disabled:opacity-30"
+                                      title="Move up"
+                                    >
+                                      <ChevronUp className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); movePhoto(idx, 1); }}
+                                      disabled={idx === photoDraftUrls.length - 1}
+                                      className="p-1 rounded-md bg-black/70 text-white hover:bg-[#D9FC67] hover:text-black disabled:opacity-30"
+                                      title="Move down"
+                                    >
+                                      <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                  {idx !== 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setCoverPhotoAt(idx); }}
+                                      className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/65 text-white hover:bg-[#D9FC67] hover:text-black z-10"
+                                      title="Set as cover"
+                                    >
+                                      <ImageIcon className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); removePhotoAt(idx); }}
+                                    className="absolute top-2 left-2 p-1 rounded-md bg-red-600/90 text-white hover:bg-red-500 z-10"
+                                    title="Remove"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           ))}
                         </div>

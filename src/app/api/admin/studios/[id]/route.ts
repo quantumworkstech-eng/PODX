@@ -103,6 +103,7 @@ export async function PATCH(
   const email = await getAdminEmail();
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+  const db = supabaseAdmin;
 
   const { id } = await params;
   const body = await request.json();
@@ -156,6 +157,17 @@ export async function PATCH(
   // Direct field updates
   const { studioFields, amenityIds, addonIds, hoursData, policyUpdates, imageUrls } = body;
 
+  const applyAdminAudit = async () => {
+    await db
+      .from('studios')
+      .update({
+        admin_last_edited_at: new Date().toISOString(),
+        admin_last_edited_by: email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+  };
+
   if (studioFields) {
     // Only allow actual columns that exist in the studios table
     const studioTableAllowed = [
@@ -167,6 +179,8 @@ export async function PATCH(
     for (const key of studioTableAllowed) {
       if (key in studioFields) studioUpdates[key] = studioFields[key];
     }
+    studioUpdates.admin_last_edited_at = new Date().toISOString();
+    studioUpdates.admin_last_edited_by = email;
 
     const { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
     if (studioErr) return NextResponse.json({ error: 'Failed to update studio fields' }, { status: 500 });
@@ -203,6 +217,7 @@ export async function PATCH(
         amenityIds.map((amenityId: string) => ({ studio_id: id, amenity_id: amenityId }))
       );
     }
+    await applyAdminAudit();
   }
 
   // Update studio add-ons (replace all)
@@ -213,6 +228,7 @@ export async function PATCH(
         addonIds.map((addonId: string) => ({ studio_id: id, addon_id: addonId }))
       );
     }
+    await applyAdminAudit();
   }
 
   // Update studio hours
@@ -229,6 +245,7 @@ export async function PATCH(
         }))
       );
     }
+    await applyAdminAudit();
   }
 
   // Update cancellation policies
@@ -244,23 +261,35 @@ export async function PATCH(
         }))
       );
     }
+    await applyAdminAudit();
   }
 
-  // Insert image URLs into studio_images table
-  if (imageUrls && Array.isArray(imageUrls) && imageUrls.length > 0) {
+  // Replace gallery (order = cover first). Empty array clears all images.
+  if ('imageUrls' in body && Array.isArray(imageUrls)) {
     await supabaseAdmin.from('studio_images').delete().eq('studio_id', id);
-    await supabaseAdmin.from('studio_images').insert(
-      imageUrls.map((url: string, idx: number) => ({
-        studio_id: id,
-        image_url: url,
-        display_order: idx,
-        is_primary: idx === 0,
-      }))
-    );
+    if (imageUrls.length > 0) {
+      await supabaseAdmin.from('studio_images').insert(
+        imageUrls.map((url: string, idx: number) => ({
+          studio_id: id,
+          image_url: url,
+          display_order: idx,
+          caption: null,
+        }))
+      );
+    }
+    await supabaseAdmin
+      .from('studios')
+      .update({
+        featured_image_url: imageUrls[0] || null,
+        admin_last_edited_at: new Date().toISOString(),
+        admin_last_edited_by: email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
   }
 
   await logAdminAction(email, 'studio_edit', 'studio', id, {
-    sections: [studioFields && 'basic', amenityIds && 'amenities', addonIds && 'addons', hoursData && 'hours', policyUpdates && 'policies', imageUrls && 'images'].filter(Boolean),
+    sections: [studioFields && 'basic', amenityIds && 'amenities', addonIds && 'addons', hoursData && 'hours', policyUpdates && 'policies', imageUrls !== undefined && 'images'].filter(Boolean),
   });
 
   return NextResponse.json({ success: true });
