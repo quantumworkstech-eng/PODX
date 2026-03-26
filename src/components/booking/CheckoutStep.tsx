@@ -23,6 +23,7 @@ import {
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { BookingAddonsSection } from "@/components/booking/BookingAddonsSection";
+import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 
 const CANCELLATION_POLICY = {
   title: "Standard Cancellation Policy",
@@ -53,6 +54,7 @@ export function CheckoutStep() {
     openAuthModal,
     saveBookingToStorage,
     proceedToPayment,
+    selectedAddOns,
     canProceed,
     goToStep,
     selectionMode,
@@ -253,6 +255,13 @@ export function CheckoutStep() {
                 </div>
               </div>
             </div>
+          )}
+
+          {selectedStudio && (
+            <StudioBookingInventoryPanel
+              inventory={selectedStudio.booking_inventory}
+              selectedAddOns={selectedAddOns}
+            />
           )}
 
           {/* Package */}

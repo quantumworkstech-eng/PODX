@@ -4,6 +4,20 @@ import { useState, useEffect } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
+
+async function enrichStudioForBooking(studio: Studio): Promise<Studio> {
+  try {
+    const r = await fetch(`/api/studios/${studio.id}`);
+    if (!r.ok) return studio;
+    const data = await r.json();
+    return {
+      ...studio,
+      booking_inventory: data.booking_inventory ?? null,
+    };
+  } catch {
+    return studio;
+  }
+}
 import { Button } from "@/components/ui/button";
 import { Users, MapPin, Check, Star, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -374,7 +388,12 @@ export function StudioStep() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!disabled) setSelectedStudio(isSelected ? null : studio);
+                              if (disabled) return;
+                              if (isSelected) {
+                                setSelectedStudio(null);
+                                return;
+                              }
+                              void enrichStudioForBooking(studio).then(setSelectedStudio);
                             }}
                             disabled={disabled}
                             className={cn(
@@ -414,9 +433,12 @@ export function StudioStep() {
           setDetailStudio(null);
         }}
         onBookNow={() => {
-          if (detailStudio) setSelectedStudio(detailStudio);
-          setDetailStudioId(null);
-          setDetailStudio(null);
+          if (!detailStudio) return;
+          void enrichStudioForBooking(detailStudio).then((s) => {
+            setSelectedStudio(s);
+            setDetailStudioId(null);
+            setDetailStudio(null);
+          });
         }}
       />
     </div>

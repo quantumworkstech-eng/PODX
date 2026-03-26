@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search, CheckCircle, XCircle, PauseCircle, RefreshCw, Building2,
   Pencil, Trash2, Play, X, Save, Check, Mic, Music, Video, Lightbulb,
-  Volume2, Monitor, MapPin, Plus,
+  Volume2, Monitor, MapPin, Plus, Ban,
 } from "lucide-react";
 import { AdminAddStudioWizard } from "./AdminAddStudioWizard";
 
@@ -89,14 +90,32 @@ function TextareaField({ label, value, onChange, rows = 2 }: {
   );
 }
 
-export default function AdminStudiosPage() {
+const ACTION_MESSAGES: Record<string, string> = {
+  approve: "Studio approved successfully",
+  reject: "Studio rejected",
+  suspend: "Studio suspended",
+  pause: "Studio paused successfully",
+  activate: "Studio is live again",
+};
+
+function AdminStudiosPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editFromUrlHandled = useRef<string | null>(null);
+
   const [studios, setStudios] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+  /** Single action key: `${studioId}-${action}` — only that control shows loading / is disabled */
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [flash, setFlash] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<
+    | null
+    | { studioId: string; studioName: string; action: "reject" | "suspend" }
+  >(null);
 
   // Edit drawer state
   const [editOpen, setEditOpen] = useState(false);
@@ -138,27 +157,62 @@ export default function AdminStudiosPage() {
 
   useEffect(() => { fetchStudios(); }, [page, statusFilter]);
 
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 4500);
+    return () => clearTimeout(t);
+  }, [flash]);
 
-  const handleAction = async (studioId: string, action: string) => {
-    setActionLoading(`${studioId}-${action}`);
-    await fetch(`/api/admin/studios/${studioId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    setActionLoading(null);
-    fetchStudios();
+  const runPatchAction = async (studioId: string, action: string) => {
+    const key = `${studioId}-${action}`;
+    setActionLoading(key);
+    try {
+      const res = await fetch(`/api/admin/studios/${studioId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFlash({ type: "error", message: (data as { error?: string }).error || "Request failed" });
+        return;
+      }
+      setFlash({
+        type: "success",
+        message: ACTION_MESSAGES[action] || "Studio updated",
+      });
+      fetchStudios();
+    } catch {
+      setFlash({ type: "error", message: "Network error. Try again." });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAction = (studioId: string, action: string) => {
+    void runPatchAction(studioId, action);
   };
 
   const handleDelete = async (studioId: string) => {
     setActionLoading(`${studioId}-delete`);
-    await fetch(`/api/admin/studios/${studioId}`, { method: "DELETE" });
-    setActionLoading(null);
-    setDeleteId(null);
-    fetchStudios();
+    try {
+      const res = await fetch(`/api/admin/studios/${studioId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFlash({ type: "error", message: (data as { error?: string }).error || "Delete failed" });
+        return;
+      }
+      setFlash({ type: "success", message: "Studio removed from the platform" });
+      setDeleteId(null);
+      fetchStudios();
+    } catch {
+      setFlash({ type: "error", message: "Network error. Try again." });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const openEdit = async (studioId: string) => {
+  const openEdit = useCallback(async (studioId: string) => {
     setEditOpen(true);
     setEditLoading(true);
     setActiveSection("basic");
@@ -210,7 +264,21 @@ export default function AdminStudiosPage() {
     });
 
     setEditLoading(false);
-  };
+  }, []);
+
+  /** Open editor when landing with ?edit=studio_id (e.g. from /admin/studios/edit/[id]) */
+  useEffect(() => {
+    const raw = searchParams.get("edit");
+    if (!raw) {
+      editFromUrlHandled.current = null;
+      return;
+    }
+    if (editFromUrlHandled.current === raw) return;
+    editFromUrlHandled.current = raw;
+    void openEdit(raw).finally(() => {
+      router.replace("/admin/studios", { scroll: false });
+    });
+  }, [searchParams, router, openEdit]);
 
   const saveEdit = async () => {
     if (!editData) return;
@@ -267,6 +335,7 @@ export default function AdminStudiosPage() {
     }
 
     setEditOpen(false);
+    setFlash({ type: "success", message: "Studio saved successfully" });
     fetchStudios();
   };
 
@@ -289,8 +358,22 @@ export default function AdminStudiosPage() {
     { id: "policies", label: "Policies" },
   ];
 
+  const isBtnBusy = (studioId: string, action: string) => actionLoading === `${studioId}-${action}`;
+
   return (
     <div className="space-y-6">
+      {flash && (
+        <div
+          role="status"
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            flash.type === "success"
+              ? "border-[#D9FC67]/30 bg-[#D9FC67]/10 text-[#D9FC67]"
+              : "border-red-500/30 bg-red-500/10 text-red-300"
+          }`}
+        >
+          {flash.message}
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -381,37 +464,89 @@ export default function AdminStudiosPage() {
                         <span className={`px-2.5 py-1 rounded-full text-xs border ${cfg.color}`}>{cfg.label}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => openEdit(studio.id)} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Edit Studio">
+                        <div className="flex items-center gap-1 flex-wrap relative z-10">
+                          <button
+                            type="button"
+                            onClick={() => void openEdit(studio.id)}
+                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors"
+                            title="Edit studio"
+                            aria-label="Edit studio"
+                          >
                             <Pencil className="w-4 h-4" />
                           </button>
                           {studio.review_status !== "approved" && studio.review_status !== "deleted" && (
-                            <button onClick={() => handleAction(studio.id, "approve")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors" title="Approve">
-                              {actionLoading === `${studio.id}-approve` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                            <button
+                              type="button"
+                              onClick={() => handleAction(studio.id, "approve")}
+                              disabled={isBtnBusy(studio.id, "approve")}
+                              className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                              title="Approve listing"
+                              aria-label="Approve listing"
+                            >
+                              {isBtnBusy(studio.id, "approve") ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                             </button>
                           )}
                           {studio.review_status === "approved" && (
-                            <button onClick={() => handleAction(studio.id, "pause")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Pause">
-                              {actionLoading === `${studio.id}-pause` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
+                            <button
+                              type="button"
+                              onClick={() => handleAction(studio.id, "pause")}
+                              disabled={isBtnBusy(studio.id, "pause")}
+                              className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                              title="Pause studio (hidden from booking)"
+                              aria-label="Pause studio"
+                            >
+                              {isBtnBusy(studio.id, "pause") ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
                             </button>
                           )}
-                          {studio.review_status === "paused" && (
-                            <button onClick={() => handleAction(studio.id, "activate")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors" title="Reactivate">
-                              {actionLoading === `${studio.id}-activate` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                          {(studio.review_status === "paused" || studio.review_status === "suspended") && (
+                            <button
+                              type="button"
+                              onClick={() => handleAction(studio.id, "activate")}
+                              disabled={isBtnBusy(studio.id, "activate")}
+                              className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                              title={studio.review_status === "suspended" ? "Restore studio (approve)" : "Resume studio"}
+                              aria-label="Resume or restore studio"
+                            >
+                              {isBtnBusy(studio.id, "activate") ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                             </button>
                           )}
                           {!["rejected", "deleted"].includes(studio.review_status) && (
-                            <button onClick={() => handleAction(studio.id, "reject")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Reject">
-                              {actionLoading === `${studio.id}-reject` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmDialog({ studioId: studio.id, studioName: studio.name, action: "reject" })
+                              }
+                              disabled={isBtnBusy(studio.id, "reject")}
+                              className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                              title="Reject listing"
+                              aria-label="Reject listing"
+                            >
+                              {isBtnBusy(studio.id, "reject") ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                             </button>
                           )}
                           {!["suspended", "deleted", "paused"].includes(studio.review_status) && (
-                            <button onClick={() => handleAction(studio.id, "suspend")} disabled={!!actionLoading} className="p-1.5 rounded-lg hover:bg-yellow-500/10 text-white/40 hover:text-yellow-400 transition-colors" title="Suspend">
-                              {actionLoading === `${studio.id}-suspend` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmDialog({ studioId: studio.id, studioName: studio.name, action: "suspend" })
+                              }
+                              disabled={isBtnBusy(studio.id, "suspend")}
+                              className="p-1.5 rounded-lg hover:bg-yellow-500/10 text-white/40 hover:text-yellow-400 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                              title="Suspend studio"
+                              aria-label="Suspend studio"
+                            >
+                              {isBtnBusy(studio.id, "suspend") ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
                             </button>
                           )}
                           {studio.review_status !== "deleted" && (
-                            <button onClick={() => setDeleteId(studio.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Delete">
+                            <button
+                              type="button"
+                              onClick={() => setDeleteId(studio.id)}
+                              disabled={isBtnBusy(studio.id, "delete")}
+                              className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                              title="Remove studio (soft delete)"
+                              aria-label="Delete studio"
+                            >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}
@@ -774,20 +909,70 @@ export default function AdminStudiosPage() {
         </div>
       )}
 
+      {/* Reject / Suspend confirmation */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <h3 className="text-white font-semibold text-lg mb-2">
+              {confirmDialog.action === "suspend" ? "Suspend this studio?" : "Reject this studio?"}
+            </h3>
+            <p className="text-white/50 text-sm mb-6">
+              {confirmDialog.action === "suspend"
+                ? `Are you sure you want to suspend "${confirmDialog.studioName}"? It will be hidden from booking until restored.`
+                : `Are you sure you want to reject "${confirmDialog.studioName}"? The owner will be notified.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { studioId, action } = confirmDialog;
+                  setConfirmDialog(null);
+                  void runPatchAction(studioId, action);
+                }}
+                disabled={isBtnBusy(confirmDialog.studioId, confirmDialog.action)}
+                className={
+                  confirmDialog.action === "suspend"
+                    ? "flex-1 px-4 py-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/30 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    : "flex-1 px-4 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                }
+              >
+                {isBtnBusy(confirmDialog.studioId, confirmDialog.action) ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : confirmDialog.action === "suspend" ? (
+                  "Suspend"
+                ) : (
+                  "Reject"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirm */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-sm p-6">
-            <h3 className="text-white font-semibold mb-2">Delete Studio</h3>
-            <p className="text-white/50 text-sm mb-6">This will deactivate the studio and notify the owner. Irreversible.</p>
+            <h3 className="text-white font-semibold mb-2">Delete this studio permanently?</h3>
+            <p className="text-white/50 text-sm mb-6">
+              This soft-deletes the listing and notifies the owner. You can filter by status to see removed studios.
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm transition-colors">Cancel</button>
+              <button type="button" onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm transition-colors">Cancel</button>
               <button
+                type="button"
                 onClick={() => handleDelete(deleteId)}
-                disabled={!!actionLoading}
+                disabled={isBtnBusy(deleteId, "delete")}
                 className="flex-1 px-4 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {isBtnBusy(deleteId, "delete") ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                 Delete
               </button>
             </div>
@@ -803,5 +988,19 @@ export default function AdminStudiosPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function AdminStudiosPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <AdminStudiosPageInner />
+    </Suspense>
   );
 }

@@ -5,6 +5,9 @@ import { X, Calendar, Clock, MapPin, Users, Package, IndianRupee, AlertCircle, R
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
+import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
+import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
+import type { AddOnService } from "@/lib/booking-types";
 
 interface BookingDetailModalProps {
   booking: BookingData;
@@ -28,6 +31,15 @@ export function BookingDetailModal({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [policyRules, setPolicyRules] = useState<{ hours_before: number; refund_percentage: number }[] | null>(null);
   const [rescheduleCutoff, setRescheduleCutoff] = useState<number | null>(null);
+  const [studioInventory, setStudioInventory] = useState<StudioBookingInventory | null>(null);
+
+  useEffect(() => {
+    if (!booking.studio?.id) return;
+    fetch(`/api/studios/${booking.studio.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setStudioInventory(data?.booking_inventory ?? null))
+      .catch(() => setStudioInventory(null));
+  }, [booking.studio?.id]);
 
   useEffect(() => {
     if (!booking.studio?.id) return;
@@ -169,6 +181,22 @@ export function BookingDetailModal({
               <span className="text-white/60 text-sm">{booking.studio.location.area}, {booking.studio.location.city}</span>
             </div>
           </div>
+
+          <StudioBookingInventoryPanel
+            className="mb-6"
+            inventory={studioInventory}
+            selectedAddOns={
+              booking.addOns.map(
+                (a): AddOnService => ({
+                  id: a.id,
+                  name: a.name,
+                  price: a.price,
+                  description: "",
+                })
+              )
+            }
+            title="Equipment, services & add-ons"
+          />
 
           <div className="bg-white/5 rounded-xl p-6 mb-6">
             <h4 className="text-white font-semibold mb-4 flex items-center gap-2">

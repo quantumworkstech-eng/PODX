@@ -1,3 +1,7 @@
+import type { StudioBookingInventory } from "./studio-booking-inventory";
+
+export type { StudioBookingInventory };
+
 export interface Studio {
   id: string;
   name: string;
@@ -14,6 +18,8 @@ export interface Studio {
   currency: string;
   capacity: number;
   equipment: Equipment[];
+  /** Structured equipment, services & add-on catalog for booking UI */
+  booking_inventory?: StudioBookingInventory | null;
   rating: number;
   review_count: number;
   is_instant_bookable: boolean;

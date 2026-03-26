@@ -30,6 +30,7 @@ import {
   Loader2,
   AlertCircle,
   CreditCard,
+  Image as ImageIcon,
   Radio,
   Film,
   Camera,
@@ -434,6 +435,13 @@ export default function CreateStudioPage() {
 
   const removeImage = (index: number) => {
     updateFormData({ images: formData.images.filter((_, i) => i !== index) });
+  };
+
+  const setCoverImage = (index: number) => {
+    if (index === 0 || index < 0 || index >= formData.images.length) return;
+    const next = [...formData.images];
+    const [picked] = next.splice(index, 1);
+    updateFormData({ images: [picked, ...next] });
   };
 
   // ─── Submit ──────────────────────────────────────────────────────────────────
@@ -1001,14 +1009,24 @@ export default function CreateStudioPage() {
                 <button
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute top-2 right-2 p-1 bg-red-500/90 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 p-1 bg-red-500/90 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
-                {index === 0 && (
-                  <span className="absolute bottom-2 left-2 bg-[#D9FC67] text-black text-xs px-2 py-0.5 rounded-full font-medium">
+                {index === 0 ? (
+                  <span className="absolute bottom-2 left-2 bg-[#D9FC67] text-black text-xs px-2 py-0.5 rounded-full font-medium z-10">
                     Cover
                   </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage(index)}
+                    className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-[#D9FC67] hover:text-black transition-colors z-10"
+                    title="Set as cover image"
+                    aria-label="Set as cover image"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
                 )}
               </div>
             ))}

@@ -407,6 +407,17 @@ export default function PartnerStudiosPage() {
     setFormData((prev) => ({ ...prev, images: prev.images?.filter((_, i) => i !== index) }));
   };
 
+  const setCoverImage = (index: number) => {
+    if (index === 0) return;
+    setFormData((prev) => {
+      const imgs = prev.images || [];
+      if (index < 0 || index >= imgs.length) return prev;
+      const next = [...imgs];
+      const [picked] = next.splice(index, 1);
+      return { ...prev, images: [picked, ...next] };
+    });
+  };
+
   const toggleEquipment = (item: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -746,11 +757,26 @@ export default function PartnerStudiosPage() {
                 {formData.images && formData.images.length > 0 && (
                   <div className="flex gap-2 mt-4 flex-wrap">
                     {formData.images.map((img, idx) => (
-                      <div key={idx} className="relative">
+                      <div key={idx} className="relative group">
                         <img src={img} alt={`Upload ${idx + 1}`} className="w-20 h-20 object-cover rounded-lg" />
-                        <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full text-white">
+                        <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full text-white z-10">
                           <X className="w-3 h-3" />
                         </button>
+                        {idx === 0 ? (
+                          <span className="absolute bottom-0.5 left-0.5 bg-[#D9FC67] text-black text-[10px] px-1.5 py-0.5 rounded font-medium leading-none">
+                            Cover
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setCoverImage(idx)}
+                            className="absolute bottom-0.5 right-0.5 p-1 rounded bg-black/65 text-white hover:bg-[#D9FC67] hover:text-black transition-colors"
+                            title="Set as cover"
+                            aria-label="Set as cover image"
+                          >
+                            <ImageIcon className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

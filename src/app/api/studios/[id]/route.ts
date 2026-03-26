@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getMergedStudioEquipmentLabels } from '@/lib/partner-studio-inventory';
 import { fetchMergedStudioAddons } from '@/lib/studio-addons-public';
+import { buildStudioBookingInventory } from '@/lib/studio-booking-inventory';
 
 export async function GET(
   _request: NextRequest,
@@ -50,6 +51,13 @@ export async function GET(
     addons = [];
   }
 
+  let booking_inventory = null as Awaited<ReturnType<typeof buildStudioBookingInventory>> | null;
+  try {
+    booking_inventory = await buildStudioBookingInventory(supabase, id, (studio as any).equipment);
+  } catch {
+    booking_inventory = null;
+  }
+
   // Flatten amenities
   const amenities = ((studio as any).studio_amenities ?? [])
     .map((sa: any) => sa.amenities)
@@ -80,5 +88,6 @@ export async function GET(
     rooms: ((studio as any).rooms ?? []).filter((r: any) => r.is_active !== false),
     amenities,
     addons,
+    booking_inventory,
   });
 }

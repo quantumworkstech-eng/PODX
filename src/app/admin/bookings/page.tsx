@@ -7,6 +7,9 @@ import {
   CreditCard, Package, Users, Calendar, FileText, Pencil, Plus,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
+import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
+import type { AddOnService } from "@/lib/booking-types";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "cancelled", "completed", "rescheduled", "no_show"];
 
@@ -117,6 +120,7 @@ export default function AdminBookingsPage() {
     status: "confirmed", total_price: "", notes: "",
   });
   const [studioList, setStudioList] = useState<any[]>([]);
+  const [studioBookingInventory, setStudioBookingInventory] = useState<StudioBookingInventory | null>(null);
 
   const loadStudiosForDropdown = () => {
     fetch("/api/admin/studios?page=1")
@@ -163,6 +167,18 @@ export default function AdminBookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [bookingPage, statusFilter]);
   useEffect(() => { if (activeTab === "reschedule") fetchReschedule(); }, [activeTab, reschedulePage, rescheduleStatusFilter]);
+
+  useEffect(() => {
+    const sid = detailData?.booking?.studio_id;
+    if (!detailOpen || !sid) {
+      setStudioBookingInventory(null);
+      return;
+    }
+    fetch(`/api/studios/${sid}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStudioBookingInventory(d?.booking_inventory ?? null))
+      .catch(() => setStudioBookingInventory(null));
+  }, [detailOpen, detailData?.booking?.studio_id]);
 
   const handleBookingAction = async (bookingId: string, action: string) => {
     setActionLoading(`${bookingId}-${action}`);
@@ -731,6 +747,23 @@ export default function AdminBookingsPage() {
                         <InfoRow label="Name" value={detailData.booking.studio_owner_name} />
                         <InfoRow label="Email" value={detailData.booking.studio_owner_email} />
                       </div>
+                      <StudioBookingInventoryPanel
+                        className="mt-4 pt-4 border-t border-white/5"
+                        inventory={studioBookingInventory}
+                        selectedAddOns={
+                          (detailData.addons || []).map(
+                            (a: any, idx: number): AddOnService => ({
+                              id: String(a.id ?? a.platform_addon_id ?? `addon-${idx}`),
+                              name: a.addon_name || "Add-on",
+                              description: "",
+                              price:
+                                Number(a.addon_price || 0) * Number(a.quantity ?? 1),
+                              category: a.category,
+                            })
+                          )
+                        }
+                        title="Equipment, services & add-ons"
+                      />
                     </div>
                   )}
 

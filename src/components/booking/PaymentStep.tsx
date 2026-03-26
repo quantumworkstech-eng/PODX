@@ -14,12 +14,12 @@ import {
   AlertCircle,
   ArrowLeft,
   Info,
-  Sparkles,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { formatCalendarDateLocal, parseISTDateTime } from "@/lib/bookingTime";
+import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 
 declare global {
   interface Window {
@@ -405,6 +405,13 @@ export function PaymentStep() {
             </div>
           )}
 
+          {selectedStudio && (
+            <StudioBookingInventoryPanel
+              inventory={selectedStudio.booking_inventory}
+              selectedAddOns={selectedAddOns}
+            />
+          )}
+
           {/* Package */}
           {selectedPackage && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
@@ -423,41 +430,6 @@ export function PaymentStep() {
                     <span className="text-[#D9FC67] text-sm font-medium">Included</span>
                   )}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Add-ons */}
-          {selectedAddOns.length > 0 && (
-            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-base font-semibold text-white mb-4">
-                Add-ons ({selectedAddOns.length})
-              </h3>
-              <div className="space-y-3">
-                {selectedAddOns.map((addon) => (
-                  <div key={addon.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {addon.thumbnail ? (
-                        <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          <Image
-                            src={addon.thumbnail}
-                            alt={addon.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                          <Sparkles className="w-4 h-4 text-[#D9FC67]" />
-                        </div>
-                      )}
-                      <span className="text-white text-sm">{addon.name}</span>
-                    </div>
-                    <span className="text-white font-medium text-sm">
-                      ₹{addon.price.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           )}

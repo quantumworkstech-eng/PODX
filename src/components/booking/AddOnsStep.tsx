@@ -8,6 +8,7 @@ import {
   BookingAddonsSection,
   AddOnsStepSearchInput,
 } from "@/components/booking/BookingAddonsSection";
+import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 
 export function AddOnsStep() {
   const {
@@ -43,6 +44,13 @@ export function AddOnsStep() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
+          {selectedStudio && (
+            <StudioBookingInventoryPanel
+              className="mb-6"
+              inventory={selectedStudio.booking_inventory}
+              selectedAddOns={selectedAddOns}
+            />
+          )}
           <AddOnsStepSearchInput value={searchTerm} onChange={setSearchTerm} />
           {selectedStudio && (
             <BookingAddonsSection

@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
+import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
+import type { AddOnService } from "@/lib/booking-types";
 
 interface AddOn {
   name: string;
@@ -21,7 +24,8 @@ interface AddOn {
 interface Booking {
   id: string;
   dbId?: string;
-  studio: { name: string; city: string; address: string };
+  studioId?: string;
+  studio: { id: string; name: string; city: string; address: string };
   customer: { name: string; email: string; phone: string };
   date: string;
   endDate: string;
@@ -92,6 +96,7 @@ export default function PartnerBookingsPage() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
+  const [studioInventory, setStudioInventory] = useState<StudioBookingInventory | null>(null);
 
   useEffect(() => {
     fetch("/api/partner/bookings")
@@ -100,6 +105,18 @@ export default function PartnerBookingsPage() {
       .catch(console.error)
       .finally(() => setIsFetching(false));
   }, []);
+
+  useEffect(() => {
+    const sid = selectedBooking?.studio?.id || selectedBooking?.studioId;
+    if (!showDetailModal || !sid) {
+      setStudioInventory(null);
+      return;
+    }
+    fetch(`/api/studios/${sid}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStudioInventory(d?.booking_inventory ?? null))
+      .catch(() => setStudioInventory(null));
+  }, [showDetailModal, selectedBooking?.studio?.id, selectedBooking?.studioId]);
 
   const updateBookingStatus = async (dbId: string | undefined, status: Booking["status"], localId: string) => {
     if (dbId) {
@@ -483,6 +500,25 @@ export default function PartnerBookingsPage() {
                   )}
                 </div>
               </div>
+
+              {selectedBooking && (
+                <div className="px-6 pb-2">
+                  <StudioBookingInventoryPanel
+                    inventory={studioInventory}
+                    selectedAddOns={
+                      selectedBooking.addOns.map(
+                        (a, i): AddOnService => ({
+                          id: `addon-${i}-${a.name}`,
+                          name: a.name,
+                          price: a.price,
+                          description: "",
+                        })
+                      )
+                    }
+                    title="Equipment, services & add-ons"
+                  />
+                </div>
+              )}
 
               {/* Payment Summary */}
               <div className="mx-6 mb-6 bg-[#1a1a1a] rounded-xl border border-white/5 p-4">
