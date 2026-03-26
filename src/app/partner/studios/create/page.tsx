@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   Upload,
   X,
-  MapPin,
   IndianRupee,
   Users,
   Clock,
@@ -28,7 +27,6 @@ import {
   Shield,
   Trash2,
   Plus,
-  Navigation,
   Loader2,
   AlertCircle,
   CreditCard,
@@ -41,6 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCities, City } from "@/lib/data";
+import { PartnerStudioLocationPicker } from "@/components/maps/PartnerStudioLocationPicker";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -77,16 +76,6 @@ const TIME_SLOTS = [
   "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
   "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
   "20:00", "21:00", "22:00", "23:00",
-];
-
-const INDIAN_STATES = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh",
-  "Jammu & Kashmir", "Jharkhand", "Karnataka", "Kerala", "Ladakh",
-  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
-  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
-  "West Bengal", "Chandigarh", "Puducherry",
 ];
 
 const DRAFT_KEY = "podx_draft_studio";
@@ -178,23 +167,6 @@ const STEPS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function geocodeAddress(address: string, city: string, country: string): Promise<{ lat: number; lon: number } | null> {
-  try {
-    const query = `${address}, ${city}, ${country}`;
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`,
-      { headers: { "Accept-Language": "en" } }
-    );
-    const data = await res.json();
-    if (data && data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 function formatPolicyLabel(type: "days" | "hours", value: number): string {
   if (value === 0) return "at the time of cancellation";
   return `${value} ${type} before the session`;
@@ -221,8 +193,6 @@ export default function CreateStudioPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
-  const [isGeocoding, setIsGeocoding] = useState(false);
-  const [geocodeError, setGeocodeError] = useState("");
   const [platformAddons, setPlatformAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<"active" | "no_plan" | "loading" | null>(null);
@@ -319,6 +289,9 @@ export default function CreateStudioPage() {
         if (!formData.city) return "Please select a city.";
         if (!formData.address.trim()) return "Full address is required.";
         if (!formData.state) return "Please select a state.";
+        if (formData.latitude == null || formData.longitude == null) {
+          return "Please verify your location (pick a suggestion, Verify & Pin, or Select on Map).";
+        }
         return "";
       case 3:
         if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
@@ -426,6 +399,7 @@ export default function CreateStudioPage() {
           address: formData.address,
           city: formData.city,
           state: formData.state,
+          country: formData.country || "India",
           pricePerHour: formData.pricePerHour,
           capacity: formData.capacity,
           equipment: formData.equipment,
@@ -597,121 +571,18 @@ export default function CreateStudioPage() {
         <p className="text-white/60">Enter your exact studio address so clients can find you</p>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="text-white/80 text-sm font-medium mb-2 block">City *</label>
-          <select
-            value={formData.city}
-            onChange={(e) => { updateFormData({ city: e.target.value, latitude: undefined, longitude: undefined }); setGeocodeError(""); }}
-            className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors appearance-none cursor-pointer"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.5em" }}
-          >
-            <option value="" className="bg-[#141414]">Select a city</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.name} className="bg-[#141414]">{city.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="text-white/80 text-sm font-medium mb-2 block">Full Address *</label>
-          <div className="relative">
-            <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5" />
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => { updateFormData({ address: e.target.value, latitude: undefined, longitude: undefined }); setGeocodeError(""); }}
-              placeholder="Building name, street, area, landmark"
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
-            />
-          </div>
-          <p className="text-white/30 text-xs mt-1">Enter the complete street address including building and floor details</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-white/80 text-sm font-medium mb-2 block">State *</label>
-            <select
-              value={formData.state}
-              onChange={(e) => updateFormData({ state: e.target.value })}
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:border-[#D9FC67] focus:outline-none transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 0.75rem center", backgroundSize: "1.25em" }}
-            >
-              <option value="" className="bg-[#141414]">Select state</option>
-              {INDIAN_STATES.map((s) => (
-                <option key={s} value={s} className="bg-[#141414]">{s}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-white/80 text-sm font-medium mb-2 block">Country</label>
-            <input
-              type="text"
-              value={formData.country}
-              readOnly
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white/60 cursor-not-allowed"
-            />
-          </div>
-        </div>
-
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={async () => {
-              if (!formData.address || !formData.city) return;
-              setIsGeocoding(true);
-              setGeocodeError("");
-              const result = await geocodeAddress(formData.address, formData.city, formData.country);
-              if (result) {
-                updateFormData({ latitude: result.lat, longitude: result.lon });
-              } else {
-                setGeocodeError("Location not found. Try a more specific address.");
-              }
-              setIsGeocoding(false);
-            }}
-            disabled={isGeocoding || !formData.address || !formData.city}
-            className="w-full h-12 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl text-white hover:border-[#D9FC67] hover:text-[#D9FC67] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isGeocoding ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Finding location on map...</>
-            ) : formData.latitude ? (
-              <><Navigation className="w-4 h-4 text-[#D9FC67]" /> <span className="text-[#D9FC67]">Location pinned — click to re-verify</span></>
-            ) : (
-              <><Navigation className="w-4 h-4" /> Verify & Pin on Map</>
-            )}
-          </button>
-          {geocodeError && (
-            <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {geocodeError}
-            </p>
-          )}
-        </div>
-
-        <div className="rounded-2xl overflow-hidden border border-white/10">
-          {formData.latitude && formData.longitude ? (
-            <>
-              <iframe
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${formData.longitude - 0.006}%2C${formData.latitude - 0.006}%2C${formData.longitude + 0.006}%2C${formData.latitude + 0.006}&layer=mapnik&marker=${formData.latitude}%2C${formData.longitude}`}
-                className="w-full h-64 border-0"
-                loading="lazy"
-                title="Studio location map"
-              />
-              <div className="p-3 bg-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#D9FC67]" />
-                  <span className="text-white/60 text-xs">{formData.address}, {formData.city}</span>
-                </div>
-                <span className="text-[#D9FC67] text-xs font-medium">Pinned ✓</span>
-              </div>
-            </>
-          ) : (
-            <div className="h-52 bg-white/5 flex flex-col items-center justify-center gap-3">
-              <MapPin className="w-10 h-10 text-white/20" />
-              <p className="text-white/30 text-sm">Enter address and click "Verify & Pin on Map"</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <PartnerStudioLocationPicker
+        cities={cities}
+        value={{
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          country: formData.country,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+        }}
+        onChange={(patch) => updateFormData(patch)}
+      />
     </div>
   );
 

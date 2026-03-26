@@ -25,6 +25,10 @@ import {
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
+import {
+  isPartnerStudioVisibleActive,
+  PARTNER_STUDIOS_CHANGED,
+} from "@/lib/partner-studio-status";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 
@@ -78,13 +82,22 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
 
   useEffect(() => {
     if (status !== "authenticated" || isAuthPage) return;
-    fetch("/api/partner/studios")
-      .then((r) => r.json())
-      .then((sd) => {
-        const studios: any[] = sd.studios || [];
-        setActiveStudios(studios.filter((s) => s.status === "active").length);
-      })
-      .catch(console.error);
+    const loadStudiosCount = () => {
+      fetch("/api/partner/studios")
+        .then((r) => r.json())
+        .then((sd) => {
+          const studios: { status: string; review_status?: string }[] = sd.studios || [];
+          setActiveStudios(studios.filter(isPartnerStudioVisibleActive).length);
+        })
+        .catch(console.error);
+    };
+    loadStudiosCount();
+    window.addEventListener(PARTNER_STUDIOS_CHANGED, loadStudiosCount);
+    return () => window.removeEventListener(PARTNER_STUDIOS_CHANGED, loadStudiosCount);
+  }, [status, isAuthPage, pathname]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || isAuthPage) return;
     fetch("/api/partner/subscription")
       .then((r) => r.json())
       .then((d) => {

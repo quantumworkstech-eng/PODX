@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { notifyPartnerStudiosChanged } from "@/lib/partner-studio-status";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -119,7 +120,10 @@ export default function PartnerStudiosPage() {
   useEffect(() => {
     fetch("/api/partner/studios")
       .then((r) => r.json())
-      .then((d) => setStudios(d.studios || []))
+      .then((d) => {
+        setStudios(d.studios || []);
+        notifyPartnerStudiosChanged();
+      })
       .catch(console.error)
       .finally(() => setIsFetching(false));
   }, []);
@@ -273,6 +277,7 @@ export default function PartnerStudiosPage() {
       const r = await fetch("/api/partner/studios");
       const d = await r.json();
       setStudios(d.studios || []);
+      notifyPartnerStudiosChanged();
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save studio:", err);
@@ -286,6 +291,7 @@ export default function PartnerStudiosPage() {
     try {
       await fetch(`/api/partner/studios/${id}`, { method: "DELETE" });
       setStudios((prev) => prev.filter((s) => s.id !== id));
+      notifyPartnerStudiosChanged();
     } catch (err) {
       console.error("Failed to delete studio:", err);
     }
@@ -307,6 +313,7 @@ export default function PartnerStudiosPage() {
           s.id === id ? { ...s, status: (newActive ? "active" : "inactive") as "active" | "inactive" } : s
         )
       );
+      notifyPartnerStudiosChanged();
     } catch (err) {
       console.error("Failed to toggle studio status:", err);
     }

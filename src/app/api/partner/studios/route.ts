@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const {
-    name, description, fullDescription, address, city, state,
+    name, description, fullDescription, address, city, state, country,
     pricePerHour, capacity, equipment, services, amenities,
     addonIds, images, videoUrl, latitude, longitude,
     cancellationRules, rescheduleRules,
@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
     address: address || '',
     city,
     state: state || null,
+    country: country || 'India',
     is_active: false,
     review_status: 'pending_review',
     latitude: latitude ?? null,

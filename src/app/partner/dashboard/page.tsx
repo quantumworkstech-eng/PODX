@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PartnerBookingsCalendar } from "@/components/partner/PartnerBookingsCalendar";
+import { isPartnerStudioVisibleActive } from "@/lib/partner-studio-status";
 
 interface Studio {
   id: string;
@@ -25,6 +26,7 @@ interface Studio {
   city: string;
   price_per_hour: number;
   status: "active" | "inactive";
+  review_status?: string;
 }
 
 interface Booking {
@@ -98,7 +100,7 @@ export default function PartnerDashboardOverview() {
   const pendingRevenue = bookings
     .filter((b) => b.status === "confirmed")
     .reduce((sum, b) => sum + b.totalPrice, 0);
-  const activeStudios = studios.filter((s) => s.status === "active").length;
+  const activeStudios = studios.filter(isPartnerStudioVisibleActive).length;
 
   const stats = [
     {
