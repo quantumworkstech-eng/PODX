@@ -339,9 +339,6 @@ export default function CreateStudioPage() {
         if (!formData.city) return "Please select a city.";
         if (!formData.address.trim()) return "Full address is required.";
         if (!formData.state) return "Please select a state.";
-        if (formData.latitude == null || formData.longitude == null) {
-          return "Please verify your location (pick a suggestion, Verify & Pin, or Select on Map).";
-        }
         return "";
       case 3:
         if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
@@ -1348,10 +1345,10 @@ export default function CreateStudioPage() {
               <p><span className="text-white/40">City:</span> <span className="text-white ml-2">{formData.city}</span></p>
               <p><span className="text-white/40">State:</span> <span className="text-white ml-2">{formData.state}</span></p>
               <p><span className="text-white/40">Address:</span> <span className="text-white ml-2">{formData.address}</span></p>
-              {formData.latitude && formData.longitude ? (
-                <p className="flex items-center gap-1"><span className="text-white/40">Map pin:</span> <span className="text-green-400 text-xs ml-2">✓ Location pinned ({formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)})</span></p>
+              {formData.latitude != null && formData.longitude != null ? (
+                <p className="flex items-center gap-1"><span className="text-white/40">Coordinates:</span> <span className="text-green-400 text-xs ml-2">✓ {formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)}</span></p>
               ) : (
-                <p><span className="text-white/40">Map pin:</span> <span className="text-yellow-400 text-xs ml-2">Not pinned — optional</span></p>
+                <p><span className="text-white/40">Coordinates:</span> <span className="text-white/50 text-xs ml-2">Not set — optional; address above is still saved</span></p>
               )}
             </div>
           </div>

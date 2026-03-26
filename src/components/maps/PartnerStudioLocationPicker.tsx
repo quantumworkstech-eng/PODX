@@ -120,12 +120,49 @@ export function PartnerStudioLocationPicker({
   const [mapReady, setMapReady] = useState(false);
   const [mapWorking, setMapWorking] = useState(false);
   const [pendingMap, setPendingMap] = useState<GeocodeResponse | null>(null);
+  const [latInput, setLatInput] = useState("");
+  const [lngInput, setLngInput] = useState("");
+  const [manualCoordError, setManualCoordError] = useState("");
 
   const browserMapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY || "";
 
   const resetSession = useCallback(() => {
     sessionTokenRef.current = crypto.randomUUID();
   }, []);
+
+  useEffect(() => {
+    setLatInput(value.latitude != null ? String(value.latitude) : "");
+    setLngInput(value.longitude != null ? String(value.longitude) : "");
+  }, [value.latitude, value.longitude]);
+
+  const commitManualCoords = useCallback(() => {
+    const tLat = latInput.trim();
+    const tLng = lngInput.trim();
+    if (!tLat && !tLng) {
+      setManualCoordError("");
+      onChange({ latitude: undefined, longitude: undefined });
+      return;
+    }
+    if (!tLat || !tLng) {
+      setManualCoordError("Enter both latitude and longitude, or clear both fields.");
+      setLatInput(value.latitude != null ? String(value.latitude) : "");
+      setLngInput(value.longitude != null ? String(value.longitude) : "");
+      return;
+    }
+    const lat = Number(tLat);
+    const lng = Number(tLng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setManualCoordError("Use decimal numbers only (e.g. 19.076, 72.8777).");
+      return;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      setManualCoordError("Latitude must be −90–90; longitude −180–180.");
+      return;
+    }
+    setManualCoordError("");
+    setGeocodeError("");
+    onChange({ latitude: lat, longitude: lng });
+  }, [latInput, lngInput, onChange, value.latitude, value.longitude]);
 
   const applyGeocode = useCallback(
     (g: GeocodeResponse) => {
@@ -197,6 +234,9 @@ export function PartnerStudioLocationPicker({
     }, AUTOCOMPLETE_DEBOUNCE_MS);
   };
 
+  const MAPS_SERVER_MISSING =
+    "Google Maps server API is not configured. Add GOOGLE_MAPS_SERVER_KEY (or GOOGLE_MAPS_API_KEY) to your server environment, or enter latitude/longitude manually below.";
+
   const geocodeByPlaceId = async (placeId: string): Promise<GeocodeResponse | null> => {
     const cached = geocodeCacheRef.current.get(placeId);
     if (cached) return cached;
@@ -206,7 +246,12 @@ export function PartnerStudioLocationPicker({
       body: JSON.stringify({ placeId }),
     });
     const data = await res.json();
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 503) {
+        setGeocodeError(MAPS_SERVER_MISSING);
+      }
+      return null;
+    }
     geocodeCacheRef.current.set(placeId, data as GeocodeResponse);
     return data as GeocodeResponse;
   };
@@ -222,7 +267,11 @@ export function PartnerStudioLocationPicker({
         applyGeocode(g);
         resetSession();
       } else {
-        setGeocodeError("Could not resolve that place. Try another suggestion.");
+        setGeocodeError((prev) =>
+          prev && prev.includes("GOOGLE_MAPS_SERVER_KEY")
+            ? prev
+            : "Could not resolve that place. Try another suggestion, or enter coordinates manually below."
+        );
       }
     } finally {
       setIsGeocoding(false);
@@ -246,9 +295,11 @@ export function PartnerStudioLocationPicker({
       const data = await res.json();
       if (!res.ok) {
         setGeocodeError(
-          res.status === 404
+          res.status === 503
+            ? MAPS_SERVER_MISSING
+            : res.status === 404
             ? "Location not found. Try a more specific address."
-            : data.error || "Could not verify address."
+            : (data.error as string) || "Could not verify address."
         );
         return;
       }
@@ -510,8 +561,8 @@ export function PartnerStudioLocationPicker({
           )}
         </div>
         <p className="text-white/30 text-xs mt-1">
-          Enter the complete street address including building and floor details. Pick a suggestion or
-          use Verify to geocode.
+          Enter the complete street address. Suggestions and Verify need Google Maps server keys; you can
+          also set coordinates manually below (optional).
         </p>
 
         {suggestionsOpen && suggestions.length > 0 && inputFocused && (
@@ -611,11 +662,50 @@ export function PartnerStudioLocationPicker({
           <MapPin className="w-4 h-4" /> Select on Map
         </button>
       </div>
+
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+        <p className="text-white/80 text-sm font-medium">Optional coordinates</p>
+        <p className="text-white/40 text-xs leading-relaxed">
+          Decimal degrees (WGS84). Use this when Maps APIs are not configured, or to fine-tune a pin. Leave
+          blank if you only need the text address.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-white/50 text-xs mb-1 block">Latitude</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={latInput}
+              onChange={(e) => setLatInput(e.target.value)}
+              onBlur={() => commitManualCoords()}
+              placeholder="e.g. 19.076"
+              className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white text-sm placeholder:text-white/25 focus:border-[#D9FC67] focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-white/50 text-xs mb-1 block">Longitude</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={lngInput}
+              onChange={(e) => setLngInput(e.target.value)}
+              onBlur={() => commitManualCoords()}
+              placeholder="e.g. 72.8777"
+              className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white text-sm placeholder:text-white/25 focus:border-[#D9FC67] focus:outline-none"
+            />
+          </div>
+        </div>
+        {manualCoordError && <p className="text-amber-400/90 text-xs">{manualCoordError}</p>}
+      </div>
+
       {!browserMapsKey && (
         <p className="text-amber-400/90 text-xs">
-          Map picker is disabled until you add{" "}
-          <code className="text-white/70">NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> (Maps JavaScript
-          API, HTTP referrer–restricted).
+          Select on Map is disabled until you add{" "}
+          <code className="text-white/70">NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> (Maps JavaScript API,
+          HTTP referrer–restricted). Autocomplete and Verify need{" "}
+          <code className="text-white/70">GOOGLE_MAPS_SERVER_KEY</code> on the server.
         </p>
       )}
       {geocodeError && (
@@ -654,7 +744,8 @@ export function PartnerStudioLocationPicker({
           <div className="h-52 bg-white/5 flex flex-col items-center justify-center gap-3 px-4 text-center">
             <MapPin className="w-10 h-10 text-white/20" />
             <p className="text-white/30 text-sm">
-              Choose a suggestion, use Verify & Pin, or Select on Map to set coordinates.
+              Coordinates are optional. Enter them above, or use Verify / map when Google Maps keys are
+              configured.
             </p>
           </div>
         )}
