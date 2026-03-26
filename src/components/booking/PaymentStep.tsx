@@ -5,7 +5,6 @@ import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
 import {
   CreditCard,
-  Check,
   Loader2,
   Calendar,
   Clock,
@@ -13,15 +12,14 @@ import {
   MapPin,
   Shield,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
   ArrowLeft,
-  Tag,
   Info,
+  Sparkles,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { formatCalendarDateLocal, parseISTDateTime } from "@/lib/bookingTime";
 
 declare global {
   interface Window {
@@ -96,7 +94,6 @@ export function PaymentStep() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const paymentInFlight = useRef(false);
 
@@ -175,7 +172,7 @@ export function PaymentStep() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studioId: selectedStudio?.id,
-          date: date?.toISOString(),
+          date: date ? formatCalendarDateLocal(date) : undefined,
           timeSlot,
           duration,
           participants,
@@ -223,9 +220,13 @@ export function PaymentStep() {
     }
 
     // ── Step 3: Build local record and persist ──────────────────────────────
+    const sessionStartIso =
+      date && timeSlot
+        ? parseISTDateTime(formatCalendarDateLocal(date), timeSlot).toISOString()
+        : date?.toISOString() || "";
     const booking: BookingRecord = {
       id: bookingNumber,
-      date: date?.toISOString() || "",
+      date: sessionStartIso,
       timeSlot: timeSlot || "",
       duration,
       participants,
@@ -436,18 +437,24 @@ export function PaymentStep() {
                 {selectedAddOns.map((addon) => (
                   <div key={addon.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
-                          src={addon.thumbnail}
-                          alt={addon.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
+                      {addon.thumbnail ? (
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                          <Image
+                            src={addon.thumbnail}
+                            alt={addon.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                          <Sparkles className="w-4 h-4 text-[#D9FC67]" />
+                        </div>
+                      )}
                       <span className="text-white text-sm">{addon.name}</span>
                     </div>
                     <span className="text-white font-medium text-sm">
-                      ₹{addon.price.toLocaleString()}
+                      ₹{addon.price.toLocaleString("en-IN")}
                     </span>
                   </div>
                 ))}
@@ -488,34 +495,18 @@ export function PaymentStep() {
                 </div>
               )}
 
-              {selectedAddOns.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => setShowAddOnsDropdown(!showAddOnsDropdown)}
-                    className="w-full flex justify-between items-center text-sm py-1"
-                  >
-                    <span className="text-white/60 flex items-center gap-1">
-                      Add-ons ({selectedAddOns.length})
-                      {showAddOnsDropdown ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </span>
-                    <span className="text-white">₹{getAddOnsPrice().toLocaleString()}</span>
-                  </button>
-                  {showAddOnsDropdown && (
-                    <div className="mt-2 pl-3 space-y-1.5 border-l-2 border-white/10">
-                      {selectedAddOns.map((addon) => (
-                        <div key={addon.id} className="flex justify-between text-xs">
-                          <span className="text-white/60">{addon.name}</span>
-                          <span className="text-white/40">₹{addon.price.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Add-ons</span>
+                <span
+                  className={
+                    getAddOnsPrice() > 0
+                      ? "text-[#D9FC67] font-semibold tabular-nums"
+                      : "text-white/35 tabular-nums"
+                  }
+                >
+                  {getAddOnsPrice() > 0 ? `₹${getAddOnsPrice().toLocaleString("en-IN")}` : "—"}
+                </span>
+              </div>
             </div>
 
             <div className="border-t border-white/10 pt-4 mb-5 space-y-2">

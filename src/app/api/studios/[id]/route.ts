@@ -31,12 +31,12 @@ export async function GET(
   // Fetch add-ons linked to this studio
   const { data: addonRows } = await supabase
     .from('studio_addons')
-    .select('platform_addons (id, name, description, price, category, icon)')
+    .select('platform_addons (id, name, description, price, category, is_active)')
     .eq('studio_id', id);
 
   const addons = (addonRows ?? [])
     .map((r: any) => r.platform_addons)
-    .filter(Boolean);
+    .filter((a: any) => a && a.is_active !== false);
 
   // Flatten amenities
   const amenities = ((studio as any).studio_amenities ?? [])

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, Pencil, Trash2, Power, RefreshCw, X, Check } from "lucide-react";
 
-const CATEGORIES = ["all", "post-production", "social-media", "design", "content", "general"];
+const CATEGORIES = ["all", "popular", "post-production", "social-media", "design", "content", "general"];
 
 const categoryColors: Record<string, string> = {
+  popular: "bg-[#D9FC67]/10 text-[#D9FC67] border-[#D9FC67]/25",
   "post-production": "bg-blue-500/10 text-blue-400 border-blue-500/20",
   "social-media": "bg-pink-500/10 text-pink-400 border-pink-500/20",
   "design": "bg-purple-500/10 text-purple-400 border-purple-500/20",

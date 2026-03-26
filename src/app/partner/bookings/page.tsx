@@ -341,7 +341,10 @@ export default function PartnerBookingsPage() {
 
       {/* ── Detail Modal ── */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="bg-[#141414] border-white/10 max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent
+          showCloseButton={false}
+          className="bg-[#141414] border-white/10 max-w-2xl max-h-[90vh] overflow-y-auto p-0"
+        >
           {selectedBooking && (
             <>
               {/* Modal header */}

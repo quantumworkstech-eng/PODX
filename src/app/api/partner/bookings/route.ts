@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getHourInIST, getMinuteInIST } from '@/lib/bookingTime';
 
 async function getUserAndStudios(email: string) {
   const { data: user } = await supabaseAdmin!
@@ -31,7 +32,7 @@ export async function GET() {
   const { data: rows, error } = await supabaseAdmin
     .from('bookings')
     .select(`
-      id, booking_number, start_time, end_time, status, total_price, notes, created_at,
+      id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at,
       studios!studio_id(id, name, city, address),
       users!user_id(id, email, profiles(full_name, phone)),
       rooms!room_id(price_per_hour)
@@ -51,7 +52,8 @@ export async function GET() {
     const startTime = new Date(b.start_time);
     const endTime = new Date(b.end_time);
     const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-    const fmt = (d: Date) => `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    const fmt = (d: Date) =>
+      `${getHourInIST(d).toString().padStart(2, '0')}:${getMinuteInIST(d).toString().padStart(2, '0')}`;
 
     const roomArr = b.rooms;
     const room = Array.isArray(roomArr) ? roomArr[0] : roomArr;
@@ -71,7 +73,9 @@ export async function GET() {
     return {
       id: b.booking_number || b.id,
       dbId: b.id,
+      studioId: b.studio_id as string,
       studio: {
+        id: (b.studios as { id?: string } | null)?.id || b.studio_id,
         name: b.studios?.name || '',
         city: b.studios?.city || '',
         address: b.studios?.address || '',

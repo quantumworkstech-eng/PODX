@@ -1,12 +1,21 @@
 "use client";
 
+import { useMemo } from "react";
 import { Calendar, Clock, ArrowRight, TrendingUp, Users, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContinueBookingCard } from "./ContinueBookingCard";
+import {
+  PartnerBookingsCalendar,
+  type PartnerCalendarBooking,
+} from "@/components/partner/PartnerBookingsCalendar";
 
 export interface BookingData {
   id: string;
+  dbId?: string;
+  studioId?: string;
   date: string;
+  /** ISO end time from API (for calendar) */
+  endDate?: string;
   timeSlot: string;
   duration: number;
   participants: number;
@@ -36,13 +45,48 @@ interface DashboardOverviewProps {
   unreviewedCount?: number;
 }
 
+function toCalendarBooking(b: BookingData): PartnerCalendarBooking {
+  const end =
+    b.endDate ||
+    new Date(new Date(b.date).getTime() + (b.duration || 1) * 3600000).toISOString();
+  return {
+    id: b.id,
+    dbId: b.dbId,
+    date: b.date,
+    endDate: end,
+    studioId: b.studioId || b.studio.id,
+    studio: {
+      id: b.studio.id,
+      name: b.studio.name,
+      city: b.studio.location.city,
+    },
+    customer: { name: "You" },
+    status: b.status,
+    package: b.package ? { name: b.package.name } : null,
+    totalPrice: b.totalPrice,
+  };
+}
+
 export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, unreviewedCount = 0 }: DashboardOverviewProps) {
   const totalSpent = pastBookings.reduce((sum, b) => sum + b.totalPrice, 0);
   const confirmedBookings = upcomingBookings.filter((b) => b.status === "confirmed").length;
 
+  const calendarBookings = useMemo(() => {
+    const map = new Map<string, BookingData>();
+    for (const b of upcomingBookings) map.set(b.id, b);
+    for (const b of pastBookings) map.set(b.id, b);
+    return [...map.values()].map(toCalendarBooking);
+  }, [upcomingBookings, pastBookings]);
+
   return (
     <div className="space-y-8">
       <ContinueBookingCard />
+
+      <PartnerBookingsCalendar
+        bookings={calendarBookings}
+        audience="client"
+        onNavigateUpcoming={() => onNavigate("upcoming")}
+      />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#18181b] rounded-2xl border border-white/5 p-6">

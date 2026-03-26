@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { X, Calendar, Clock, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { X, Calendar, Clock, ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { cn } from "@/lib/utils";
+import { TIME_SLOTS } from "@/lib/booking-types";
 
 interface RescheduleModalProps {
   booking: BookingData;
@@ -18,24 +19,45 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-const TIME_SLOTS = [
-  { time: "09:00", available: true },
-  { time: "10:00", available: true },
-  { time: "11:00", available: false },
-  { time: "12:00", available: true },
-  { time: "14:00", available: true },
-  { time: "15:00", available: true },
-  { time: "16:00", available: false },
-  { time: "17:00", available: true },
-  { time: "18:00", available: true },
-  { time: "19:00", available: true },
-];
-
 export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModalProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  const formatDateParam = useCallback((d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDate || !booking.studio?.id) {
+      setBookedSlots([]);
+      return;
+    }
+    let cancelled = false;
+    const dateParam = formatDateParam(selectedDate);
+    const exclude = booking.dbId ? `&excludeBookingId=${encodeURIComponent(booking.dbId)}` : "";
+    setLoadingSlots(true);
+    fetch(`/api/studios/${booking.studio.id}/slots?date=${dateParam}${exclude}`)
+      .then((r) => r.json())
+      .then((data: { bookedSlots?: string[] }) => {
+        if (!cancelled) setBookedSlots(data.bookedSlots ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setBookedSlots([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, booking.studio?.id, booking.dbId, formatDateParam]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -98,32 +120,43 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
     });
   };
 
+  const isSlotBooked = (slotTime: string) => {
+    const [slotHour] = slotTime.split(":").map(Number);
+    const dur = booking.duration || 1;
+    for (let h = slotHour; h < slotHour + dur; h++) {
+      const hourStr = `${String(h).padStart(2, "0")}:00`;
+      if (bookedSlots.includes(hourStr)) return true;
+    }
+    return false;
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto overscroll-contain">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg bg-[#18181b] rounded-2xl border border-white/10 shadow-2xl">
-        <div className="p-6 border-b border-white/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/10 flex items-center justify-center">
+      <div className="relative w-full max-w-lg max-h-[min(90dvh,90vh)] flex flex-col bg-[#18181b] rounded-2xl border border-white/10 shadow-2xl my-auto overflow-hidden">
+        <div className="shrink-0 p-6 border-b border-white/5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[#D9FC67]/10 flex items-center justify-center shrink-0">
                 <Calendar className="w-5 h-5 text-[#D9FC67]" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold text-white">Reschedule Booking</h2>
-                <p className="text-white/50 text-sm">{booking.studio.name}</p>
+                <p className="text-white/50 text-sm truncate">{booking.studio.name}</p>
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
             >
               <X className="w-5 h-5 text-white/60" />
             </button>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 touch-pan-y">
           <div className="bg-white/5 rounded-xl border border-white/10 p-4 mb-6">
             <div className="flex items-center justify-between mb-4">
               <button
@@ -183,45 +216,59 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
 
           {selectedDate && (
             <div className="mb-6">
-              <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-white/50" />
-                Select Time
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-white font-medium flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-white/50" />
+                  Select Time
+                </h4>
+                {loadingSlots && <Loader2 className="w-4 h-4 text-[#D9FC67] animate-spin" />}
+              </div>
               <div className="grid grid-cols-4 gap-2">
-                {TIME_SLOTS.map((slot) => (
-                  <button
-                    key={slot.time}
-                    onClick={() => slot.available && setSelectedTime(slot.time)}
-                    disabled={!slot.available}
-                    className={cn(
-                      "py-3 px-2 rounded-xl text-sm font-medium transition-all relative",
-                      !slot.available
-                        ? "bg-white/5 text-white/30 cursor-not-allowed"
-                        : selectedTime === slot.time
-                        ? "bg-[#D9FC67] text-black"
-                        : "bg-white/10 text-white hover:bg-white/20"
-                    )}
-                  >
-                    {slot.time}
-                    {selectedTime === slot.time && (
-                      <Check className="w-4 h-4 absolute -top-1 -right-1 text-green-400" />
-                    )}
-                  </button>
-                ))}
+                {TIME_SLOTS.map((slot) => {
+                  const booked = isSlotBooked(slot.time);
+                  const disabled = booked;
+                  return (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      onClick={() => !disabled && setSelectedTime(slot.time)}
+                      disabled={disabled}
+                      className={cn(
+                        "py-3 px-2 rounded-xl text-sm font-medium transition-all relative",
+                        disabled
+                          ? "bg-white/5 text-white/25 cursor-not-allowed opacity-60"
+                          : selectedTime === slot.time
+                          ? "bg-[#D9FC67] text-black"
+                          : "bg-white/10 text-white hover:bg-white/20"
+                      )}
+                    >
+                      {slot.time}
+                      {disabled && (
+                        <span className="block text-[10px] text-white/30 leading-tight">Booked</span>
+                      )}
+                      {selectedTime === slot.time && !disabled && (
+                        <Check className="w-4 h-4 absolute -top-1 -right-1 text-green-400" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
           {selectedDate && selectedTime && (
-            <div className="bg-[#D9FC67]/10 border border-[#D9FC67]/20 rounded-xl p-4 mb-6">
+            <div className="bg-[#D9FC67]/10 border border-[#D9FC67]/20 rounded-xl p-4">
               <p className="text-white text-sm mb-1">New Schedule</p>
               <p className="text-[#D9FC67] font-semibold">{formatSelectedDate()}</p>
               <p className="text-white/70 text-sm">at {selectedTime} • {booking.duration} hour{booking.duration > 1 ? "s" : ""}</p>
             </div>
           )}
+        </div>
 
+        <div className="shrink-0 border-t border-white/5 p-6 pt-4 bg-[#18181b]">
           <div className="flex gap-3">
             <Button
+              type="button"
               onClick={onClose}
               variant="outline"
               className="flex-1 bg-white/5 border-white/20 text-white hover:bg-white/10"
@@ -229,6 +276,7 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleConfirm}
               disabled={!selectedDate || !selectedTime || isSubmitting}
               className="flex-1 bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold disabled:opacity-50"

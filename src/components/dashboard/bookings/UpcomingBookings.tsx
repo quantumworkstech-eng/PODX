@@ -1,13 +1,24 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Calendar, Clock, MapPin, Users, Eye, RefreshCw, X, ChevronDown } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  Eye,
+  RefreshCw,
+  X,
+  ChevronDown,
+  PackagePlus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { BookingDetailModal } from "../modals/BookingDetailModal";
 import { CancelBookingModal } from "../modals/CancelBookingModal";
 import { RescheduleModal } from "../modals/RescheduleModal";
+import { AddBookingAddonsModal } from "../modals/AddBookingAddonsModal";
 
 export interface BookingData {
   id: string;
@@ -39,12 +50,15 @@ interface UpcomingBookingsProps {
   bookings: BookingData[];
   onCancel: (bookingId: string) => void;
   onReschedule: (bookingId: string, newDate: Date, newTime: string) => void;
+  /** Reload bookings from API after add-on purchase */
+  onRefreshBookings?: () => Promise<BookingData[] | undefined>;
 }
 
 function ActionDropdown({
   isOpen,
   onClose,
   onViewDetails,
+  onAddAddons,
   onReschedule,
   onCancel,
   anchorRef,
@@ -52,6 +66,7 @@ function ActionDropdown({
   isOpen: boolean;
   onClose: () => void;
   onViewDetails: () => void;
+  onAddAddons?: () => void;
   onReschedule: () => void;
   onCancel: () => void;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
@@ -143,6 +158,18 @@ function ActionDropdown({
           <RefreshCw className="w-4 h-4" />
           Reschedule
         </button>
+        {onAddAddons && (
+          <button
+            onClick={() => {
+              onAddAddons();
+              onClose();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors"
+          >
+            <PackagePlus className="w-4 h-4" />
+            Add add-ons
+          </button>
+        )}
         <div className="h-px bg-white/10 my-1" />
         <button
           onClick={() => {
@@ -160,11 +187,17 @@ function ActionDropdown({
   );
 }
 
-export function UpcomingBookings({ bookings, onCancel, onReschedule }: UpcomingBookingsProps) {
+export function UpcomingBookings({
+  bookings,
+  onCancel,
+  onReschedule,
+  onRefreshBookings,
+}: UpcomingBookingsProps) {
   const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showAddAddonsModal, setShowAddAddonsModal] = useState(false);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const anchorRefs = useRef<Record<string, HTMLButtonElement>>({});
 
@@ -335,6 +368,17 @@ export function UpcomingBookings({ bookings, onCancel, onReschedule }: UpcomingB
           const booking = bookings.find((b) => b.id === activeDropdownId);
           if (booking) handleViewDetails(booking);
         }}
+        onAddAddons={
+          onRefreshBookings
+            ? () => {
+                const booking = bookings.find((b) => b.id === activeDropdownId);
+                if (booking) {
+                  setSelectedBooking(booking);
+                  setShowAddAddonsModal(true);
+                }
+              }
+            : undefined
+        }
         onReschedule={() => {
           const booking = bookings.find((b) => b.id === activeDropdownId);
           if (booking) handleReschedule(booking);
@@ -344,6 +388,26 @@ export function UpcomingBookings({ bookings, onCancel, onReschedule }: UpcomingB
           if (booking) handleCancel(booking);
         }}
       />
+
+      {selectedBooking && showAddAddonsModal && (
+        <AddBookingAddonsModal
+          booking={selectedBooking}
+          open={showAddAddonsModal}
+          onClose={() => {
+            setShowAddAddonsModal(false);
+          }}
+          onSuccess={async () => {
+            const list = await onRefreshBookings?.();
+            const id = selectedBooking?.id;
+            if (list && id) {
+              const fresh = list.find((b) => b.id === id);
+              if (fresh) setSelectedBooking(fresh);
+            }
+            setShowAddAddonsModal(false);
+            setShowDetailModal(true);
+          }}
+        />
+      )}
 
       {selectedBooking && showDetailModal && (
         <BookingDetailModal

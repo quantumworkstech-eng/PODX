@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { computeBookedHourLabels, istDayRangeUtc } from "@/lib/bookingTime";
+
+// Must match client TIME_SLOTS range in src/lib/booking-types.ts
+const SLOT_HOUR_MIN = 9;
+const SLOT_HOUR_MAX = 20;
 
 // ── GET /api/studios/[id]/slots?date=YYYY-MM-DD ────────────────────────
-// Returns the list of hour-slots already booked for this studio on the given date.
-// The client uses this to grey-out unavailable time slots in DateTimeStep.
+// Returns hour labels ("09:00" … "20:00") that overlap existing bookings
+// on this IST calendar day for the studio (incl. buffer after each booking).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,6 +17,7 @@ export async function GET(
 
   try {
     const date = request.nextUrl.searchParams.get("date");
+    const excludeBookingId = request.nextUrl.searchParams.get("excludeBookingId");
 
     if (!date) {
       return NextResponse.json(
@@ -21,25 +27,22 @@ export async function GET(
     }
 
     if (!supabaseAdmin) {
-      // If DB is not configured return an empty list — client falls back gracefully
       return NextResponse.json({ bookedSlots: [] });
     }
 
-    // Query all non-cancelled bookings for this studio that overlap the date
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
+    const { dayStart, dayEnd } = istDayRangeUtc(date);
 
-    // Fetch bookings and studio buffer_minutes in parallel
-    const [{ data: bookings, error }, { data: studio }] = await Promise.all([
+    // Overlap with [dayStart, dayEnd] in UTC:
+    // booking overlaps this IST day iff start_time < dayEnd AND end_time > dayStart
+    // (Do NOT filter only by start_time in the day — that misses cross-midnight spans.)
+    const [{ data: bookingRows, error }, { data: studio }] = await Promise.all([
       supabaseAdmin
         .from("bookings")
-        .select("start_time, end_time")
+        .select("id, start_time, end_time")
         .eq("studio_id", studioId)
         .neq("status", "cancelled")
-        .gte("start_time", dayStart.toISOString())
-        .lte("start_time", dayEnd.toISOString()),
+        .lt("start_time", dayEnd.toISOString())
+        .gt("end_time", dayStart.toISOString()),
       supabaseAdmin
         .from("studios")
         .select("buffer_minutes")
@@ -54,20 +57,22 @@ export async function GET(
 
     const bufferMinutes: number = studio?.buffer_minutes ?? 0;
 
-    // Convert each booking's start→end range (+ buffer) into blocked hour-slot strings.
-    // Buffer is invisible to clients — it silently extends the blocked window.
-    const bookedSlots: string[] = [];
-    for (const b of bookings || []) {
-      const start = new Date(b.start_time);
-      const effectiveEnd = new Date(new Date(b.end_time).getTime() + bufferMinutes * 60 * 1000);
-      // Round up to the next whole hour so partial-hour buffers block the enclosing slot
-      const effectiveEndHours = effectiveEnd.getHours() + effectiveEnd.getMinutes() / 60;
-      let h = start.getHours();
-      while (h < Math.ceil(effectiveEndHours)) {
-        bookedSlots.push(`${h.toString().padStart(2, "0")}:00`);
-        h++;
-      }
+    let bookings = (bookingRows || []) as {
+      id: string;
+      start_time: string;
+      end_time: string;
+    }[];
+    if (excludeBookingId) {
+      bookings = bookings.filter((b) => b.id !== excludeBookingId);
     }
+
+    const bookedSlots = computeBookedHourLabels(
+      date,
+      bookings.map(({ start_time, end_time }) => ({ start_time, end_time })),
+      bufferMinutes,
+      SLOT_HOUR_MIN,
+      SLOT_HOUR_MAX
+    );
 
     return NextResponse.json({ bookedSlots });
   } catch (error) {

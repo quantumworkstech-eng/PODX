@@ -73,6 +73,9 @@ interface BookingContextType extends BookingState {
   setSelectedPackage: (pkg: ServicePackage | null) => void;
   addAddOn: (addOn: AddOnService) => void;
   removeAddOn: (addOnId: string) => void;
+  toggleAddOn: (addOn: AddOnService) => void;
+  /** Drop selections not in this id set (e.g. studio’s available add-ons changed). */
+  pruneAddOnsToIds: (allowedIds: Set<string>) => void;
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (step: number) => void;
@@ -252,6 +255,26 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const toggleAddOn = useCallback((addOn: AddOnService) => {
+    setState((prev) => {
+      const exists = prev.selectedAddOns.some((a) => a.id === addOn.id);
+      if (exists) {
+        return {
+          ...prev,
+          selectedAddOns: prev.selectedAddOns.filter((a) => a.id !== addOn.id),
+        };
+      }
+      return { ...prev, selectedAddOns: [...prev.selectedAddOns, addOn] };
+    });
+  }, []);
+
+  const pruneAddOnsToIds = useCallback((allowedIds: Set<string>) => {
+    setState((prev) => ({
+      ...prev,
+      selectedAddOns: prev.selectedAddOns.filter((a) => allowedIds.has(a.id)),
+    }));
+  }, []);
+
   const nextStep = useCallback(() => {
     setState((prev) => ({
       ...prev,
@@ -418,6 +441,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setSelectedPackage,
     addAddOn,
     removeAddOn,
+    toggleAddOn,
+    pruneAddOnsToIds,
     nextStep,
     prevStep,
     goToStep,

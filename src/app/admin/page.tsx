@@ -6,6 +6,7 @@ import {
   TrendingUp, CheckCircle, UserCheck, RefreshCw, RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
+import { PartnerBookingsCalendar } from "@/components/partner/PartnerBookingsCalendar";
 
 interface Stats {
   totalUsers: number;
@@ -154,6 +155,8 @@ export default function AdminDashboard() {
           <span className="text-xs text-green-400 font-medium">All systems operational</span>
         </div>
       </div>
+
+      <PartnerBookingsCalendar audience="admin" />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

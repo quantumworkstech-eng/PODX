@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  calendarDateInIST,
+  getHourInIST,
+  startEndFromCalendarAndSlot,
+} from "@/lib/bookingTime";
 
 // ── GET /api/bookings ─────────────────────────────────────────────────────────
 // Returns the authenticated user's bookings from Supabase.
@@ -29,7 +34,7 @@ export async function GET() {
     const { data: rows, error } = await supabaseAdmin
       .from("bookings")
       .select(
-        `id, booking_number, start_time, end_time, status, total_price, notes, created_at,
+        `id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at,
          studios!studio_id(id, name, location, cover_image, description),
          booking_addons(id, name, price, quantity)`
       )
@@ -56,13 +61,15 @@ export async function GET() {
       const endTime = new Date(b.end_time);
       const duration =
         (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-      const hour = startTime.getHours();
+      const hour = getHourInIST(startTime);
       const timeSlot = `${hour.toString().padStart(2, "0")}:00`;
 
       return {
         id: b.booking_number || b.id,
         dbId: b.id,
+        studioId: b.studio_id as string,
         date: b.start_time,
+        endDate: b.end_time,
         timeSlot,
         duration,
         participants: notes.participants || 1,
@@ -175,13 +182,18 @@ export async function POST(request: NextRequest) {
 
     const roomId = room?.id;
 
-    // Build start/end timestamps
-    const dateObj = new Date(date);
-    const [hours] = (timeSlot as string).split(":");
-    const startTime = new Date(dateObj);
-    startTime.setHours(parseInt(hours, 10), 0, 0, 0);
-    const endTime = new Date(startTime);
-    endTime.setHours(startTime.getHours() + Number(duration));
+    // Wall-clock date + slot in IST (matches calendar selection, independent of server TZ)
+    let dateYYYYMMDD: string;
+    try {
+      dateYYYYMMDD = calendarDateInIST(String(date));
+    } catch {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    }
+    const { start: startTime, end: endTime } = startEndFromCalendarAndSlot(
+      dateYYYYMMDD,
+      timeSlot as string,
+      Number(duration)
+    );
 
     // Fetch studio's buffer_minutes so we can enforce it in the conflict check.
     // If studio A has buffer_minutes=30 and a booking ending at 14:00, a new

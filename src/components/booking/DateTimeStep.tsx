@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus, Loader2 } from "lucide-react";
@@ -36,6 +36,10 @@ export function DateTimeStep() {
   // Live booked slots fetched from the DB for the selected date + studio
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const timeSlotRef = useRef(timeSlot);
+  const durationRef = useRef(duration);
+  timeSlotRef.current = timeSlot;
+  durationRef.current = duration;
 
   const formatDateParam = useCallback((d: Date) => {
     const y = d.getFullYear();
@@ -44,51 +48,59 @@ export function DateTimeStep() {
     return `${y}-${m}-${day}`;
   }, []);
 
-  // Fetch live availability whenever date or studio changes
+  // Fetch live availability when date/studio/duration changes; poll + refocus for multi-user sync
   useEffect(() => {
-    const studioId = selectedStudio?.id;
-    if (!date || !studioId) {
-      setBookedSlots([]);
-      return;
-    }
-
     let cancelled = false;
-    setIsLoadingSlots(true);
+    const studioId = selectedStudio?.id;
 
-    const dateParam = formatDateParam(date);
-    fetch(`/api/studios/${studioId}/slots?date=${dateParam}`)
-      .then((r) => r.json())
-      .then((data: { bookedSlots?: string[] }) => {
+    const loadSlots = async () => {
+      if (!date || !studioId) {
+        setBookedSlots([]);
+        return;
+      }
+      setIsLoadingSlots(true);
+      try {
+        const dateParam = formatDateParam(date);
+        const r = await fetch(`/api/studios/${studioId}/slots?date=${dateParam}`);
+        const data: { bookedSlots?: string[] } = await r.json();
         if (cancelled) return;
         const slots = data.bookedSlots ?? [];
         setBookedSlots(slots);
 
-        // If the currently selected time slot falls inside the freshly-fetched
-        // booked window (considering the chosen duration), clear it so the
-        // customer has to pick a valid slot.
-        if (timeSlot) {
-          const [startH] = timeSlot.split(":").map(Number);
-          const isNowBlocked = Array.from({ length: duration }, (_, i) => {
+        const current = timeSlotRef.current;
+        const dur = durationRef.current;
+        if (current) {
+          const [startH] = current.split(":").map(Number);
+          const blocked = Array.from({ length: dur }, (_, i) => {
             const h = startH + i;
             return `${String(h).padStart(2, "0")}:00`;
           }).some((hStr) => slots.includes(hStr));
-          if (isNowBlocked) setTimeSlot(null);
+          if (blocked) setTimeSlot(null);
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setBookedSlots([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsLoadingSlots(false);
-      });
+      }
+    };
+
+    void loadSlots();
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadSlots();
+    }, 30_000);
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void loadSlots();
+    };
+    document.addEventListener("visibilitychange", onVis);
 
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
     };
-    // duration intentionally omitted here — we only re-fetch when date/studio changes.
-    // duration changes only affect which already-fetched slots are considered blocked.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, selectedStudio?.id, formatDateParam]);
+  }, [date, selectedStudio?.id, formatDateParam, duration, setTimeSlot]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

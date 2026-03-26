@@ -14,7 +14,10 @@ export interface AddOnService {
   name: string;
   description: string;
   price: number;
-  thumbnail: string;
+  /** Optional image URL; booking UI falls back to a placeholder when missing */
+  thumbnail?: string;
+  /** Used for admin / Recommended badge (e.g. category `popular`) */
+  category?: string;
 }
 
 export interface TimeSlot {

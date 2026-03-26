@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  calendarDateInIST,
+  startEndFromCalendarAndSlot,
+} from "@/lib/bookingTime";
 
 // ── PATCH /api/bookings/[id] ──────────────────────────────────────────────────
 // Supports: action=cancel | action=reschedule
@@ -133,18 +137,23 @@ export async function PATCH(
           { status: 400 }
         );
       }
-      const dateObj = new Date(newDate);
-      const [hours] = (newTimeSlot as string).split(":");
-      const newStart = new Date(dateObj);
-      newStart.setHours(parseInt(hours, 10), 0, 0, 0);
+      let dateYYYYMMDD: string;
+      try {
+        dateYYYYMMDD = calendarDateInIST(String(newDate));
+      } catch {
+        return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+      }
 
       const oldDuration =
         (new Date(booking.end_time).getTime() -
           new Date(booking.start_time).getTime()) /
         (1000 * 60 * 60);
 
-      const newEnd = new Date(newStart);
-      newEnd.setHours(newStart.getHours() + oldDuration);
+      const { start: newStart, end: newEnd } = startEndFromCalendarAndSlot(
+        dateYYYYMMDD,
+        newTimeSlot as string,
+        oldDuration
+      );
 
       // Conflict check (exclude current booking)
       const { data: conflicts } = await supabaseAdmin

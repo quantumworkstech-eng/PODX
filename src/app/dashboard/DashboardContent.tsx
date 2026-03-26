@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -28,6 +28,7 @@ import { BillingSection } from "@/components/dashboard/bookings/BillingSection";
 import { SettingsSection } from "@/components/dashboard/bookings/SettingsSection";
 import { DashboardOverview } from "@/components/dashboard/bookings/DashboardOverview";
 import { BookingSuccessModal } from "@/components/dashboard/BookingSuccessModal";
+import { formatCalendarDateLocal, parseISTDateTime } from "@/lib/bookingTime";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: Home },
@@ -40,7 +41,9 @@ const menuItems = [
 interface BookingData {
   id: string;
   dbId?: string;
+  studioId?: string;
   date: string;
+  endDate?: string;
   timeSlot: string;
   duration: number;
   participants: number;
@@ -64,6 +67,19 @@ interface BookingData {
 }
 
 const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
+
+function sortBookingsList(bookings: BookingData[]): BookingData[] {
+  return [...bookings].sort((a: BookingData, b: BookingData) => {
+    const now = Date.now();
+    const aEnd = new Date(a.date).getTime() + (a.duration || 1) * 3600000;
+    const bEnd = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
+    const aUp = aEnd >= now;
+    const bUp = bEnd >= now;
+    if (aUp && bUp) return new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (!aUp && !bUp) return new Date(b.date).getTime() - new Date(a.date).getTime();
+    return aUp ? -1 : 1;
+  });
+}
 
 export default function DashboardContent() {
   const { data: session, status } = useSession();
@@ -97,50 +113,38 @@ export default function DashboardContent() {
     }
   }, [status]);
 
-  useEffect(() => {
-    // Try to load from the Supabase API first, fall back to localStorage + demo
-    async function loadBookings() {
-      try {
-        const res = await fetch("/api/bookings");
-        if (res.ok) {
-          const { bookings: apiBookings } = await res.json();
-          if (apiBookings && apiBookings.length > 0) {
-            const sorted = [...apiBookings].sort((a: BookingData, b: BookingData) => {
-              const now = Date.now();
-              const aEnd = new Date(a.date).getTime() + (a.duration || 1) * 3600000;
-              const bEnd = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
-              const aUp = aEnd >= now;
-              const bUp = bEnd >= now;
-              if (aUp && bUp) return new Date(a.date).getTime() - new Date(b.date).getTime();
-              if (!aUp && !bUp) return new Date(b.date).getTime() - new Date(a.date).getTime();
-              return aUp ? -1 : 1;
-            });
-            setBookings(sorted);
-            return;
-          }
+  const refreshBookings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bookings");
+      if (res.ok) {
+        const { bookings: apiBookings } = await res.json();
+        if (apiBookings && apiBookings.length > 0) {
+          const sorted = sortBookingsList(apiBookings as BookingData[]);
+          setBookings(sorted);
+          return sorted;
         }
-      } catch {
-        /* Network or API error — fall through to localStorage */
       }
+    } catch {
+      /* fall through */
+    }
 
-      // Fallback: localStorage only (no demo data)
-      const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored) as BookingData[];
-          parsed.sort((a: BookingData, b: BookingData) => {
-            const now = Date.now();
-            const aEnd = new Date(a.date).getTime() + (a.duration || 1) * 3600000;
-            const bEnd = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
-            const aUp = aEnd >= now;
-            const bUp = bEnd >= now;
-            if (aUp && bUp) return new Date(a.date).getTime() - new Date(b.date).getTime();
-            if (!aUp && !bUp) return new Date(b.date).getTime() - new Date(a.date).getTime();
-            return aUp ? -1 : 1;
-          });
-          setBookings(parsed);
-        } catch { /* ignore malformed data */ }
+    const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as BookingData[];
+        const sorted = sortBookingsList(parsed);
+        setBookings(sorted);
+        return sorted;
+      } catch {
+        /* ignore */
       }
+    }
+    return undefined;
+  }, []);
+
+  useEffect(() => {
+    async function loadBookings() {
+      await refreshBookings();
     }
 
     loadBookings();
@@ -151,7 +155,7 @@ export default function DashboardContent() {
         if (d.bookingIds) setReviewedBookingIds(new Set(d.bookingIds));
       })
       .catch(() => {});
-  }, []);
+  }, [refreshBookings]);
 
   // Handle ?booking=success from payment redirect
   useEffect(() => {
@@ -218,9 +222,13 @@ export default function DashboardContent() {
     newDate: Date,
     newTime: string
   ) => {
-    // Optimistic UI update
+    const sessionStartIso = parseISTDateTime(
+      formatCalendarDateLocal(newDate),
+      newTime
+    ).toISOString();
+    // Optimistic UI update (date mirrors API: session start instant)
     const updated = bookings.map((b) =>
-      b.id === bookingId ? { ...b, date: newDate.toISOString(), timeSlot: newTime } : b
+      b.id === bookingId ? { ...b, date: sessionStartIso, timeSlot: newTime } : b
     );
     setBookings(updated);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
@@ -236,7 +244,7 @@ export default function DashboardContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "reschedule",
-          newDate: newDate.toISOString(),
+          newDate: formatCalendarDateLocal(newDate),
           newTimeSlot: newTime,
         }),
       });
@@ -291,6 +299,7 @@ export default function DashboardContent() {
             bookings={upcomingBookings}
             onCancel={handleCancelBooking}
             onReschedule={handleRescheduleBooking}
+            onRefreshBookings={refreshBookings}
           />
         );
       case "past":

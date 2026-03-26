@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PartnerBookingsCalendar } from "@/components/partner/PartnerBookingsCalendar";
 
 interface Studio {
   id: string;
@@ -29,13 +30,16 @@ interface Studio {
 interface Booking {
   id: string;
   dbId: string;
-  studio: { name: string };
+  studioId?: string;
+  studio: { id?: string; name: string; city?: string };
   customer: { name: string; email: string };
   date: string;
+  endDate: string;
   timeSlot: string;
   duration: number;
   totalPrice: number;
   status: "confirmed" | "pending" | "cancelled" | "completed";
+  package: { name: string; pricePerHour?: number } | null;
 }
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
@@ -145,6 +149,23 @@ export default function PartnerDashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Calendar — full width, IST time grid */}
+      <PartnerBookingsCalendar
+        bookings={bookings.map((b) => ({
+          id: b.id,
+          dbId: b.dbId,
+          date: b.date,
+          endDate: b.endDate,
+          studioId: b.studioId,
+          studio: b.studio,
+          customer: b.customer,
+          status: b.status,
+          package: b.package ? { name: b.package.name } : null,
+          totalPrice: b.totalPrice,
+        }))}
+        studios={studios.map((s) => ({ id: s.id, name: s.name }))}
+      />
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
+import { BookingAddonsSection } from "@/components/booking/BookingAddonsSection";
 
 const CANCELLATION_POLICY = {
   title: "Standard Cancellation Policy",
@@ -41,7 +42,6 @@ export function CheckoutStep() {
     participants,
     selectedStudio,
     selectedPackage,
-    selectedAddOns,
     getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,
@@ -63,7 +63,6 @@ export function CheckoutStep() {
   } = useBooking();
 
   const { data: session } = useSession();
-  const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
   const [couponCode, setCouponCode] = useState(appliedCoupon?.code || "");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -146,7 +145,6 @@ export function CheckoutStep() {
   const sessionStep = selectionMode === "studio" ? 2 : 1;
   const studioStep = selectionMode === "studio" ? 1 : 2;
   const packageStep = 3;
-  const addonsStep = 4;
 
   const isReadyToCheckout = canProceed();
   const discount = getDiscount();
@@ -288,40 +286,9 @@ export function CheckoutStep() {
             </div>
           )}
 
-          {/* Add-ons */}
-          {selectedAddOns.length > 0 && (
-            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
-                <span>Add-ons ({selectedAddOns.length})</span>
-                <button
-                  onClick={() => goToStep(addonsStep)}
-                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </button>
-              </h3>
-              <div className="space-y-3">
-                {selectedAddOns.map((addon) => (
-                  <div key={addon.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
-                          src={addon.thumbnail}
-                          alt={addon.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <span className="text-white text-sm">{addon.name}</span>
-                    </div>
-                    <span className="text-white font-medium text-sm">
-                      ₹{addon.price.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Add-ons (optional services for this studio) */}
+          {selectedStudio && (
+            <BookingAddonsSection key={selectedStudio.id} variant="checkout" />
           )}
 
           {/* Cancellation policy */}
@@ -395,34 +362,18 @@ export function CheckoutStep() {
                 </div>
               )}
 
-              {selectedAddOns.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => setShowAddOnsDropdown(!showAddOnsDropdown)}
-                    className="w-full flex justify-between items-center text-sm py-1"
-                  >
-                    <span className="text-white/60 flex items-center gap-1">
-                      Add-ons ({selectedAddOns.length})
-                      {showAddOnsDropdown ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </span>
-                    <span className="text-white">₹{getAddOnsPrice().toLocaleString()}</span>
-                  </button>
-                  {showAddOnsDropdown && (
-                    <div className="mt-2 pl-3 space-y-1.5 border-l-2 border-white/10">
-                      {selectedAddOns.map((addon) => (
-                        <div key={addon.id} className="flex justify-between text-xs">
-                          <span className="text-white/60">{addon.name}</span>
-                          <span className="text-white/40">₹{addon.price.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Add-ons</span>
+                <span
+                  className={
+                    getAddOnsPrice() > 0
+                      ? "text-[#D9FC67] font-semibold tabular-nums"
+                      : "text-white/35 tabular-nums"
+                  }
+                >
+                  {getAddOnsPrice() > 0 ? `₹${getAddOnsPrice().toLocaleString("en-IN")}` : "—"}
+                </span>
+              </div>
             </div>
 
             {/* Coupon input */}
