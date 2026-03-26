@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { parsePartnerAddonPublicId } from "@/lib/partner-inventory-ids";
 
 const TAX_RATE = 0.18;
 
@@ -39,37 +40,92 @@ async function loadValidAddonsForStudio(
   if (!addonIds.length) return { error: "No add-ons selected" };
 
   const unique = [...new Set(addonIds)];
-  const { data: links, error: linkErr } = await supabaseAdmin!
-    .from("studio_addons")
-    .select("addon_id")
-    .eq("studio_id", studioId)
-    .in("addon_id", unique);
+  const platformIds: string[] = [];
+  const partnerUuids: string[] = [];
 
-  if (linkErr) return { error: "Could not validate add-ons" };
-  const allowed = new Set((links || []).map((r: { addon_id: string }) => r.addon_id));
-  if (allowed.size !== unique.length) {
-    return { error: "One or more add-ons are not available for this studio" };
+  for (const id of unique) {
+    const p = parsePartnerAddonPublicId(id);
+    if (p) partnerUuids.push(p);
+    else platformIds.push(id);
   }
 
-  const { data: rows, error: paErr } = await supabaseAdmin!
-    .from("platform_addons")
-    .select("id, name, description, price")
-    .in("id", unique)
-    .eq("is_active", true);
+  const result: { id: string; name: string; price: number; description: string | null }[] = [];
 
-  if (paErr || !rows?.length) return { error: "Could not load add-on details" };
-  if (rows.length !== unique.length) {
-    return { error: "Invalid or inactive add-on" };
+  if (platformIds.length > 0) {
+    const { data: links, error: linkErr } = await supabaseAdmin!
+      .from("studio_addons")
+      .select("addon_id")
+      .eq("studio_id", studioId)
+      .in("addon_id", platformIds);
+
+    if (linkErr) return { error: "Could not validate add-ons" };
+    const allowed = new Set((links || []).map((r: { addon_id: string }) => r.addon_id));
+    if (allowed.size !== platformIds.length) {
+      return { error: "One or more add-ons are not available for this studio" };
+    }
+
+    const { data: rows, error: paErr } = await supabaseAdmin!
+      .from("platform_addons")
+      .select("id, name, description, price")
+      .in("id", platformIds)
+      .eq("is_active", true);
+
+    if (paErr || !rows?.length || rows.length !== platformIds.length) {
+      return { error: "Invalid or inactive add-on" };
+    }
+
+    for (const r of rows as any[]) {
+      result.push({
+        id: r.id,
+        name: r.name,
+        price: Number(r.price),
+        description: r.description ?? null,
+      });
+    }
   }
 
-  return {
-    addons: rows.map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      price: Number(r.price),
-      description: r.description ?? null,
-    })),
-  };
+  if (partnerUuids.length > 0) {
+    const { data: plinks, error: pLinkErr } = await supabaseAdmin!
+      .from("studio_partner_addon_items")
+      .select("partner_addon_id, enabled_for_booking")
+      .eq("studio_id", studioId)
+      .in("partner_addon_id", partnerUuids);
+
+    if (pLinkErr) return { error: "Could not validate add-ons" };
+    const allowedP = new Set(
+      (plinks || [])
+        .filter((r: any) => r.enabled_for_booking !== false)
+        .map((r: any) => r.partner_addon_id)
+    );
+    if (allowedP.size !== partnerUuids.length) {
+      return { error: "One or more add-ons are not available for this studio" };
+    }
+
+    const { data: prows, error: pErr } = await supabaseAdmin!
+      .from("partner_addon_items")
+      .select("id, name, description, price, is_active")
+      .in("id", partnerUuids)
+      .eq("is_active", true);
+
+    if (pErr || !prows?.length || prows.length !== partnerUuids.length) {
+      return { error: "Invalid or inactive add-on" };
+    }
+
+    for (const r of prows as any[]) {
+      result.push({
+        id: `paddon_${r.id}`,
+        name: r.name,
+        price: Number(r.price),
+        description: r.description ?? null,
+      });
+    }
+  }
+
+  if (result.length !== unique.length) {
+    return { error: "Could not load add-on details" };
+  }
+
+  return { addons: result };
 }
 
 function computeTotals(

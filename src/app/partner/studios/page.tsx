@@ -29,10 +29,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
+import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartnerInventoryPicker";
+import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddonPicker";
 
 interface CancellationRule {
   hours_before: number;
   refund_percentage: number;
+}
+
+interface PartnerInvSnapshot {
+  partnerEquipmentSelections: { id: string; quantity: number }[];
+  partnerServiceIds: string[];
+  partnerAddonSelections: { id: string; enabled_for_booking: boolean }[];
 }
 
 interface Studio {
@@ -48,6 +57,7 @@ interface Studio {
   cancellation_rules?: CancellationRule[];
   equipment?: string[];
   addon_ids?: string[];
+  partner_inventory?: PartnerInvSnapshot | null;
   images: string[];
   status: "active" | "inactive";
   review_status?: string;
@@ -97,7 +107,15 @@ export default function PartnerStudiosPage() {
     { hours_before: 0, refund_percentage: 0 },
   ];
 
-  const [formData, setFormData] = useState<Partial<Studio> & { status?: "active" | "inactive"; addonIds?: string[] }>({
+  const [formData, setFormData] = useState<
+    Partial<Studio> & {
+      status?: "active" | "inactive";
+      addonIds?: string[];
+      partnerEquipmentSelections?: { id: string; quantity: number }[];
+      partnerServiceIds?: string[];
+      partnerAddonSelections?: { id: string; enabled_for_booking: boolean }[];
+    }
+  >({
     name: "",
     description: "",
     address: "",
@@ -109,6 +127,9 @@ export default function PartnerStudiosPage() {
     cancellation_rules: DEFAULT_CANCELLATION_RULES,
     equipment: [],
     addonIds: [],
+    partnerEquipmentSelections: [],
+    partnerServiceIds: [],
+    partnerAddonSelections: [],
     images: [],
     status: "active",
   });
@@ -116,6 +137,26 @@ export default function PartnerStudiosPage() {
   const [platformAddons, setPlatformAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [inventoryLibrary, setInventoryLibrary] = useState<{
+    equipment: { id: string; subcategory: string; model_name: string; default_quantity: number }[];
+    services: { id: string; name: string; subcategory: string }[];
+    addons: { id: string; addon_kind: string; name: string; description: string | null; price: number; is_active?: boolean }[];
+  }>({ equipment: [], services: [], addons: [] });
+  const [inventoryDrawerOpen, setInventoryDrawerOpen] = useState(false);
+  const [inventoryDrawerTab, setInventoryDrawerTab] = useState<"equipment" | "services" | "addons">("equipment");
+
+  const refreshInventory = () => {
+    fetch("/api/partner/inventory")
+      .then((r) => r.json())
+      .then((d) => {
+        setInventoryLibrary({
+          equipment: d.equipment || [],
+          services: d.services || [],
+          addons: d.addons || [],
+        });
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     fetch("/api/partner/studios")
@@ -136,6 +177,9 @@ export default function PartnerStudiosPage() {
         ...studio,
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
         addonIds: studio.addon_ids || [],
+        partnerEquipmentSelections: studio.partner_inventory?.partnerEquipmentSelections ?? [],
+        partnerServiceIds: studio.partner_inventory?.partnerServiceIds ?? [],
+        partnerAddonSelections: studio.partner_inventory?.partnerAddonSelections ?? [],
       });
       setIsFormHydrating(true);
       // Fetch latest studio details (single source of truth) so popup always
@@ -148,6 +192,9 @@ export default function PartnerStudiosPage() {
             ...prev,
             ...fresh,
             addonIds: fresh.addon_ids || [],
+            partnerEquipmentSelections: fresh.partner_inventory?.partnerEquipmentSelections ?? [],
+            partnerServiceIds: fresh.partner_inventory?.partnerServiceIds ?? [],
+            partnerAddonSelections: fresh.partner_inventory?.partnerAddonSelections ?? [],
           }));
         })
         .catch(() => {
@@ -179,11 +226,15 @@ export default function PartnerStudiosPage() {
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
         equipment: [],
         addonIds: [],
+        partnerEquipmentSelections: [],
+        partnerServiceIds: [],
+        partnerAddonSelections: [],
         images: [],
         status: "active",
       });
     }
     setIsModalOpen(true);
+    refreshInventory();
     // Fetch platform add-ons
     if (platformAddons.length === 0) {
       setAddonsLoading(true);
@@ -212,6 +263,9 @@ export default function PartnerStudiosPage() {
       cancellation_rules: DEFAULT_CANCELLATION_RULES,
       equipment: [],
       addonIds: [],
+      partnerEquipmentSelections: [],
+      partnerServiceIds: [],
+      partnerAddonSelections: [],
       images: [],
       status: "active",
     });
@@ -240,6 +294,9 @@ export default function PartnerStudiosPage() {
             is_active: formData.status !== "inactive",
             equipment: formData.equipment || [],
             addonIds: formData.addonIds || [],
+            partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+            partnerServiceIds: formData.partnerServiceIds || [],
+            partnerAddonSelections: formData.partnerAddonSelections || [],
             useCustomPolicies: true,
             cancellationRules: (formData.cancellation_rules || []).map((r) => ({
               type: "hours",
@@ -266,6 +323,9 @@ export default function PartnerStudiosPage() {
             images: formData.images,
             equipment: formData.equipment || [],
             addonIds: formData.addonIds || [],
+            partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+            partnerServiceIds: formData.partnerServiceIds || [],
+            partnerAddonSelections: formData.partnerAddonSelections || [],
           }),
         });
         if (!res.ok) {
@@ -351,15 +411,6 @@ export default function PartnerStudiosPage() {
     setFormData((prev) => ({
       ...prev,
       equipment: prev.equipment?.includes(item) ? prev.equipment.filter((e) => e !== item) : [...(prev.equipment || []), item],
-    }));
-  };
-
-  const toggleAddon = (addonId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      addonIds: (prev.addonIds || []).includes(addonId)
-        ? (prev.addonIds || []).filter((id) => id !== addonId)
-        : [...(prev.addonIds || []), addonId],
     }));
   };
 
@@ -649,57 +700,37 @@ export default function PartnerStudiosPage() {
                 </div>
               </div>
 
-              {/* Platform Add-ons */}
+              <StudioPartnerInventoryPicker
+                equipment={inventoryLibrary.equipment}
+                services={inventoryLibrary.services}
+                partnerEquipmentSelections={formData.partnerEquipmentSelections || []}
+                onChangeEquipment={(next) => setFormData((prev) => ({ ...prev, partnerEquipmentSelections: next }))}
+                partnerServiceIds={formData.partnerServiceIds || []}
+                onChangeServices={(next) => setFormData((prev) => ({ ...prev, partnerServiceIds: next }))}
+                onManageInventory={() => {
+                  setInventoryDrawerTab("equipment");
+                  setInventoryDrawerOpen(true);
+                }}
+              />
+
               <div>
-                <label className="text-white/60 text-sm mb-1 block">Platform Add-ons</label>
-                <p className="text-white/30 text-xs mb-3">Select add-ons customers can purchase when booking this studio</p>
+                <label className="text-white/60 text-sm mb-1 block">Bookable add-ons</label>
+                <p className="text-white/30 text-xs mb-3">Platform + your custom upsells for this studio</p>
                 {addonsLoading ? (
                   <div className="flex items-center justify-center py-6">
                     <div className="w-5 h-5 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
                   </div>
-                ) : platformAddons.length === 0 ? (
-                  <p className="text-white/20 text-sm py-4 text-center bg-white/[0.02] rounded-xl border border-white/5">
-                    No add-ons configured on the platform yet
-                  </p>
                 ) : (
-                  <div className="space-y-2">
-                    {platformAddons.map((addon) => {
-                      const selected = (formData.addonIds || []).includes(addon.id);
-                      return (
-                        <button
-                          key={addon.id}
-                          type="button"
-                          onClick={() => toggleAddon(addon.id)}
-                          className={cn(
-                            "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
-                            selected
-                              ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
-                              : "bg-white/[0.03] border-white/5 hover:border-white/15"
-                          )}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className={cn("text-sm font-medium", selected ? "text-[#D9FC67]" : "text-white/80")}>
-                              {addon.name}
-                            </p>
-                            {addon.description && (
-                              <p className="text-white/30 text-xs mt-0.5 truncate">{addon.description}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                            <span className={cn("font-semibold text-sm", selected ? "text-[#D9FC67]" : "text-white/60")}>
-                              ₹{Number(addon.price).toLocaleString()}
-                            </span>
-                            <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                              selected ? "bg-[#D9FC67] border-[#D9FC67]" : "border-white/20"
-                            )}>
-                              {selected && <Check className="w-3 h-3 text-black" />}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <StudioPartnerAddonPicker
+                    platformAddons={platformAddons}
+                    partnerAddons={inventoryLibrary.addons}
+                    selectedPlatformIds={formData.addonIds || []}
+                    partnerAddonSelections={formData.partnerAddonSelections || []}
+                    onChangePlatform={(ids) => setFormData((prev) => ({ ...prev, addonIds: ids }))}
+                    onChangePartnerSelections={(rows) =>
+                      setFormData((prev) => ({ ...prev, partnerAddonSelections: rows }))
+                    }
+                  />
                 )}
               </div>
 
@@ -739,6 +770,15 @@ export default function PartnerStudiosPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <PartnerInventoryDrawer
+        open={inventoryDrawerOpen}
+        initialTab={inventoryDrawerTab}
+        onClose={() => {
+          setInventoryDrawerOpen(false);
+          refreshInventory();
+        }}
+      />
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <DialogContent className="bg-[#141414] border-white/10">

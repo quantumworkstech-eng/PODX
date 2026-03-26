@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { fetchStudioPartnerInventorySnapshot, saveStudioPartnerInventory } from '@/lib/partner-studio-inventory';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -77,6 +78,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
     .map((i: any) => i.image_url);
 
+  let partnerInventory = null as Awaited<ReturnType<typeof fetchStudioPartnerInventorySnapshot>> | null;
+  try {
+    partnerInventory = await fetchStudioPartnerInventorySnapshot(supabaseAdmin, id);
+  } catch {
+    partnerInventory = null;
+  }
+
   return NextResponse.json({
     studio: {
       id: studio.id,
@@ -90,6 +98,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       reschedule_cutoff_hours: studio.reschedule_cutoff_hours ?? 48,
       equipment: studio.equipment || [],
       addon_ids: (studio.studio_addons || []).map((a: any) => a.addon_id),
+      partner_inventory: partnerInventory,
       images,
       status: studio.is_active ? 'active' : 'inactive',
     },
@@ -117,6 +126,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     reschedule_cutoff_hours,
     equipment,   // string[] of equipment names
     addonIds,    // string[] of platform_addon UUIDs
+    partnerEquipmentSelections,
+    partnerServiceIds,
+    partnerAddonSelections,
     amenities,   // string[] of amenity names like ['wifi', 'ac']
     availableDays, // string[] like ['Mon', 'Tue']
     workingHours, // { start: string, end: string }
@@ -239,6 +251,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       await supabaseAdmin.from('studio_addons').insert(
         addonIds.map((addon_id: string) => ({ studio_id: id, addon_id }))
       );
+    }
+  }
+
+  if (
+    partnerEquipmentSelections !== undefined ||
+    partnerServiceIds !== undefined ||
+    partnerAddonSelections !== undefined
+  ) {
+    try {
+      const existing = await fetchStudioPartnerInventorySnapshot(supabaseAdmin, id);
+      await saveStudioPartnerInventory(supabaseAdmin, id, partnerId, {
+        partnerEquipmentSelections: Array.isArray(partnerEquipmentSelections)
+          ? partnerEquipmentSelections
+          : existing.partnerEquipmentSelections,
+        partnerServiceIds: Array.isArray(partnerServiceIds)
+          ? partnerServiceIds
+          : existing.partnerServiceIds,
+        partnerAddonSelections: Array.isArray(partnerAddonSelections)
+          ? partnerAddonSelections
+          : existing.partnerAddonSelections,
+      });
+    } catch (e) {
+      console.error('partner inventory save (update studio):', e);
     }
   }
 

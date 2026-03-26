@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Loader2, Wrench, Star, Sparkles, Check, X, Pencil } from "lucide-react";
+import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
 
 type Category = "equipment" | "service" | "amenity";
 
@@ -47,6 +48,7 @@ export default function PartnerEquipmentPage() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"custom" | "platform">("custom");
+  const [structuredOpen, setStructuredOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -111,13 +113,22 @@ export default function PartnerEquipmentPage() {
             Manage your custom equipment and services shown to customers when booking.
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-xl transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add Custom
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setStructuredOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white font-semibold rounded-xl transition-colors text-sm border border-white/10"
+          >
+            Equipment, services & add-ons
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-xl transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Quick tag
+          </button>
+        </div>
       </div>
 
       {/* Tab switcher */}
@@ -303,10 +314,28 @@ export default function PartnerEquipmentPage() {
 
       <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl">
         <p className="text-white/30 text-xs">
-          <strong className="text-white/50">Tip:</strong> Custom options you add here will appear in your studio creation wizard
-          alongside the platform defaults. Partners can select these when creating or editing their studios.
+          <strong className="text-white/50">Tip:</strong> Quick tags are simple labels. Use{" "}
+          <button type="button" onClick={() => setStructuredOpen(true)} className="text-[#D9FC67]/80 hover:text-[#D9FC67]">
+            structured inventory
+          </button>{" "}
+          for model + quantity, priced services, and bookable add-ons.
         </p>
       </div>
+
+      <PartnerInventoryDrawer
+        open={structuredOpen}
+        initialTab="equipment"
+        onClose={() => {
+          setStructuredOpen(false);
+          Promise.all([
+            fetch("/api/admin/equipment").then((r) => r.json()),
+            fetch("/api/partner/custom-equipment").then((r) => r.json()),
+          ]).then(([platform, custom]) => {
+            setPlatformItems((platform.items || []).map((i: EquipmentItem) => ({ ...i, is_platform: true })));
+            setCustomItems(custom.items || []);
+          });
+        }}
+      />
     </div>
   );
 }

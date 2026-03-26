@@ -40,6 +40,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCities, City } from "@/lib/data";
 import { PartnerStudioLocationPicker } from "@/components/maps/PartnerStudioLocationPicker";
+import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
+import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartnerInventoryPicker";
+import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddonPicker";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -120,6 +123,10 @@ interface StudioFormData {
   useCustomPolicies: boolean;
   cancellationRules: CancellationRule[];
   rescheduleRules: RescheduleRule[];
+  partnerEquipmentSelections: { id: string; quantity: number }[];
+  partnerServiceIds: string[];
+  partnerAddonSelections: { id: string; enabled_for_booking: boolean }[];
+  studioPlatformAddonIds: string[];
 }
 
 const initialFormData: StudioFormData = {
@@ -152,6 +159,10 @@ const initialFormData: StudioFormData = {
     { id: "2", type: "hours", value: 24, deductionPercent: 10 },
     { id: "3", type: "hours", value: 0, deductionPercent: 25 },
   ],
+  partnerEquipmentSelections: [],
+  partnerServiceIds: [],
+  partnerAddonSelections: [],
+  studioPlatformAddonIds: [],
 };
 
 const STEPS = [
@@ -202,6 +213,15 @@ export default function CreateStudioPage() {
   const [customEquipment, setCustomEquipment] = useState<{ id: string; category: string; name: string }[]>([]);
   const [equipmentLoaded, setEquipmentLoaded] = useState(false);
 
+  const [inventoryLibrary, setInventoryLibrary] = useState<{
+    equipment: { id: string; subcategory: string; model_name: string; default_quantity: number }[];
+    services: { id: string; name: string; subcategory: string }[];
+    addons: { id: string; addon_kind: string; name: string; description: string | null; price: number; is_active?: boolean }[];
+  }>({ equipment: [], services: [], addons: [] });
+  const [inventoryLoaded, setInventoryLoaded] = useState(false);
+  const [inventoryDrawerOpen, setInventoryDrawerOpen] = useState(false);
+  const [inventoryDrawerTab, setInventoryDrawerTab] = useState<"equipment" | "services" | "addons">("equipment");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -223,6 +243,35 @@ export default function CreateStudioPage() {
       }).catch(() => setEquipmentLoaded(true));
     }
   }, [currentStep, equipmentLoaded]);
+
+  const refreshInventory = useCallback(() => {
+    fetch("/api/partner/inventory")
+      .then((r) => r.json())
+      .then((d) => {
+        setInventoryLibrary({
+          equipment: d.equipment || [],
+          services: d.services || [],
+          addons: d.addons || [],
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if ((currentStep === 4 || currentStep === 5) && !inventoryLoaded) {
+      fetch("/api/partner/inventory")
+        .then((r) => r.json())
+        .then((d) => {
+          setInventoryLibrary({
+            equipment: d.equipment || [],
+            services: d.services || [],
+            addons: d.addons || [],
+          });
+          setInventoryLoaded(true);
+        })
+        .catch(() => setInventoryLoaded(true));
+    }
+  }, [currentStep, inventoryLoaded]);
 
   // Load platform add-ons when reaching step 5
   useEffect(() => {
@@ -297,10 +346,14 @@ export default function CreateStudioPage() {
         if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
         if (formData.availableDays.length === 0) return "Please select at least one available day.";
         return "";
-      case 4:
-        if (formData.equipment.length === 0 && formData.services.length === 0)
-          return "Please select at least one equipment item or service.";
+      case 4: {
+        const hasPartner =
+          (formData.partnerEquipmentSelections?.length ?? 0) > 0 ||
+          (formData.partnerServiceIds?.length ?? 0) > 0;
+        if (formData.equipment.length === 0 && formData.services.length === 0 && !hasPartner)
+          return "Please select at least one equipment item, service, or saved catalog item.";
         return "";
+      }
       case 5:
         return "";
       case 6:
@@ -411,6 +464,10 @@ export default function CreateStudioPage() {
           longitude: formData.longitude,
           cancellationRules: formData.useCustomPolicies ? formData.cancellationRules : null,
           rescheduleRules: formData.useCustomPolicies ? formData.rescheduleRules : null,
+          partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+          partnerServiceIds: formData.partnerServiceIds || [],
+          partnerAddonSelections: formData.partnerAddonSelections || [],
+          addonIds: formData.studioPlatformAddonIds || [],
         }),
       });
       if (!res.ok) {
@@ -769,9 +826,16 @@ export default function CreateStudioPage() {
                   <p className="text-white/80 text-sm font-medium">Equipment</p>
                   <p className="text-white/40 text-xs mt-0.5">Select all equipment available in your studio</p>
                 </div>
-                <a href="/partner/equipment" target="_blank" className="text-xs text-[#D9FC67]/70 hover:text-[#D9FC67] transition-colors">
-                  + Manage custom →
-                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInventoryDrawerTab("equipment");
+                    setInventoryDrawerOpen(true);
+                  }}
+                  className="text-xs text-[#D9FC67]/70 hover:text-[#D9FC67] transition-colors"
+                >
+                  + Manage custom
+                </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {renderEquipmentGrid(equipItems, "equipment")}
@@ -801,6 +865,19 @@ export default function CreateStudioPage() {
                 {renderEquipmentGrid(amenityItems, "amenities")}
               </div>
             </div>
+
+            <StudioPartnerInventoryPicker
+              equipment={inventoryLibrary.equipment}
+              services={inventoryLibrary.services}
+              partnerEquipmentSelections={formData.partnerEquipmentSelections}
+              onChangeEquipment={(next) => updateFormData({ partnerEquipmentSelections: next })}
+              partnerServiceIds={formData.partnerServiceIds}
+              onChangeServices={(next) => updateFormData({ partnerServiceIds: next })}
+              onManageInventory={() => {
+                setInventoryDrawerTab("equipment");
+                setInventoryDrawerOpen(true);
+              }}
+            />
           </div>
         )}
       </div>
@@ -812,47 +889,47 @@ export default function CreateStudioPage() {
   const renderStep5 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Platform Add-ons</h2>
-        <p className="text-white/60">Add-ons customers can purchase alongside their booking</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Add-ons for this studio</h2>
+        <p className="text-white/60">Choose what customers can add during booking — platform + your custom upsells</p>
       </div>
 
-      <div className="p-4 bg-[#D9FC67]/5 border border-[#D9FC67]/15 rounded-xl mb-4">
-        <p className="text-[#D9FC67]/80 text-sm font-medium mb-1">How add-ons work</p>
+      <div className="p-4 bg-[#D9FC67]/5 border border-[#D9FC67]/15 rounded-xl mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-white/50 text-xs">
-          These are platform-wide add-ons managed by the PodX admin team (e.g., extra editing hours, drone footage).
-          They are automatically available to customers booking your studio. You don't need to configure anything here.
+          Create custom add-ons under{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setInventoryDrawerTab("addons");
+              setInventoryDrawerOpen(true);
+            }}
+            className="text-[#D9FC67]/80 hover:text-[#D9FC67] underline underline-offset-2"
+          >
+            Manage custom
+          </button>{" "}
+          if you need new items.
         </p>
       </div>
 
-      {addonsLoading ? (
+      {addonsLoading && !inventoryLoaded ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 text-[#D9FC67] animate-spin" />
         </div>
-      ) : platformAddons.length === 0 ? (
+      ) : platformAddons.length === 0 && inventoryLibrary.addons.length === 0 ? (
         <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
-          <p className="text-white/40 font-medium">No platform add-ons configured yet</p>
-          <p className="text-white/20 text-sm mt-1">Add-ons will appear here once added by the admin team</p>
+          <p className="text-white/40 font-medium">No add-ons available yet</p>
+          <p className="text-white/20 text-sm mt-1">
+            Add platform add-ons from admin, or create your own under Manage custom.
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {platformAddons.map((addon) => (
-            <div key={addon.id} className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-xl">
-              <div className="min-w-0 flex-1">
-                <p className="text-white font-medium">{addon.name}</p>
-                {addon.description && <p className="text-white/40 text-sm mt-0.5">{addon.description}</p>}
-                {addon.category && (
-                  <span className="inline-block mt-1.5 px-2.5 py-0.5 rounded-full bg-white/5 text-white/30 text-xs capitalize">
-                    {addon.category}
-                  </span>
-                )}
-              </div>
-              <div className="ml-6 text-right flex-shrink-0">
-                <p className="text-[#D9FC67] font-bold text-lg">₹{Number(addon.price).toLocaleString("en-IN")}</p>
-                <p className="text-white/30 text-xs">flat fee</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <StudioPartnerAddonPicker
+          platformAddons={platformAddons}
+          partnerAddons={inventoryLibrary.addons}
+          selectedPlatformIds={formData.studioPlatformAddonIds}
+          partnerAddonSelections={formData.partnerAddonSelections}
+          onChangePlatform={(ids) => updateFormData({ studioPlatformAddonIds: ids })}
+          onChangePartnerSelections={(rows) => updateFormData({ partnerAddonSelections: rows })}
+        />
       )}
     </div>
   );
@@ -1283,19 +1360,39 @@ export default function CreateStudioPage() {
               <h3 className="text-white font-semibold text-sm">Equipment & Services</h3>
               <button onClick={() => setCurrentStep(4)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
             </div>
-            {formData.equipment.length === 0 && formData.services.length === 0 && formData.amenities.length === 0 ? (
+            {formData.equipment.length === 0 &&
+            formData.services.length === 0 &&
+            formData.amenities.length === 0 &&
+            formData.partnerEquipmentSelections.length === 0 &&
+            formData.partnerServiceIds.length === 0 ? (
               <p className="text-white/30 text-sm">None selected</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {formData.equipment.map((eq) => (
-                  <span key={eq} className="px-2.5 py-1 bg-white/10 rounded-full text-xs text-white">{eq}</span>
-                ))}
-                {formData.services.map((s) => (
-                  <span key={s} className="px-2.5 py-1 bg-[#D9FC67]/10 rounded-full text-xs text-[#D9FC67]">{s}</span>
-                ))}
-                {formData.amenities.map((am) => (
-                  <span key={am} className="px-2.5 py-1 bg-blue-400/10 rounded-full text-xs text-blue-400">{am}</span>
-                ))}
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {formData.equipment.map((eq) => (
+                    <span key={eq} className="px-2.5 py-1 bg-white/10 rounded-full text-xs text-white">{eq}</span>
+                  ))}
+                  {formData.services.map((s) => (
+                    <span key={s} className="px-2.5 py-1 bg-[#D9FC67]/10 rounded-full text-xs text-[#D9FC67]">{s}</span>
+                  ))}
+                  {formData.amenities.map((am) => (
+                    <span key={am} className="px-2.5 py-1 bg-blue-400/10 rounded-full text-xs text-blue-400">{am}</span>
+                  ))}
+                </div>
+                {(formData.partnerEquipmentSelections.length > 0 || formData.partnerServiceIds.length > 0) && (
+                  <p className="text-white/45 text-xs">
+                    Saved catalog: {formData.partnerEquipmentSelections.length} equipment
+                    {formData.partnerEquipmentSelections.length === 1 ? "" : " items"},{" "}
+                    {formData.partnerServiceIds.length} service
+                    {formData.partnerServiceIds.length === 1 ? "" : "s"}
+                  </p>
+                )}
+                {(formData.studioPlatformAddonIds.length > 0 || formData.partnerAddonSelections.length > 0) && (
+                  <p className="text-white/45 text-xs">
+                    Add-ons: {formData.studioPlatformAddonIds.length} platform ·{" "}
+                    {formData.partnerAddonSelections.length} custom
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -1480,6 +1577,15 @@ export default function CreateStudioPage() {
           Progress is automatically saved as a draft
         </p>
       </main>
+
+      <PartnerInventoryDrawer
+        open={inventoryDrawerOpen}
+        initialTab={inventoryDrawerTab}
+        onClose={() => {
+          setInventoryDrawerOpen(false);
+          refreshInventory();
+        }}
+      />
     </div>
   );
 }

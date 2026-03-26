@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkStudioLimit } from '@/lib/subscription-gates';
+import { saveStudioPartnerInventory } from '@/lib/partner-studio-inventory';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
     pricePerHour, capacity, equipment, services, amenities,
     addonIds, images, videoUrl, latitude, longitude,
     cancellationRules, rescheduleRules,
+    partnerEquipmentSelections,
+    partnerServiceIds,
+    partnerAddonSelections,
   } = body;
 
   if (!name || !city) {
@@ -207,6 +211,24 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('studio_addons').insert(
       addonIds.map((addon_id: string) => ({ studio_id: studio.id, addon_id }))
     );
+  }
+
+  // Partner reusable inventory (equipment / services / custom add-ons)
+  const hasPartnerInv =
+    (Array.isArray(partnerEquipmentSelections) && partnerEquipmentSelections.length > 0) ||
+    (Array.isArray(partnerServiceIds) && partnerServiceIds.length > 0) ||
+    (Array.isArray(partnerAddonSelections) && partnerAddonSelections.length > 0);
+
+  if (hasPartnerInv) {
+    try {
+      await saveStudioPartnerInventory(supabaseAdmin, studio.id, partnerId, {
+        partnerEquipmentSelections: Array.isArray(partnerEquipmentSelections) ? partnerEquipmentSelections : [],
+        partnerServiceIds: Array.isArray(partnerServiceIds) ? partnerServiceIds : [],
+        partnerAddonSelections: Array.isArray(partnerAddonSelections) ? partnerAddonSelections : [],
+      });
+    } catch (e) {
+      console.error('partner inventory save (create studio):', e);
+    }
   }
 
   // Notify all admin users about the new studio pending review

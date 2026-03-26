@@ -20,6 +20,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { City } from "@/lib/data";
+import {
+  CITY_LOCATION_DEFAULTS,
+  matchUaeRegion,
+  UAE_REGION_OPTIONS,
+} from "@/lib/city-location-defaults";
 import { INDIAN_STATES, matchIndianStateList } from "@/lib/indian-states";
 import type { StudioLocation } from "@/types/location";
 
@@ -124,13 +129,17 @@ export function PartnerStudioLocationPicker({
 
   const applyGeocode = useCallback(
     (g: GeocodeResponse) => {
-      const state = matchIndianStateList(g.state, INDIAN_STATES) || value.state;
+      const country = g.country || value.country || "India";
+      const isIndia = country === "India";
+      const state = isIndia
+        ? matchIndianStateList(g.state, INDIAN_STATES) || value.state
+        : matchUaeRegion(g.state) || value.state;
       const city = matchCityFromList(cities, g.city) || g.city || value.city;
       onChange({
         address: g.address,
         city,
         state,
-        country: g.country || value.country || "India",
+        country,
         latitude: g.latitude,
         longitude: g.longitude,
       });
@@ -409,6 +418,15 @@ export function PartnerStudioLocationPicker({
     return `https://www.google.com/maps?q=${value.latitude},${value.longitude}`;
   }, [value.latitude, value.longitude]);
 
+  const stateSelectOptions = useMemo(() => {
+    if (value.country === "United Arab Emirates") {
+      const set = new Set<string>(UAE_REGION_OPTIONS);
+      if (value.state) set.add(value.state);
+      return Array.from(set);
+    }
+    return [...INDIAN_STATES];
+  }, [value.country, value.state]);
+
   return (
     <div className={cn("space-y-4", className)}>
       <div>
@@ -416,12 +434,34 @@ export function PartnerStudioLocationPicker({
         <select
           value={value.city}
           onChange={(e) => {
-            onChange({
-              city: e.target.value,
-              latitude: undefined,
-              longitude: undefined,
-            });
             setGeocodeError("");
+            const city = e.target.value;
+            if (!city) {
+              onChange({
+                city: "",
+                state: "",
+                country: "India",
+                latitude: undefined,
+                longitude: undefined,
+              });
+              return;
+            }
+            const defaults = CITY_LOCATION_DEFAULTS[city];
+            if (defaults) {
+              onChange({
+                city,
+                state: defaults.state,
+                country: defaults.country,
+                latitude: undefined,
+                longitude: undefined,
+              });
+            } else {
+              onChange({
+                city,
+                latitude: undefined,
+                longitude: undefined,
+              });
+            }
           }}
           className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors appearance-none cursor-pointer"
           style={{
@@ -513,7 +553,7 @@ export function PartnerStudioLocationPicker({
             <option value="" className="bg-[#141414]">
               Select state
             </option>
-            {INDIAN_STATES.map((s) => (
+            {stateSelectOptions.map((s) => (
               <option key={s} value={s} className="bg-[#141414]">
                 {s}
               </option>

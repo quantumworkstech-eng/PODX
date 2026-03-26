@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getMergedStudioEquipmentLabels } from '@/lib/partner-studio-inventory';
+import { fetchMergedStudioAddons } from '@/lib/studio-addons-public';
 
 export async function GET(
   _request: NextRequest,
@@ -28,15 +30,25 @@ export async function GET(
     return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
   }
 
-  // Fetch add-ons linked to this studio
-  const { data: addonRows } = await supabase
-    .from('studio_addons')
-    .select('platform_addons (id, name, description, price, category, is_active)')
-    .eq('studio_id', id);
+  let equipmentMerged = (studio as any).equipment ?? [];
+  if (supabase) {
+    try {
+      equipmentMerged = await getMergedStudioEquipmentLabels(
+        supabase,
+        id,
+        ((studio as any).equipment as string[]) || []
+      );
+    } catch {
+      equipmentMerged = (studio as any).equipment ?? [];
+    }
+  }
 
-  const addons = (addonRows ?? [])
-    .map((r: any) => r.platform_addons)
-    .filter((a: any) => a && a.is_active !== false);
+  let addons: unknown[] = [];
+  try {
+    addons = await fetchMergedStudioAddons(supabase, id);
+  } catch {
+    addons = [];
+  }
 
   // Flatten amenities
   const amenities = ((studio as any).studio_amenities ?? [])
@@ -63,7 +75,7 @@ export async function GET(
     phone: (studio as any).phone,
     email: (studio as any).email,
     website: (studio as any).website,
-    equipment: (studio as any).equipment ?? [],
+    equipment: equipmentMerged,
     images,
     rooms: ((studio as any).rooms ?? []).filter((r: any) => r.is_active !== false),
     amenities,
