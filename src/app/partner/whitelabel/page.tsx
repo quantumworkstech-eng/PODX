@@ -7,13 +7,14 @@ import {
   Eye, RefreshCw, Shield, Trash2, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhiteLabelAssetUpload } from "@/components/partner/WhiteLabelAssetUpload";
 import { cn } from "@/lib/utils";
 
 interface Branding {
   brand_name?: string;
   partner_slug?: string;
-  logo_url?: string;
-  favicon_url?: string;
+  logo_url?: string | null;
+  favicon_url?: string | null;
   tagline?: string;
   primary_color?: string;
   secondary_color?: string;
@@ -297,14 +298,28 @@ export default function WhiteLabelSettingsPage() {
                     placeholder="my-studio" className={cn(inputCls, "rounded-l-none")} />
                 </div>
               </Field>
-              <Field label="Logo URL" hint="Recommended: 200×60px PNG with transparent background">
-                <input value={branding.logo_url || ""} onChange={(e) => update("logo_url", e.target.value)}
-                  placeholder="https://cdn.example.com/logo.png" className={inputCls} />
-              </Field>
-              <Field label="Favicon URL" hint="32×32 or 64×64 PNG/ICO">
-                <input value={branding.favicon_url || ""} onChange={(e) => update("favicon_url", e.target.value)}
-                  placeholder="https://cdn.example.com/favicon.ico" className={inputCls} />
-              </Field>
+              <div className="sm:col-span-1">
+                <WhiteLabelAssetUpload
+                  kind="logo"
+                  url={branding.logo_url}
+                  hint="Recommended: 200×60px (PNG, transparent)"
+                  onBrandingUpdate={(b) => {
+                    setBranding((prev) => ({ ...prev, ...b }));
+                    setSaved(false);
+                  }}
+                />
+              </div>
+              <div className="sm:col-span-1">
+                <WhiteLabelAssetUpload
+                  kind="favicon"
+                  url={branding.favicon_url}
+                  hint="32×32 or 64×64 — PNG or ICO"
+                  onBrandingUpdate={(b) => {
+                    setBranding((prev) => ({ ...prev, ...b }));
+                    setSaved(false);
+                  }}
+                />
+              </div>
               <Field label="Tagline" className="col-span-2">
                 <input value={branding.tagline || ""} onChange={(e) => update("tagline", e.target.value)}
                   placeholder="Your studio booking tagline" className={inputCls} />

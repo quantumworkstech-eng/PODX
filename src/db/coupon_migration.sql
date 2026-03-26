@@ -1,6 +1,10 @@
 -- ============================================================
 -- PodX Coupon / Promo Code Migration
 -- ============================================================
+-- Apply once to your database (required for partner coupons):
+--   • Supabase: SQL Editor → paste this file → Run
+--   • Or: DATABASE_URL=... npm run db:migrate-coupons (use direct port 5432 URI for DDL)
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS partner_coupons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -53,7 +57,8 @@ CREATE TABLE IF NOT EXISTS coupon_uses (
     UNIQUE(booking_id)
 );
 
--- updated_at trigger
+-- updated_at trigger (idempotent for re-runs)
+DROP TRIGGER IF EXISTS update_partner_coupons_updated_at ON partner_coupons;
 CREATE TRIGGER update_partner_coupons_updated_at
     BEFORE UPDATE ON partner_coupons
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

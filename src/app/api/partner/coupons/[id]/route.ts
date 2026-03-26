@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { couponTableSetupError } from "@/lib/couponMigrationHint";
 import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
 
@@ -58,7 +59,10 @@ export async function PATCH(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const msg = couponTableSetupError(error.message) ?? error.message;
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
   if (!coupon) return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
 
   return NextResponse.json({ coupon });
@@ -80,6 +84,9 @@ export async function DELETE(
     .eq("id", id)
     .eq("partner_id", partnerId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const msg = couponTableSetupError(error.message) ?? error.message;
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

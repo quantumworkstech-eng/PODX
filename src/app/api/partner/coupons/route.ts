@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { couponTableSetupError } from "@/lib/couponMigrationHint";
 import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
 
@@ -20,7 +21,10 @@ export async function GET() {
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const msg = couponTableSetupError(error.message) ?? error.message;
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
   return NextResponse.json({ coupons: coupons || [] });
 }
 
@@ -70,7 +74,8 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "Coupon code already exists" }, { status: 409 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const msg = couponTableSetupError(error.message) ?? error.message;
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
   return NextResponse.json({ coupon }, { status: 201 });
 }

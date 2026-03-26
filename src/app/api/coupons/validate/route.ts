@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { couponTableSetupError } from "@/lib/couponMigrationHint";
 import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
 
@@ -25,13 +26,17 @@ export async function POST(req: NextRequest) {
 
   if (!studio) return NextResponse.json({ valid: false, error: "Studio not found" }, { status: 404 });
 
-  const { data: coupon } = await supabase
+  const { data: coupon, error: couponErr } = await supabase
     .from("partner_coupons")
     .select("*")
     .eq("partner_id", studio.owner_id)
     .eq("code", upperCode)
     .maybeSingle();
 
+  if (couponErr) {
+    const msg = couponTableSetupError(couponErr.message) ?? couponErr.message;
+    return NextResponse.json({ valid: false, error: msg }, { status: 500 });
+  }
   if (!coupon) return NextResponse.json({ valid: false, error: "Invalid coupon code" });
 
   // Validation checks

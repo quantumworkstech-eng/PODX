@@ -28,12 +28,13 @@ export async function GET() {
       email: session.user.email,
       phone: '',
       businessName: '',
+      avatarUrl: session.user.image || '',
     });
   }
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('full_name, phone, business_name')
+    .select('full_name, phone, business_name, avatar_url')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -42,6 +43,7 @@ export async function GET() {
     email: session.user.email,
     phone: profile?.phone || '',
     businessName: profile?.business_name || '',
+    avatarUrl: profile?.avatar_url || session.user.image || '',
   });
 }
 

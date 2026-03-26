@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate-coupons": "node scripts/run-sql-file.mjs src/db/coupon_migration.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

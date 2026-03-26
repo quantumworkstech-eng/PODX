@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   Mail,
@@ -15,6 +15,7 @@ import {
   X,
   Smartphone,
   Landmark,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,13 +27,17 @@ export default function PartnerSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("Settings saved successfully!");
+  const [successVariant, setSuccessVariant] = useState<"success" | "error">("success");
 
   const [profile, setProfile] = useState({
     name: "",
     email: "",
     phone: "",
     businessName: "",
+    avatarUrl: "",
   });
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // Bank account form state
   const [bankForm, setBankForm] = useState({
@@ -55,11 +60,47 @@ export default function PartnerSettingsPage() {
     fetch("/api/partner/profile")
       .then((r) => r.json())
       .then((d) => {
-        if (!d.error) setProfile(d);
+        if (!d.error) {
+          setProfile({
+            name: d.name ?? "",
+            email: d.email ?? "",
+            phone: d.phone ?? "",
+            businessName: d.businessName ?? "",
+            avatarUrl: d.avatarUrl ?? "",
+          });
+        }
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);
+
+  const handleAvatarFile = async (file: File) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      showSuccessFor("Please choose a JPG, PNG, or WebP image.", "error");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showSuccessFor("Image must be 2MB or smaller.", "error");
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/partner/profile/avatar", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setProfile((p) => ({ ...p, avatarUrl: data.avatarUrl }));
+      showSuccessFor("Profile photo updated!", "success");
+    } catch (e) {
+      console.error(e);
+      showSuccessFor("Could not upload photo. Try again.", "error");
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   const [notifications, setNotifications] = useState({
     newBookings: true,
@@ -69,10 +110,14 @@ export default function PartnerSettingsPage() {
     emailDigest: false,
   });
 
-  const showSuccessFor = (msg = "Settings saved successfully!") => {
+  const showSuccessFor = (
+    msg = "Settings saved successfully!",
+    variant: "success" | "error" = "success"
+  ) => {
+    setSuccessVariant(variant);
     setSuccessMsg(msg);
     setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+    setTimeout(() => setShowSuccess(false), 4000);
   };
 
   const handleSave = async () => {
@@ -140,8 +185,19 @@ export default function PartnerSettingsPage() {
       </div>
 
       {showSuccess && (
-        <div className="flex items-center gap-3 p-4 bg-green-400/10 border border-green-400/20 rounded-xl text-green-400">
-          <Check className="w-5 h-5" />
+        <div
+          className={cn(
+            "flex items-center gap-3 p-4 rounded-xl border",
+            successVariant === "success"
+              ? "bg-green-400/10 border-green-400/20 text-green-400"
+              : "bg-red-500/10 border-red-500/20 text-red-400"
+          )}
+        >
+          {successVariant === "success" ? (
+            <Check className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <X className="w-5 h-5 flex-shrink-0" />
+          )}
           {successMsg}
         </div>
       )}
@@ -175,12 +231,43 @@ export default function PartnerSettingsPage() {
               ) : null}
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Profile Information</h3>
-                <div className="relative">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#D9FC67] to-[#B8E050] flex items-center justify-center">
-                    <Building2 className="w-8 h-8 text-black" />
-                  </div>
-                  <button className="absolute bottom-0 right-0 p-2 bg-[#D9FC67] rounded-full text-black">
-                    <Camera className="w-4 h-4" />
+                <div className="relative flex-shrink-0">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void handleAvatarFile(f);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading || isLoading}
+                    className="group relative h-20 w-20 rounded-full border-2 border-white/10 bg-gradient-to-br from-[#D9FC67] to-[#B8E050] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FC67] disabled:opacity-60"
+                    aria-label="Upload profile photo"
+                  >
+                    {profile.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={profile.avatarUrl}
+                        alt=""
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center">
+                        <Building2 className="h-8 w-8 text-black" />
+                      </span>
+                    )}
+                    <span className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full bg-[#D9FC67] text-black shadow-md ring-2 ring-[#141414]">
+                      {avatarUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </span>
                   </button>
                 </div>
               </div>
