@@ -81,22 +81,6 @@ export async function POST(request: NextRequest) {
   const partnerId = await getPartnerId(session.user.email);
   if (!partnerId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  // Subscription gate: check studio limit
-  const studioCheck = await checkStudioLimit(partnerId);
-  if (!studioCheck.allowed) {
-    return NextResponse.json(
-      {
-        error: studioCheck.max === 0
-          ? 'An active subscription is required to list studios. Visit Billing & Plans to subscribe.'
-          : `Studio limit reached. Your plan allows ${studioCheck.max} studio${studioCheck.max === 1 ? '' : 's'} (you have ${studioCheck.current}). Upgrade your plan to add more.`,
-        code: 'STUDIO_LIMIT_REACHED',
-        current: studioCheck.current,
-        max: studioCheck.max,
-      },
-      { status: 403 }
-    );
-  }
-
   const body = await request.json();
   const {
     name, description, fullDescription, address, city, state, country,
@@ -106,10 +90,29 @@ export async function POST(request: NextRequest) {
     partnerEquipmentSelections,
     partnerServiceIds,
     partnerAddonSelections,
+    saveAsDraft,
   } = body;
 
   if (!name || !city) {
     return NextResponse.json({ error: 'Name and city are required' }, { status: 400 });
+  }
+
+  // Drafts bypass the subscription gate — they are private and not yet listed.
+  if (!saveAsDraft) {
+    const studioCheck = await checkStudioLimit(partnerId);
+    if (!studioCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: studioCheck.max === 0
+            ? 'An active subscription is required to list studios. Visit Billing & Plans to subscribe.'
+            : `Studio limit reached. Your plan allows ${studioCheck.max} studio${studioCheck.max === 1 ? '' : 's'} (you have ${studioCheck.current}). Upgrade your plan to add more.`,
+          code: 'STUDIO_LIMIT_REACHED',
+          current: studioCheck.current,
+          max: studioCheck.max,
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
@@ -131,7 +134,7 @@ export async function POST(request: NextRequest) {
     state: state || null,
     country: country || 'India',
     is_active: false,
-    review_status: 'pending_review',
+    review_status: saveAsDraft ? 'draft' : 'pending_review',
     latitude: latitude ?? null,
     longitude: longitude ?? null,
     owner_id: partnerId,
@@ -231,22 +234,24 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Notify all admin users about the new studio pending review
-  const { data: adminRoles } = await supabaseAdmin
-    .from('user_roles')
-    .select('user_id, roles!inner(name)')
-    .eq('roles.name', 'admin');
+  // Notify admins only when the studio is submitted for review (not for drafts)
+  if (!saveAsDraft) {
+    const { data: adminRoles } = await supabaseAdmin
+      .from('user_roles')
+      .select('user_id, roles!inner(name)')
+      .eq('roles.name', 'admin');
 
-  if (adminRoles && adminRoles.length > 0) {
-    const notifications = adminRoles.map((ar: any) => ({
-      user_id: ar.user_id,
-      type: 'new_partner_signup',
-      title: 'New Studio Pending Review',
-      message: `"${name}" has been submitted and is awaiting approval.`,
-      action_url: '/admin/studios',
-    }));
-    await supabaseAdmin.from('notifications').insert(notifications);
+    if (adminRoles && adminRoles.length > 0) {
+      const notifications = adminRoles.map((ar: any) => ({
+        user_id: ar.user_id,
+        type: 'new_partner_signup',
+        title: 'New Studio Pending Review',
+        message: `"${name}" has been submitted and is awaiting approval.`,
+        action_url: '/admin/studios',
+      }));
+      await supabaseAdmin.from('notifications').insert(notifications);
+    }
   }
 
-  return NextResponse.json({ studioId: studio.id }, { status: 201 });
+  return NextResponse.json({ studioId: studio.id, isDraft: !!saveAsDraft }, { status: 201 });
 }

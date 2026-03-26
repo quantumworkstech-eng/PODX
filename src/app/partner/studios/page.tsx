@@ -16,6 +16,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -479,7 +480,7 @@ export default function PartnerStudiosPage() {
                   </div>
                 )}
                 <div className="absolute top-3 right-3 flex gap-2">
-                  {studio.review_status !== "pending_review" && (
+                  {studio.review_status !== "pending_review" && studio.review_status !== "draft" && (
                     <button onClick={() => handleToggleStatus(studio.id)} className={cn("p-2 rounded-lg backdrop-blur-sm transition-colors", studio.status === "active" ? "bg-green-400/20 text-green-400" : "bg-white/10 text-white/40")}>
                       {studio.status === "active" ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>
@@ -490,7 +491,11 @@ export default function PartnerStudiosPage() {
               <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-lg font-semibold text-white">{studio.name}</h3>
-                  {studio.review_status === "pending_review" ? (
+                  {studio.review_status === "draft" ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                      Draft
+                    </span>
+                  ) : studio.review_status === "pending_review" ? (
                     <span className="text-xs px-2 py-1 rounded-full bg-yellow-400/10 text-yellow-400 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block" />
                       In Review
@@ -506,6 +511,12 @@ export default function PartnerStudiosPage() {
                   <MapPin className="w-4 h-4" />
                   {studio.address ? `${studio.address}, ` : ""}{studio.city}
                 </div>
+
+                {studio.review_status === "draft" && (
+                  <p className="text-amber-400/70 text-xs mb-2 bg-amber-400/5 border border-amber-400/10 rounded-lg px-3 py-2">
+                    Draft — not visible to customers yet. Continue to finish and submit.
+                  </p>
+                )}
 
                 {studio.review_status === "pending_review" && (
                   <p className="text-yellow-400/70 text-xs mb-2 bg-yellow-400/5 border border-yellow-400/10 rounded-lg px-3 py-2">
@@ -527,9 +538,18 @@ export default function PartnerStudiosPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={() => handleOpenModal(studio)} variant="outline" size="sm" className="flex-1 border-white/10 text-white hover:bg-white/5">
-                    <Pencil className="w-4 h-4 mr-1" /> Edit
-                  </Button>
+                  {studio.review_status === "draft" ? (
+                    <Link
+                      href={`/partner/studios/create?draftId=${studio.id}`}
+                      className="flex-1 inline-flex items-center justify-center gap-1 h-9 px-3 rounded-md text-sm font-medium border border-amber-400/30 text-amber-400 hover:bg-amber-400/10 transition-colors"
+                    >
+                      <ArrowRight className="w-4 h-4" /> Continue
+                    </Link>
+                  ) : (
+                    <Button onClick={() => handleOpenModal(studio)} variant="outline" size="sm" className="flex-1 border-white/10 text-white hover:bg-white/5">
+                      <Pencil className="w-4 h-4 mr-1" /> Edit
+                    </Button>
+                  )}
                   <Button onClick={() => setDeleteConfirm(studio.id)} variant="outline" size="sm" className="border-red-500/20 text-red-400 hover:bg-red-500/10">
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -543,9 +563,9 @@ export default function PartnerStudiosPage() {
           <Building2 className="w-16 h-16 text-white/20 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No studios yet</h3>
           <p className="text-white/40 mb-6">Start by adding your first podcast studio</p>
-          <Button onClick={() => handleOpenModal()} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black">
+          <Link href="/partner/studios/create" className="inline-flex items-center bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold px-4 py-2 rounded-lg transition-colors">
             <Plus className="w-4 h-4 mr-2" /> Add Your First Studio
-          </Button>
+          </Link>
         </div>
       )}
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -186,19 +186,15 @@ function formatPolicyLabel(type: "days" | "hours", value: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CreateStudioPage() {
+function CreateStudioPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get("draftId");
+
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<StudioFormData>(() => {
-    // Restore draft from localStorage on mount
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem(DRAFT_KEY);
-        if (saved) return { ...initialFormData, ...JSON.parse(saved) };
-      } catch {}
-    }
-    return initialFormData;
-  });
+  // Always start fresh — drafts are loaded from the server via ?draftId=
+  const [formData, setFormData] = useState<StudioFormData>(initialFormData);
+  const [draftLoading, setDraftLoading] = useState(!!draftId);
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [stepError, setStepError] = useState("");
@@ -230,6 +226,47 @@ export default function CreateStudioPage() {
   useEffect(() => {
     getCities().then(setCities).catch(console.error);
   }, []);
+
+  // Load draft from server when ?draftId= is present
+  useEffect(() => {
+    if (!draftId) return;
+    setDraftLoading(true);
+    fetch(`/api/partner/studios/${draftId}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(({ studio }) => {
+        if (!studio) return;
+        const allEquip: string[] = studio.equipment || [];
+        const EQUIP_IDS = new Set(["microphones","headphones","cameras","lighting","mixer","soundproofing","teleprompter","monitor"]);
+        const SVC_IDS   = new Set(["recording","editing","live_streaming","production_support","photography","podcasting"]);
+        const AMEN_IDS  = new Set(["wifi","ac","parking","refreshments"]);
+        setFormData((prev) => ({
+          ...prev,
+          name: studio.name || "",
+          shortDescription: studio.short_description || "",
+          fullDescription: studio.full_description || "",
+          address: studio.address || "",
+          city: studio.city || "",
+          state: studio.state || "",
+          country: studio.country || "India",
+          latitude: studio.latitude ?? undefined,
+          longitude: studio.longitude ?? undefined,
+          pricePerHour: studio.price_per_hour || prev.pricePerHour,
+          capacity: studio.capacity || prev.capacity,
+          equipment: allEquip.filter((e) => EQUIP_IDS.has(e)),
+          services: allEquip.filter((e) => SVC_IDS.has(e)),
+          amenities: allEquip.filter((e) => AMEN_IDS.has(e)),
+          images: studio.images || [],
+          videoUrl: studio.video_url || "",
+          studioPlatformAddonIds: studio.addon_ids || [],
+          partnerEquipmentSelections: studio.partner_inventory?.partnerEquipmentSelections ?? [],
+          partnerServiceIds: studio.partner_inventory?.partnerServiceIds ?? [],
+          partnerAddonSelections: studio.partner_inventory?.partnerAddonSelections ?? [],
+        }));
+      })
+      .catch(() => {})
+      .finally(() => setDraftLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
 
   // Load equipment options when reaching step 4
   useEffect(() => {
@@ -300,13 +337,17 @@ export default function CreateStudioPage() {
     }
   }, [currentStep]);
 
-  // Autosave debounced — skips blob/base64 data URLs to avoid quota errors
+  // Autosave within-session (localStorage) — so browser refreshes don't lose work.
+  // Only active when continuing a draft (draftId present) or nothing in the session yet.
+  // New sessions (no draftId) do NOT restore from this key; it's purely for refresh resilience.
   useEffect(() => {
+    if (draftLoading) return; // don't overwrite while loading
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
       try {
         const draftData = {
           ...formData,
+          _draftId: draftId ?? undefined,
           // Only persist remote image URLs, not blob/base64 strings
           images: formData.images.filter((url) => url.startsWith("http")),
         };
@@ -318,7 +359,7 @@ export default function CreateStudioPage() {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [formData]);
+  }, [formData, draftId, draftLoading]);
 
   const updateFormData = (updates: Partial<StudioFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -379,6 +420,101 @@ export default function CreateStudioPage() {
   const handleBack = () => {
     setStepError("");
     if (currentStep > 1) setCurrentStep((prev) => prev - 1);
+  };
+
+  // ─── Save as Draft ───────────────────────────────────────────────────────────
+
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [draftSaveError, setDraftSaveError] = useState("");
+
+  const handleSaveDraft = async () => {
+    if (!formData.name.trim() || !formData.city) {
+      setDraftSaveError("Please enter at least a studio name and city before saving a draft.");
+      return;
+    }
+    setIsSavingDraft(true);
+    setDraftSaveError("");
+    const allEquipment = [...formData.equipment, ...formData.services, ...formData.amenities];
+    try {
+      if (draftId) {
+        // Update existing draft
+        const res = await fetch(`/api/partner/studios/${draftId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            shortDescription: formData.shortDescription,
+            description: formData.shortDescription,
+            fullDescription: formData.fullDescription,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            country: formData.country || "India",
+            pricePerHour: formData.pricePerHour,
+            capacity: formData.capacity,
+            equipment: allEquipment,
+            images: formData.images,
+            videoUrl: formData.videoUrl || null,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            availableDays: formData.availableDays,
+            workingHours: formData.workingHours,
+            partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+            partnerServiceIds: formData.partnerServiceIds || [],
+            partnerAddonSelections: formData.partnerAddonSelections || [],
+            addonIds: formData.studioPlatformAddonIds || [],
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setDraftSaveError(err.error || "Failed to update draft.");
+          setIsSavingDraft(false);
+          return;
+        }
+      } else {
+        // Create new draft
+        const res = await fetch("/api/partner/studios", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.shortDescription,
+            fullDescription: formData.fullDescription,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            country: formData.country || "India",
+            pricePerHour: formData.pricePerHour,
+            capacity: formData.capacity,
+            equipment: formData.equipment,
+            services: formData.services,
+            amenities: formData.amenities,
+            images: formData.images,
+            videoUrl: formData.videoUrl || null,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            cancellationRules: null,
+            rescheduleRules: null,
+            partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+            partnerServiceIds: formData.partnerServiceIds || [],
+            partnerAddonSelections: formData.partnerAddonSelections || [],
+            addonIds: formData.studioPlatformAddonIds || [],
+            saveAsDraft: true,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setDraftSaveError(err.error || "Failed to save draft.");
+          setIsSavingDraft(false);
+          return;
+        }
+      }
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
+      router.push("/partner/studios");
+    } catch {
+      setDraftSaveError("Network error. Please try again.");
+    }
+    setIsSavingDraft(false);
   };
 
   // ─── Image Upload ────────────────────────────────────────────────────────────
@@ -446,41 +582,78 @@ export default function CreateStudioPage() {
   const handleSubmit = async () => {
     setIsLoading(true);
     setSubmitError("");
+    const allEquipment = [...formData.equipment, ...formData.services, ...formData.amenities];
     try {
-      const res = await fetch("/api/partner/studios", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.shortDescription,
-          fullDescription: formData.fullDescription,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          country: formData.country || "India",
-          pricePerHour: formData.pricePerHour,
-          capacity: formData.capacity,
-          equipment: formData.equipment,
-          services: formData.services,
-          amenities: formData.amenities,
-          images: formData.images,
-          videoUrl: formData.videoUrl || null,
-          latitude: formData.latitude,
-          longitude: formData.longitude,
-          cancellationRules: formData.useCustomPolicies ? formData.cancellationRules : null,
-          rescheduleRules: formData.useCustomPolicies ? formData.rescheduleRules : null,
-          partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
-          partnerServiceIds: formData.partnerServiceIds || [],
-          partnerAddonSelections: formData.partnerAddonSelections || [],
-          addonIds: formData.studioPlatformAddonIds || [],
-        }),
-      });
+      let res: Response;
+      if (draftId) {
+        // Finalise an existing draft: full update + set review_status → pending_review
+        res = await fetch(`/api/partner/studios/${draftId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            shortDescription: formData.shortDescription,
+            description: formData.shortDescription,
+            fullDescription: formData.fullDescription,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            country: formData.country || "India",
+            pricePerHour: formData.pricePerHour,
+            capacity: formData.capacity,
+            equipment: allEquipment,
+            images: formData.images,
+            videoUrl: formData.videoUrl || null,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            availableDays: formData.availableDays,
+            workingHours: formData.workingHours,
+            cancellationRules: formData.useCustomPolicies ? formData.cancellationRules : null,
+            useCustomPolicies: formData.useCustomPolicies,
+            partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+            partnerServiceIds: formData.partnerServiceIds || [],
+            partnerAddonSelections: formData.partnerAddonSelections || [],
+            addonIds: formData.studioPlatformAddonIds || [],
+            review_status: "pending_review",
+          }),
+        });
+      } else {
+        // Brand-new studio submission
+        res = await fetch("/api/partner/studios", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.shortDescription,
+            fullDescription: formData.fullDescription,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            country: formData.country || "India",
+            pricePerHour: formData.pricePerHour,
+            capacity: formData.capacity,
+            equipment: formData.equipment,
+            services: formData.services,
+            amenities: formData.amenities,
+            images: formData.images,
+            videoUrl: formData.videoUrl || null,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            cancellationRules: formData.useCustomPolicies ? formData.cancellationRules : null,
+            rescheduleRules: formData.useCustomPolicies ? formData.rescheduleRules : null,
+            partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+            partnerServiceIds: formData.partnerServiceIds || [],
+            partnerAddonSelections: formData.partnerAddonSelections || [],
+            addonIds: formData.studioPlatformAddonIds || [],
+          }),
+        });
+      }
       if (!res.ok) {
         const err = await res.json();
         if (err.code === "STUDIO_LIMIT_REACHED" && err.max === 0) {
           setSubscriptionStatus("no_plan");
         } else {
-          setSubmitError(err.error || "Failed to create studio. Please try again.");
+          setSubmitError(err.error || "Failed to submit studio. Please try again.");
         }
         setIsLoading(false);
         return;
@@ -1513,6 +1686,14 @@ export default function CreateStudioPage() {
 
   const isSubmitDisabled = subscriptionStatus === "no_plan" || subscriptionStatus === "loading" || uploadingImages;
 
+  if (draftLoading) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="-m-6">
       <header className="border-b border-white/5 px-6 py-3 bg-[#09090b]">
@@ -1521,10 +1702,16 @@ export default function CreateStudioPage() {
             <ChevronLeft className="w-4 h-4" />
             Back to Studios
           </Link>
-          <h1 className="text-lg font-bold text-white">Create New Studio</h1>
-          <span className="text-white/30 text-xs">
-            {typeof window !== "undefined" && localStorage.getItem(DRAFT_KEY) ? "Draft saved" : ""}
-          </span>
+          <h1 className="text-lg font-bold text-white">
+            {draftId ? "Continue Draft" : "Create New Studio"}
+          </h1>
+          {draftId ? (
+            <span className="text-amber-400/70 text-xs bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5">
+              Draft
+            </span>
+          ) : (
+            <span className="w-20" />
+          )}
         </div>
       </header>
 
@@ -1544,7 +1731,7 @@ export default function CreateStudioPage() {
         )}
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex items-center justify-between mt-6 gap-3 flex-wrap">
           <Button
             variant="outline"
             onClick={handleBack}
@@ -1555,41 +1742,72 @@ export default function CreateStudioPage() {
             Back
           </Button>
 
-          {currentStep < 8 ? (
-            <Button
-              onClick={handleNext}
-              disabled={uploadingImages}
-              className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50"
-            >
-              {uploadingImages ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading…</> : <>Continue <ArrowRight className="w-4 h-4 ml-2" /></>}
-            </Button>
-          ) : (
-            <div className="flex flex-col items-end gap-2">
-              {submitError && (
-                <p className="text-red-400 text-sm text-right flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" /> {submitError}
-                </p>
-              )}
-              {subscriptionStatus !== "no_plan" && (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isLoading || isSubmitDisabled}
-                  className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>
-                  ) : (
-                    <><CheckCircle className="w-4 h-4 mr-2" /> Submit for Review</>
-                  )}
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Save as Draft — always visible while in the flow */}
+            {currentStep < 8 && (
+              <Button
+                variant="outline"
+                onClick={() => void handleSaveDraft()}
+                disabled={isSavingDraft || !formData.name.trim() || !formData.city}
+                className="border-white/20 text-white/60 hover:border-amber-400/50 hover:text-amber-400 disabled:opacity-40"
+                title={!formData.name.trim() || !formData.city ? "Enter a name and city first" : undefined}
+              >
+                {isSavingDraft ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save as Draft"}
+              </Button>
+            )}
+
+            {currentStep < 8 ? (
+              <Button
+                onClick={handleNext}
+                disabled={uploadingImages}
+                className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50"
+              >
+                {uploadingImages ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading…</> : <>Continue <ArrowRight className="w-4 h-4 ml-2" /></>}
+              </Button>
+            ) : (
+              <div className="flex flex-col items-end gap-2">
+                {submitError && (
+                  <p className="text-red-400 text-sm text-right flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" /> {submitError}
+                  </p>
+                )}
+                {subscriptionStatus !== "no_plan" && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => void handleSaveDraft()}
+                      disabled={isSavingDraft}
+                      className="border-white/20 text-white/60 hover:border-amber-400/50 hover:text-amber-400 disabled:opacity-40"
+                    >
+                      {isSavingDraft ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save as Draft"}
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isLoading || isSubmitDisabled}
+                      className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4 mr-2" /> Submit for Review</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {draftSaveError && (
+          <p className="text-amber-400 text-xs mt-2 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> {draftSaveError}
+          </p>
+        )}
 
         {/* Autosave notice */}
         <p className="text-center text-white/20 text-xs mt-4">
-          Progress is automatically saved as a draft
+          {draftId ? "Continuing draft \u2014 click Save as Draft or Submit for Review to keep changes" : "Use \u201cSave as Draft\u201d to save progress and continue later"}
         </p>
       </main>
 
@@ -1602,5 +1820,19 @@ export default function CreateStudioPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function CreateStudioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <CreateStudioPageInner />
+    </Suspense>
   );
 }

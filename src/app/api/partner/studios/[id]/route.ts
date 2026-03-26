@@ -41,7 +41,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const fullRes = await supabaseAdmin
     .from('studios')
     .select(`
-      id, name, description, short_description, address, city, is_active,
+      id, name, description, short_description, address, city, state, country,
+      is_active, review_status, latitude, longitude, video_url,
       buffer_minutes, reschedule_cutoff_hours, equipment,
       rooms(id, price_per_hour, capacity, is_active),
       studio_images(image_url, display_order),
@@ -89,9 +90,16 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     studio: {
       id: studio.id,
       name: studio.name || '',
+      short_description: studio.short_description || '',
       description: studio.short_description || studio.description || '',
+      full_description: studio.description || '',
       address: studio.address || '',
       city: studio.city || '',
+      state: studio.state || '',
+      country: studio.country || 'India',
+      latitude: studio.latitude ?? null,
+      longitude: studio.longitude ?? null,
+      video_url: studio.video_url || '',
       price_per_hour: pricePerHour,
       capacity,
       buffer_minutes: studio.buffer_minutes ?? 0,
@@ -101,6 +109,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       partner_inventory: partnerInventory,
       images,
       status: studio.is_active ? 'active' : 'inactive',
+      review_status: studio.review_status || 'pending_review',
     },
   });
 }
@@ -134,6 +143,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     workingHours, // { start: string, end: string }
     cancellationRules, // [{ type, value, refundPercent, deductionPercent }]
     useCustomPolicies,
+    review_status, // allow transitioning draft → pending_review
+    videoUrl,
   } = body;
 
   // Update studios table
@@ -153,6 +164,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (buffer_minutes !== undefined) studioUpdates.buffer_minutes = Math.max(0, parseInt(buffer_minutes) || 0);
   if (reschedule_cutoff_hours !== undefined) studioUpdates.reschedule_cutoff_hours = Math.max(0, parseInt(reschedule_cutoff_hours) || 48);
   if (equipment !== undefined && Array.isArray(equipment)) studioUpdates.equipment = equipment;
+  if (review_status !== undefined && ['draft', 'pending_review', 'approved', 'rejected'].includes(review_status)) {
+    studioUpdates.review_status = review_status;
+  }
+  if (videoUrl !== undefined) studioUpdates.video_url = videoUrl;
 
   let { error: studioErr } = await supabaseAdmin.from('studios').update(studioUpdates).eq('id', id);
   if (studioErr) {
@@ -293,6 +308,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } else if (useCustomPolicies === false) {
     // Clear custom policies to use platform defaults
     await supabaseAdmin.from('cancellation_policies').delete().eq('studio_id', id);
+  }
+
+  // If draft is being submitted for review, notify admins
+  if (review_status === 'pending_review') {
+    try {
+      const { data: studioRow } = await supabaseAdmin.from('studios').select('name').eq('id', id).maybeSingle();
+      const studioName = studioRow?.name || 'Studio';
+      const { data: adminRoles } = await supabaseAdmin
+        .from('user_roles')
+        .select('user_id, roles!inner(name)')
+        .eq('roles.name', 'admin');
+      if (adminRoles && adminRoles.length > 0) {
+        await supabaseAdmin.from('notifications').insert(
+          adminRoles.map((ar: any) => ({
+            user_id: ar.user_id,
+            type: 'new_partner_signup',
+            title: 'New Studio Pending Review',
+            message: `"${studioName}" has been submitted and is awaiting approval.`,
+            action_url: '/admin/studios',
+          }))
+        );
+      }
+    } catch { /* non-critical */ }
   }
 
   return NextResponse.json({ success: true });
