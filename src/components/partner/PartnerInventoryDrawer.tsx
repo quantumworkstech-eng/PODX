@@ -233,12 +233,14 @@ function EquipmentTab({
   const [model, setModel] = useState("");
   const [qty, setQty] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!model.trim()) return;
     setSaving(true);
-    await fetch("/api/partner/inventory/equipment", {
+    setFormError(null);
+    const res = await fetch("/api/partner/inventory/equipment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -247,9 +249,14 @@ function EquipmentTab({
         default_quantity: qty,
       }),
     });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setFormError((data as { error?: string }).error || "Could not save. Try again.");
+      return;
+    }
     setModel("");
     setQty(1);
-    setSaving(false);
     onRefresh();
   }
 
@@ -262,6 +269,9 @@ function EquipmentTab({
     <div className="space-y-6">
       <form onSubmit={add} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
         <p className="text-white/80 text-sm font-medium">Add equipment</p>
+        {formError && (
+          <p className="text-red-400 text-xs">{formError}</p>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
           <select
             value={sub}
@@ -305,16 +315,23 @@ function EquipmentTab({
       {mostUsed.length > 0 && (
         <div>
           <p className="text-xs text-white/40 mb-2 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Most used
+            <Sparkles className="w-3.5 h-3.5" /> Most used — tap to fill the form
           </p>
           <div className="flex flex-wrap gap-2">
             {mostUsed.map((m) => (
-              <span
+              <button
                 key={m.id}
-                className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70"
+                type="button"
+                onClick={() => {
+                  setSub(m.subcategory);
+                  setModel(m.model_name);
+                  setQty(Math.max(1, m.default_quantity));
+                  setFormError(null);
+                }}
+                className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-[#D9FC67]/15 hover:border-[#D9FC67]/40 hover:text-white transition-colors"
               >
                 {m.model_name}
-              </span>
+              </button>
             ))}
           </div>
         </div>
@@ -368,12 +385,14 @@ function ServicesTab({
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
-    await fetch("/api/partner/inventory/services", {
+    setFormError(null);
+    const res = await fetch("/api/partner/inventory/services", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -383,10 +402,15 @@ function ServicesTab({
         base_price: price === "" ? null : Number(price),
       }),
     });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setFormError((data as { error?: string }).error || "Could not save. Try again.");
+      return;
+    }
     setName("");
     setDesc("");
     setPrice("");
-    setSaving(false);
     onRefresh();
   }
 
@@ -399,6 +423,7 @@ function ServicesTab({
     <div className="space-y-6">
       <form onSubmit={add} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
         <p className="text-white/80 text-sm font-medium">Add service</p>
+        {formError && <p className="text-red-400 text-xs">{formError}</p>}
         <select
           value={sub}
           onChange={(e) => setSub(e.target.value)}
@@ -445,16 +470,24 @@ function ServicesTab({
       {mostUsed.length > 0 && (
         <div>
           <p className="text-xs text-white/40 mb-2 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Most used
+            <Sparkles className="w-3.5 h-3.5" /> Most used — tap to fill the form
           </p>
           <div className="flex flex-wrap gap-2">
             {mostUsed.map((m) => (
-              <span
+              <button
                 key={m.id}
-                className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70"
+                type="button"
+                onClick={() => {
+                  setSub(m.subcategory);
+                  setName(m.name);
+                  setDesc(m.description || "");
+                  setPrice(m.base_price != null ? String(m.base_price) : "");
+                  setFormError(null);
+                }}
+                className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-[#D9FC67]/15 hover:border-[#D9FC67]/40 hover:text-white transition-colors"
               >
                 {m.name}
-              </span>
+              </button>
             ))}
           </div>
         </div>
@@ -505,12 +538,14 @@ function AddonsTab({
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("0");
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
-    await fetch("/api/partner/inventory/addons", {
+    setFormError(null);
+    const res = await fetch("/api/partner/inventory/addons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -521,10 +556,15 @@ function AddonsTab({
         is_active: true,
       }),
     });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setFormError((data as { error?: string }).error || "Could not save. Try again.");
+      return;
+    }
     setName("");
     setDesc("");
     setPrice("0");
-    setSaving(false);
     onRefresh();
   }
 
@@ -537,6 +577,7 @@ function AddonsTab({
     <div className="space-y-6">
       <form onSubmit={add} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
         <p className="text-white/80 text-sm font-medium">Add bookable add-on</p>
+        {formError && <p className="text-red-400 text-xs">{formError}</p>}
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value)}
@@ -583,16 +624,24 @@ function AddonsTab({
       {mostUsed.length > 0 && (
         <div>
           <p className="text-xs text-white/40 mb-2 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Most used
+            <Sparkles className="w-3.5 h-3.5" /> Most used — tap to fill the form
           </p>
           <div className="flex flex-wrap gap-2">
             {mostUsed.map((m) => (
-              <span
+              <button
                 key={m.id}
-                className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70"
+                type="button"
+                onClick={() => {
+                  setKind(m.addon_kind);
+                  setName(m.name);
+                  setDesc(m.description || "");
+                  setPrice(String(m.price ?? 0));
+                  setFormError(null);
+                }}
+                className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-[#D9FC67]/15 hover:border-[#D9FC67]/40 hover:text-white transition-colors"
               >
                 {m.name}
-              </span>
+              </button>
             ))}
           </div>
         </div>
