@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useBooking } from "@/context/BookingContext";
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus, Loader2 } from "lucide-react";
 import { PARTICIPANT_OPTIONS, TIME_SLOTS } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
@@ -216,9 +215,6 @@ export function DateTimeStep() {
     return null;
   };
 
-  const nextStepLabel =
-    selectionMode === "studio" ? "Continue to Package" : "Continue to Studio";
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="text-center mb-10">
@@ -400,7 +396,12 @@ export function DateTimeStep() {
                     return (
                       <button
                         key={slot.time}
-                        onClick={() => !disabled && setTimeSlot(slot.time)}
+                        onClick={() => {
+                          if (disabled) return;
+                          setTimeSlot(slot.time);
+                          // Advance after state is applied; avoids next step reading stale timeSlot.
+                          window.setTimeout(() => nextStep(), 0);
+                        }}
                         disabled={disabled}
                         className={cn(
                           "py-3 px-4 rounded-xl text-sm font-medium transition-all",
@@ -445,16 +446,6 @@ export function DateTimeStep() {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="mt-10 flex justify-center">
-        <Button
-          onClick={nextStep}
-          disabled={!canProceed()}
-          className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
-        >
-          {nextStepLabel}
-        </Button>
       </div>
     </div>
   );
