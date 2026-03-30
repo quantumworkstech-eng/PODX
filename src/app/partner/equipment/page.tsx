@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Trash2, Loader2, Wrench, Star, Sparkles, Search } from "lucide-react";
 import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 type EquipmentRow = {
   id: string;
@@ -23,9 +31,13 @@ type ServiceRow = {
 type AddonRow = {
   id: string;
   addon_kind: string;
+  category?: "equipment" | "service" | null;
+  addon_type?: string | null;
   name: string;
   description: string | null;
   price: number;
+  quantity?: number | null;
+  thumbnail_url?: string | null;
 };
 
 type PlatformAddonRow = {
@@ -35,6 +47,22 @@ type PlatformAddonRow = {
   price: number;
   category: string | null;
 };
+
+const ADDON_TYPE_OPTIONS = [
+  "Camera",
+  "Mics+Wireless mic",
+  "Lights",
+  "Gimbal",
+  "Teleprompter",
+  "Monitor (TV screen)",
+  "RGB lights (custom vibe per creator)",
+  "Ring light (quick solo shoots)",
+  "Portable softbox (for reels corner)",
+  "Practical lights (lamps, desk lights)",
+  "Overhead rig",
+  "Camera slider",
+  "Green/Blue/White Screen",
+] as const;
 
 interface EquipmentItem {
   id: string;
@@ -65,7 +93,6 @@ const AD_LABEL: Record<string, string> = {
 };
 
 export default function PartnerEquipmentPage() {
-  const [platformItems, setPlatformItems] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [structuredOpen, setStructuredOpen] = useState(false);
   const [inventoryLoading, setInventoryLoading] = useState(true);
@@ -77,6 +104,27 @@ export default function PartnerEquipmentPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "equipment" | "services">("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "studio" | "platform">("all");
   const [query, setQuery] = useState("");
+
+  const [newOpen, setNewOpen] = useState(false);
+  const [savingNew, setSavingNew] = useState(false);
+  const [newError, setNewError] = useState("");
+  const [newCategory, setNewCategory] = useState<"equipment" | "service">("service");
+  const [newType, setNewType] = useState<(typeof ADDON_TYPE_OPTIONS)[number]>(ADDON_TYPE_OPTIONS[0]);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newQty, setNewQty] = useState(1);
+  const [newPrice, setNewPrice] = useState<number>(0);
+  const [newThumbFile, setNewThumbFile] = useState<File | null>(null);
+  const [newThumbUrl, setNewThumbUrl] = useState<string>("");
+  const newThumbPreview = useMemo(() => {
+    if (!newThumbFile) return "";
+    return URL.createObjectURL(newThumbFile);
+  }, [newThumbFile]);
+  useEffect(() => {
+    return () => {
+      if (newThumbPreview) URL.revokeObjectURL(newThumbPreview);
+    };
+  }, [newThumbPreview]);
 
   const loadInventory = useCallback(() => {
     setInventoryLoading(true);
@@ -101,8 +149,7 @@ export default function PartnerEquipmentPage() {
       fetch("/api/partner/inventory").then((r) => r.json()),
       fetch("/api/addons").then((r) => r.json()),
     ])
-      .then(([platform, inv, platformAdd]) => {
-        setPlatformItems((platform.items || []).map((i: EquipmentItem) => ({ ...i, is_platform: true })));
+      .then(([_platform, inv, platformAdd]) => {
         setEquipment(inv.equipment || []);
         setServices(inv.services || []);
         setAddons(inv.addons || []);
@@ -115,12 +162,6 @@ export default function PartnerEquipmentPage() {
 
   const refreshAll = useCallback(() => {
     loadInventory();
-    fetch("/api/admin/equipment")
-      .then((r) => r.json())
-      .then((platform) => {
-        setPlatformItems((platform.items || []).map((i: EquipmentItem) => ({ ...i, is_platform: true })));
-      })
-      .catch(() => {});
     fetch("/api/addons")
       .then((r) => r.json())
       .then((d) => setPlatformAddons(d?.addons || []))
@@ -143,30 +184,6 @@ export default function PartnerEquipmentPage() {
   }
 
   const inventoryTotal = equipment.length + services.length + addons.length;
-
-  const grouped = (items: EquipmentItem[]) =>
-    (["equipment", "service", "amenity"] as const).map((cat) => ({
-      category: cat,
-      items: items.filter((i) => i.category === cat),
-    })).filter((g) => g.items.length > 0);
-
-  const CATEGORY_ICONS = {
-    equipment: Wrench,
-    service: Star,
-    amenity: Sparkles,
-  };
-
-  const CATEGORY_COLORS: Record<string, string> = {
-    equipment: "text-blue-400 bg-blue-400/10",
-    service: "text-purple-400 bg-purple-400/10",
-    amenity: "text-green-400 bg-green-400/10",
-  };
-
-  const CATEGORY_LABELS: Record<string, string> = {
-    equipment: "Equipment",
-    service: "Service",
-    amenity: "Amenity",
-  };
 
   const q = query.trim().toLowerCase();
   const matchesQ = (s: string | null | undefined) => !q || String(s ?? "").toLowerCase().includes(q);
@@ -210,7 +227,18 @@ export default function PartnerEquipmentPage() {
         </div>
         <button
           type="button"
-          onClick={() => setStructuredOpen(true)}
+          onClick={() => {
+            setNewError("");
+            setNewCategory("service");
+            setNewType(ADDON_TYPE_OPTIONS[0]);
+            setNewName("");
+            setNewDescription("");
+            setNewQty(1);
+            setNewPrice(0);
+            setNewThumbFile(null);
+            setNewThumbUrl("");
+            setNewOpen(true);
+          }}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-xl transition-colors text-sm w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
@@ -311,7 +339,7 @@ export default function PartnerEquipmentPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredEquipment.map((it) => (
                 <div key={`eq-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-20 bg-gradient-to-r from-blue-500/15 to-transparent px-5 py-4 flex items-center justify-between">
+                  <div className="h-28 bg-gradient-to-r from-blue-500/15 to-transparent px-5 py-4 flex items-center justify-between">
                     <div className="min-w-0">
                       <p className="text-white font-semibold truncate">{it.model_name}</p>
                       <p className="text-white/40 text-xs truncate">
@@ -336,7 +364,7 @@ export default function PartnerEquipmentPage() {
 
               {filteredServices.map((it) => (
                 <div key={`sv-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-20 bg-gradient-to-r from-purple-500/15 to-transparent px-5 py-4 flex items-center justify-between">
+                  <div className="h-28 bg-gradient-to-r from-purple-500/15 to-transparent px-5 py-4 flex items-center justify-between">
                     <div className="min-w-0">
                       <p className="text-white font-semibold truncate">{it.name}</p>
                       <p className="text-white/40 text-xs truncate">
@@ -362,11 +390,29 @@ export default function PartnerEquipmentPage() {
 
               {filteredStudioAddons.map((it) => (
                 <div key={`ad-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-20 bg-gradient-to-r from-amber-500/15 to-transparent px-5 py-4 flex items-center justify-between">
-                    <div className="min-w-0">
+                  <div className="h-28 px-5 py-4 flex items-center justify-between relative">
+                    <div
+                      className={cn(
+                        "absolute inset-0",
+                        it.thumbnail_url ? "" : "bg-gradient-to-r from-amber-500/15 to-transparent"
+                      )}
+                      style={
+                        it.thumbnail_url
+                          ? {
+                              backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.15)), url(${it.thumbnail_url})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }
+                          : undefined
+                      }
+                    />
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+                    <div className="min-w-0 relative z-[1]">
                       <p className="text-white font-semibold truncate">{it.name}</p>
-                      <p className="text-white/40 text-xs truncate">
-                        {AD_LABEL[it.addon_kind] || it.addon_kind}
+                      <p className="text-white/50 text-xs truncate">
+                        {(it.addon_type || AD_LABEL[it.addon_kind] || it.addon_kind)}
+                        {" · qty "}
+                        {it.quantity ?? 1}
                         {" · ₹"}
                         {Number(it.price).toLocaleString("en-IN")}
                       </p>
@@ -374,22 +420,24 @@ export default function PartnerEquipmentPage() {
                     <button
                       type="button"
                       onClick={() => deleteAddon(it.id)}
-                      className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg shrink-0"
+                      className="p-2 text-white/70 hover:text-red-300 hover:bg-red-500/15 rounded-lg shrink-0 relative z-[1]"
                       title="Remove"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="px-5 py-4 flex items-center justify-between">
-                    <span className="text-white/40 text-xs">Studio add-on</span>
-                    <span className="text-white/60 text-xs">Bookable</span>
+                    <span className="text-white/40 text-xs">
+                      {it.category === "equipment" ? "Equipment add-on" : "Service add-on"}
+                    </span>
+                    <span className="text-white/60 text-xs">Private to you</span>
                   </div>
                 </div>
               ))}
 
               {filteredPlatformAddons.map((it) => (
                 <div key={`pa-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-20 bg-gradient-to-r from-emerald-500/15 to-transparent px-5 py-4 flex items-center justify-between">
+                  <div className="h-28 bg-gradient-to-r from-emerald-500/15 to-transparent px-5 py-4 flex items-center justify-between">
                     <div className="min-w-0">
                       <p className="text-white font-semibold truncate">{it.name}</p>
                       <p className="text-white/40 text-xs truncate">
@@ -428,6 +476,194 @@ export default function PartnerEquipmentPage() {
           refreshAll();
         }}
       />
+
+      {/* New Add-on modal */}
+      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+        <DialogContent className="bg-[#141414] border-white/10 text-white sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">New Add-on</DialogTitle>
+            <p className="text-white/50 text-sm">
+              Create a bookable add-on only visible to your account.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-white/70 text-sm font-medium mb-2 block">Category</label>
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value as "equipment" | "service")}
+                  className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white focus:border-[#D9FC67]/60 focus:outline-none"
+                >
+                  <option value="equipment" className="bg-[#141414]">Equipment</option>
+                  <option value="service" className="bg-[#141414]">Service</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-white/70 text-sm font-medium mb-2 block">Type</label>
+                <select
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value as any)}
+                  className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white focus:border-[#D9FC67]/60 focus:outline-none"
+                >
+                  {ADDON_TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t} className="bg-[#141414]">{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-white/70 text-sm font-medium mb-2 block">Name</label>
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder={newCategory === "equipment" ? "e.g. Sony A7S III" : "e.g. Episode Editing"}
+                className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white placeholder:text-white/25 focus:border-[#D9FC67]/60 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-white/70 text-sm font-medium mb-2 block">Description</label>
+              <textarea
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Optional"
+                className="w-full h-24 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white placeholder:text-white/25 focus:border-[#D9FC67]/60 focus:outline-none resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-white/70 text-sm font-medium mb-2 block">Quantity</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={newQty}
+                  onChange={(e) => setNewQty(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+                  className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white focus:border-[#D9FC67]/60 focus:outline-none"
+                />
+                <p className="text-white/35 text-xs mt-1">How many clients can book at once.</p>
+              </div>
+              <div>
+                <label className="text-white/70 text-sm font-medium mb-2 block">Price (₹)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white focus:border-[#D9FC67]/60 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-white/70 text-sm font-medium block">Thumbnail image</label>
+              <input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={(e) => {
+                  setNewThumbUrl("");
+                  setNewThumbFile(e.target.files?.[0] || null);
+                }}
+                className="block w-full text-sm text-white/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-white/10 file:text-white file:hover:bg-white/20"
+              />
+              {(newThumbUrl || newThumbPreview) && (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={newThumbUrl || newThumbPreview}
+                    alt="Thumbnail preview"
+                    className="w-16 h-16 rounded-xl object-cover border border-white/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewThumbUrl("");
+                      setNewThumbFile(null);
+                    }}
+                    className="text-white/50 text-xs hover:text-white"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+              <p className="text-white/35 text-xs">
+                Recommended: 1:1 or 16:9 image under 10MB.
+              </p>
+            </div>
+
+            {newError && (
+              <p className="text-red-400 text-sm">{newError}</p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+              onClick={() => setNewOpen(false)}
+              disabled={savingNew}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#D9FC67] text-black hover:bg-[#c9ec57]"
+              disabled={savingNew}
+              onClick={async () => {
+                const name = newName.trim();
+                if (!name) {
+                  setNewError("Name is required.");
+                  return;
+                }
+                setSavingNew(true);
+                setNewError("");
+                try {
+                  let thumbUrl = newThumbUrl;
+                  if (!thumbUrl && newThumbFile) {
+                    const fd = new FormData();
+                    fd.append("file", newThumbFile);
+                    const up = await fetch("/api/partner/upload-image", { method: "POST", body: fd });
+                    const upJson = await up.json();
+                    if (!up.ok) throw new Error(upJson?.error || "Upload failed");
+                    thumbUrl = upJson.url;
+                    setNewThumbUrl(thumbUrl);
+                  }
+
+                  const res = await fetch("/api/partner/inventory/addons", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      addon_kind: newCategory === "equipment" ? "studio" : "service",
+                      category: newCategory,
+                      addon_type: newType,
+                      name,
+                      description: newDescription.trim() || null,
+                      quantity: newQty,
+                      thumbnail_url: thumbUrl || null,
+                      price: newPrice,
+                      is_active: true,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data?.error || "Failed to create add-on");
+
+                  setNewOpen(false);
+                  refreshAll();
+                } catch (e) {
+                  setNewError(e instanceof Error ? e.message : "Failed to create add-on");
+                } finally {
+                  setSavingNew(false);
+                }
+              }}
+            >
+              {savingNew ? "Saving…" : "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

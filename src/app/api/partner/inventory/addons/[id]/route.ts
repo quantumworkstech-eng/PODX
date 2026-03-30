@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const KINDS = new Set(["studio", "service", "outsource"]);
+const CATEGORIES = new Set(["equipment", "service"]);
 
 async function getPartnerId(): Promise<string | null> {
   const session = await auth();
@@ -33,6 +34,22 @@ export async function PATCH(
   }
   if (body.description !== undefined) {
     updates.description = body.description != null ? String(body.description).trim() : null;
+  }
+  if (body.category !== undefined) {
+    const c = body.category != null ? String(body.category).toLowerCase() : null;
+    if (c != null && !CATEGORIES.has(c)) return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+    updates.category = c;
+  }
+  if (body.addon_type !== undefined) {
+    updates.addon_type = body.addon_type != null ? String(body.addon_type).trim() : null;
+  }
+  if (body.quantity !== undefined || body.default_quantity !== undefined) {
+    const qRaw = body.quantity ?? body.default_quantity;
+    const q = Math.max(1, Math.floor(Number(qRaw) || 1));
+    updates.quantity = q;
+  }
+  if (body.thumbnail_url !== undefined) {
+    updates.thumbnail_url = body.thumbnail_url != null ? String(body.thumbnail_url).trim() : null;
   }
   if (body.price != null) {
     const p = Number(body.price);
