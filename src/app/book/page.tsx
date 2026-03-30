@@ -17,8 +17,6 @@ import { CitySelection } from "@/components/booking/CitySelection";
 import { StudioOrDatePopup } from "@/components/booking/StudioOrDatePopup";
 import { getStudioBySlug } from "@/lib/data";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const ONBOARDING_KEY = "yanisa_onboarding_complete";
 const SELECTION_MODE_KEY = "yanisa_selection_mode";
@@ -251,7 +249,6 @@ function BookingContent() {
 
   // Partner branding colors (with fallbacks)
   const wlPrimary = partnerBranding?.primary_color || "#D9FC67";
-  const wlBtnText = partnerBranding?.button_text_color || "#000000";
   const wlSecondary = partnerBranding?.secondary_color || "";
   const isPartnerMode = !!partnerSlug && !!partnerBranding;
 
@@ -268,56 +265,42 @@ function BookingContent() {
           borderColor: "rgba(255,255,255,0.1)",
         }}
       >
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleGoBack}
-              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-              <span className="hidden sm:inline">Back</span>
-            </button>
-
-            {/* Show partner brand or PodX logo */}
-            {isPartnerMode ? (
-              partnerBranding.logo_url ? (
-                <img
-                  src={partnerBranding.logo_url}
-                  alt={partnerBranding.brand_name}
-                  className="h-7 w-auto object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold" style={{ color: wlPrimary }}>
-                  {partnerBranding.brand_name}
-                </span>
-              )
+        <div className="max-w-7xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-center sm:justify-start gap-3">
+          {/* Logo (and city) only — Back / Exit live on the step row */}
+          {isPartnerMode ? (
+            partnerBranding.logo_url ? (
+              <img
+                src={partnerBranding.logo_url}
+                alt={partnerBranding.brand_name}
+                className="h-7 w-auto object-contain"
+              />
             ) : (
-              <Link href="/" className="flex items-center gap-2 group">
-                <span className="text-2xl font-bold tracking-tight text-white">
-                  p<span className="text-[#D9FC67]">o</span>dX
-                </span>
-              </Link>
-            )}
-
-            {selectedCity && !isPartnerMode && (
-              <span className="text-white/40 text-sm hidden sm:inline">
-                {selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}
+              <span className="text-lg font-bold" style={{ color: wlPrimary }}>
+                {partnerBranding.brand_name}
               </span>
-            )}
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-white/60 hover:text-white hover:bg-white/10"
-            onClick={() => router.back()}
-          >
-            Exit Booking
-          </Button>
+            )
+          ) : (
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className="text-2xl font-bold tracking-tight text-white">
+                p<span className="text-[#D9FC67]">o</span>dX
+              </span>
+            </Link>
+          )}
+          {selectedCity && !isPartnerMode && (
+            <span className="text-white/40 text-sm hidden sm:inline">
+              {selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}
+            </span>
+          )}
         </div>
       </header>
 
-      {!showPayment && selectionMode && <StepProgress />}
+      {selectionMode && (
+        <StepProgress
+          onBack={handleGoBack}
+          onExit={() => router.back()}
+          showSteps={!showPayment}
+        />
+      )}
 
       <main className="pb-16">{renderStep()}</main>
 
