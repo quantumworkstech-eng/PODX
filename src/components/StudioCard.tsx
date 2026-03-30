@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 import { Studio } from "@/lib/types";
@@ -11,8 +11,19 @@ interface StudioCardProps {
 }
 
 export function StudioCard({ studio }: StudioCardProps) {
+  const router = useRouter();
   // Parse tags from description (comma separated)
   const tags = studio.description.split(",").map(tag => tag.trim());
+
+  const handleBookNow = () => {
+    try {
+      localStorage.removeItem("yanisa_pending_booking");
+    } catch {
+      /* ignore */
+    }
+    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studio));
+    router.push("/book?preselect=1");
+  };
 
   return (
     <section className="relative w-full h-screen overflow-hidden">
@@ -65,14 +76,13 @@ export function StudioCard({ studio }: StudioCardProps) {
             <Play className="w-4 h-4 mr-2" />
             Watch video
           </Button>
-          <Link href="/book">
-            <Button 
-              size="lg" 
-              className="px-8 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 text-black"
-            >
-              Book Now
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            className="px-8 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 text-black"
+            onClick={handleBookNow}
+          >
+            Book Now
+          </Button>
         </div>
       </div>
 

@@ -22,6 +22,13 @@ const ONBOARDING_KEY = "yanisa_onboarding_complete";
 const SELECTION_MODE_KEY = "yanisa_selection_mode";
 const PENDING_BOOKING_KEY = "yanisa_pending_booking";
 
+/** Align with CitySelection / StudioStep: city id is slug-like, lowercased */
+function cityKeyFromStudioLocation(studio: { location?: { city?: string } } | null): string | null {
+  const raw = studio?.location?.city?.trim();
+  if (!raw) return null;
+  return raw.toLowerCase();
+}
+
 function BookingContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -81,6 +88,11 @@ function BookingContent() {
       getStudioBySlug(studioParam).then((studio) => {
         if (studio) {
           setSelectedStudio(studio);
+          const ck = cityKeyFromStudioLocation(studio);
+          if (ck) {
+            setSelectedCity(ck);
+            localStorage.setItem(ONBOARDING_KEY, ck);
+          }
           setSelectionMode("studio");
           localStorage.setItem(SELECTION_MODE_KEY, "studio");
           goToStep(2); // jump to DateTimeStep
@@ -97,8 +109,14 @@ function BookingContent() {
       if (raw) {
         try {
           const studio = JSON.parse(raw);
-          sessionStorage.removeItem("yanisa_preselected_studio");
+          // Do not remove sessionStorage here — React Strict Mode runs this effect twice;
+          // removing early clears data before the second run. Each "Book Now" overwrites the key.
           setSelectedStudio(studio);
+          const ck = cityKeyFromStudioLocation(studio);
+          if (ck) {
+            setSelectedCity(ck);
+            localStorage.setItem(ONBOARDING_KEY, ck);
+          }
           setSelectionMode("studio");
           localStorage.setItem(SELECTION_MODE_KEY, "studio");
           goToStep(2);

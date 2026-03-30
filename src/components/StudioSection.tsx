@@ -23,6 +23,11 @@ export function StudioSection() {
   const currentStudio = studios[activeStudio];
 
   const handleBookNow = () => {
+    try {
+      localStorage.removeItem("yanisa_pending_booking");
+    } catch {
+      /* ignore */
+    }
     sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(currentStudio));
     window.location.href = "/book?preselect=1";
   };

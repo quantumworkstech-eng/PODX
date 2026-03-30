@@ -40,6 +40,11 @@ export default function StudiosPage() {
   const [detailStudio, setDetailStudio] = useState<Studio | null>(null);
 
   const handleBookNow = (studio: Studio) => {
+    try {
+      localStorage.removeItem("yanisa_pending_booking");
+    } catch {
+      /* ignore */
+    }
     sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studio));
     router.push("/book?preselect=1");
   };

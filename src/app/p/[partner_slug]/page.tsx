@@ -169,6 +169,11 @@ export default function WhiteLabelLandingPage() {
       description: studio.short_description || studio.description || "",
       amenities: ["WiFi", "AC", "Parking"],
     };
+    try {
+      localStorage.removeItem("yanisa_pending_booking");
+    } catch {
+      /* ignore */
+    }
     sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studioForSession));
     router.push(`/book?preselect=1&partner=${branding.partner_slug}&source=whitelabel`);
   };

@@ -143,6 +143,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     if (initialized) return;
     setInitialized(true);
 
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      // Listing / landing "Book Now" applies preselect in BookingContent. If we restore
+      // pending booking here we run after that effect and overwrite currentStep back to 1.
+      if (sp.get("preselect") === "1" || sp.get("studio")) {
+        return;
+      }
+    }
+
     const stored = localStorage.getItem(PENDING_BOOKING_KEY);
     if (!stored) return;
 
