@@ -65,8 +65,6 @@ export function StudioStep() {
     setSelectedStudio,
     participants,
     nextStep,
-    canProceed,
-    selectionMode,
     selectedCity,
     partnerSlug,
     partnerBranding,
@@ -172,17 +170,11 @@ export function StudioStep() {
 
   const canAccommodate = (capacity: number) => capacity >= participants;
 
-  const nextStepLabel =
-    selectionMode === "date" ? "Continue to Package" : "Continue to Date & Time";
-
-  // Count available slots for a studio today
-  const availableCount = (studioId: string) => {
-    const booked = bookedByStudio[studioId] || [];
-    const now = new Date();
-    const currentHour = now.getHours();
-    // Only count slots >= current hour (future slots today)
-    const future = ALL_SLOTS.filter((s) => parseInt(s) > currentHour);
-    return future.filter((s) => !booked.includes(s)).length;
+  const selectStudioAndAdvance = (studio: Studio) => {
+    void enrichStudioForBooking(studio).then((s) => {
+      setSelectedStudio(s);
+      nextStep();
+    });
   };
 
   return (
@@ -393,7 +385,7 @@ export function StudioStep() {
                                 setSelectedStudio(null);
                                 return;
                               }
-                              void enrichStudioForBooking(studio).then(setSelectedStudio);
+                              selectStudioAndAdvance(studio);
                             }}
                             disabled={disabled}
                             className={cn(
@@ -414,16 +406,6 @@ export function StudioStep() {
         </div>
       )}
 
-      <div className="mt-10 flex justify-center">
-        <Button
-          onClick={nextStep}
-          disabled={!canProceed()}
-          className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
-        >
-          {nextStepLabel}
-        </Button>
-      </div>
-
       <StudioDetailModal
         studioId={detailStudioId}
         studioName={detailStudio?.name}
@@ -438,6 +420,7 @@ export function StudioStep() {
             setSelectedStudio(s);
             setDetailStudioId(null);
             setDetailStudio(null);
+            nextStep();
           });
         }}
       />

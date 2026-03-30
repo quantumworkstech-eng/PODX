@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 import { Studio } from "@/lib/types";
+import { BOOKING_PENDING_KEY, BOOKING_PRESELECT_STUDIO_KEY } from "@/lib/booking-flow-storage";
 
 interface StudioCardProps {
   studio: Studio;
@@ -17,11 +18,11 @@ export function StudioCard({ studio }: StudioCardProps) {
 
   const handleBookNow = () => {
     try {
-      localStorage.removeItem("yanisa_pending_booking");
+      localStorage.removeItem(BOOKING_PENDING_KEY);
     } catch {
       /* ignore */
     }
-    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studio));
+    sessionStorage.setItem(BOOKING_PRESELECT_STUDIO_KEY, JSON.stringify(studio));
     router.push("/book?preselect=1");
   };
 

@@ -8,6 +8,7 @@ import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
 import { StudioCardMedia } from "@/components/StudioCardMedia";
+import { BOOKING_PENDING_KEY, BOOKING_PRESELECT_STUDIO_KEY } from "@/lib/booking-flow-storage";
 
 export function StudioSection() {
   const [activeStudio, setActiveStudio] = useState(0);
@@ -24,11 +25,11 @@ export function StudioSection() {
 
   const handleBookNow = () => {
     try {
-      localStorage.removeItem("yanisa_pending_booking");
+      localStorage.removeItem(BOOKING_PENDING_KEY);
     } catch {
       /* ignore */
     }
-    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(currentStudio));
+    sessionStorage.setItem(BOOKING_PRESELECT_STUDIO_KEY, JSON.stringify(currentStudio));
     window.location.href = "/book?preselect=1";
   };
 

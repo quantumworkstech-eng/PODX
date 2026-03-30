@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
 import { StudioCardMedia } from "@/components/StudioCardMedia";
+import { BOOKING_PENDING_KEY, BOOKING_PRESELECT_STUDIO_KEY } from "@/lib/booking-flow-storage";
 import {
   MapPin,
   Users,
@@ -170,11 +171,11 @@ export default function WhiteLabelLandingPage() {
       amenities: ["WiFi", "AC", "Parking"],
     };
     try {
-      localStorage.removeItem("yanisa_pending_booking");
+      localStorage.removeItem(BOOKING_PENDING_KEY);
     } catch {
       /* ignore */
     }
-    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studioForSession));
+    sessionStorage.setItem(BOOKING_PRESELECT_STUDIO_KEY, JSON.stringify(studioForSession));
     router.push(`/book?preselect=1&partner=${branding.partner_slug}&source=whitelabel`);
   };
 

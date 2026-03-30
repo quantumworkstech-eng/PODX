@@ -150,7 +150,7 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, 
               <Calendar className="w-12 h-12 text-white/20 mx-auto mb-3" />
               <p className="text-white/40">No upcoming sessions</p>
               <Button
-                onClick={() => (window.location.href = "/book")}
+                onClick={() => (window.location.href = "/book?fresh=1")}
                 className="mt-4 bg-gradient-to-r from-[#D9FC67] to-[#B8E050] text-black"
               >
                 Book a Session
@@ -238,7 +238,7 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, 
             <p className="text-white/60">Book your next podcast session at a premium studio near you.</p>
           </div>
           <Button
-            onClick={() => (window.location.href = "/book")}
+            onClick={() => (window.location.href = "/book?fresh=1")}
             className="bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold whitespace-nowrap"
           >
             <Calendar className="w-4 h-4 mr-2" />

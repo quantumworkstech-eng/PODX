@@ -15,6 +15,7 @@ import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
 import { StudioCardMedia } from "@/components/StudioCardMedia";
+import { BOOKING_PENDING_KEY, BOOKING_PRESELECT_STUDIO_KEY } from "@/lib/booking-flow-storage";
 
 const CITIES = ["All Cities", "Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad"];
 
@@ -41,11 +42,11 @@ export default function StudiosPage() {
 
   const handleBookNow = (studio: Studio) => {
     try {
-      localStorage.removeItem("yanisa_pending_booking");
+      localStorage.removeItem(BOOKING_PENDING_KEY);
     } catch {
       /* ignore */
     }
-    sessionStorage.setItem("yanisa_preselected_studio", JSON.stringify(studio));
+    sessionStorage.setItem(BOOKING_PRESELECT_STUDIO_KEY, JSON.stringify(studio));
     router.push("/book?preselect=1");
   };
 

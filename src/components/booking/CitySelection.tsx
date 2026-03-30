@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, MapPin, Check, ChevronLeft, Building2, CalendarDays, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCities, City } from "@/lib/data";
+import { clearAllBookingFlowStorage } from "@/lib/booking-flow-storage";
 
 interface CitySelectionProps {
   /** Called when both city AND mode have been selected */
@@ -57,7 +58,10 @@ export function CitySelection({ onComplete, initialCity }: CitySelectionProps) {
       {/* Header */}
       <header className="relative p-6 border-b border-white/10 flex items-center justify-between">
         <button
-          onClick={() => router.push("/")}
+          onClick={() => {
+            clearAllBookingFlowStorage();
+            router.push("/");
+          }}
           className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />

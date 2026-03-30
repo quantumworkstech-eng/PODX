@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, ArrowRight, X, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BOOKING_PENDING_KEY } from "@/lib/booking-flow-storage";
 
 interface PendingBookingInfo {
   date: string | null;
@@ -26,8 +27,6 @@ interface PendingBookingInfo {
   selectedCity: string | null;
 }
 
-const PENDING_BOOKING_KEY = "yanisa_pending_booking";
-
 const stepNames = [
   "City Selection",
   "Date & Time",
@@ -43,7 +42,7 @@ export function ContinueBookingCard() {
   const [pendingBooking, setPendingBooking] = useState<PendingBookingInfo | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(PENDING_BOOKING_KEY);
+    const stored = localStorage.getItem(BOOKING_PENDING_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -61,7 +60,7 @@ export function ContinueBookingCard() {
   };
 
   const handleDiscard = () => {
-    localStorage.removeItem(PENDING_BOOKING_KEY);
+    localStorage.removeItem(BOOKING_PENDING_KEY);
     setPendingBooking(null);
   };
 

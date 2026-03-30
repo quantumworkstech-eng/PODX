@@ -245,7 +245,7 @@ export function UpcomingBookings({
         <h3 className="text-xl font-semibold text-white mb-2">No Upcoming Bookings</h3>
         <p className="text-white/50 mb-6">You don&apos;t have any scheduled sessions yet.</p>
         <Button
-          onClick={() => (window.location.href = "/book")}
+          onClick={() => (window.location.href = "/book?fresh=1")}
           className="bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black"
         >
           Book Your First Session

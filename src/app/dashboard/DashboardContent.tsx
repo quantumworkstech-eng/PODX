@@ -376,7 +376,7 @@ export default function DashboardContent() {
             </nav>
 
             <div className="p-4 border-t border-white/5">
-              <Link href="/book">
+              <Link href="/book?fresh=1">
                 <Button className="w-full bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold">
                   <Plus className="w-4 h-4 mr-2" />
                   Book Studio

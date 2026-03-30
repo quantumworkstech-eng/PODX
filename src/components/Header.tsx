@@ -64,7 +64,7 @@ export function Header() {
               </Link>
             )}
 
-            <Link href="/book" className="hidden sm:block">
+            <Link href="/book?fresh=1" className="hidden sm:block">
               <Button
                 size="sm"
                 className="text-sm font-semibold px-5 bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 text-black rounded-full"
@@ -125,7 +125,7 @@ export function Header() {
                         </Button>
                       </Link>
                     )}
-                    <Link href="/book" onClick={() => setIsMobileMenuOpen(false)} className="block">
+                    <Link href="/book?fresh=1" onClick={() => setIsMobileMenuOpen(false)} className="block">
                       <Button className="w-full justify-center bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] border-0 text-black font-semibold rounded-full">
                         Book Now
                       </Button>

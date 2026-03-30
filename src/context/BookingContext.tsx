@@ -3,6 +3,10 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { Studio } from "@/lib/types";
 import { ServicePackage, AddOnService, TIME_SLOTS } from "@/lib/booking-types";
+import {
+  BOOKING_PENDING_KEY,
+  clearAllBookingFlowStorage,
+} from "@/lib/booking-flow-storage";
 
 interface AppliedCoupon {
   code: string;
@@ -107,7 +111,6 @@ interface BookingContextType extends BookingState {
   setPartnerBranding: (branding: PartnerBrandingBasic | null) => void;
 }
 
-const PENDING_BOOKING_KEY = "yanisa_pending_booking";
 const TAX_RATE = 0.18; // 18% GST
 
 const initialState: BookingState = {
@@ -145,6 +148,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
+      if (sp.get("fresh") === "1") {
+        clearAllBookingFlowStorage();
+        sp.delete("fresh");
+        const qs = sp.toString();
+        const path = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", path);
+        return;
+      }
       // Listing / landing "Book Now" applies preselect in BookingContent. If we restore
       // pending booking here we run after that effect and overwrite currentStep back to 1.
       if (sp.get("preselect") === "1" || sp.get("studio")) {
@@ -152,7 +163,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const stored = localStorage.getItem(PENDING_BOOKING_KEY);
+    const stored = localStorage.getItem(BOOKING_PENDING_KEY);
     if (!stored) return;
 
     try {
@@ -200,12 +211,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       partnerId: state.partnerId,
       bookingSource: state.bookingSource,
     };
-    localStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(data));
+    localStorage.setItem(BOOKING_PENDING_KEY, JSON.stringify(data));
   }, [state]);
 
   const loadBookingFromStorage = useCallback((): StoredBooking | null => {
     if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(PENDING_BOOKING_KEY);
+    const stored = localStorage.getItem(BOOKING_PENDING_KEY);
     if (!stored) return null;
     try {
       return JSON.parse(stored);
@@ -220,7 +231,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const clearBookingStorage = useCallback(() => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem(PENDING_BOOKING_KEY);
+      localStorage.removeItem(BOOKING_PENDING_KEY);
     }
   }, []);
 
@@ -306,9 +317,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetBooking = useCallback(() => {
-    clearBookingStorage();
+    clearAllBookingFlowStorage();
     setState({ ...initialState, appliedCoupon: null });
-  }, [clearBookingStorage]);
+  }, []);
 
   const getStudioPrice = useCallback(() => {
     if (!state.selectedStudio) return 0;

@@ -16,11 +16,13 @@ import { AuthModal } from "@/components/booking/AuthModal";
 import { CitySelection } from "@/components/booking/CitySelection";
 import { StudioOrDatePopup } from "@/components/booking/StudioOrDatePopup";
 import { getStudioBySlug } from "@/lib/data";
+import {
+  BOOKING_ONBOARDING_KEY,
+  BOOKING_SELECTION_MODE_KEY,
+  BOOKING_PENDING_KEY,
+  BOOKING_PRESELECT_STUDIO_KEY,
+} from "@/lib/booking-flow-storage";
 import Link from "next/link";
-
-const ONBOARDING_KEY = "yanisa_onboarding_complete";
-const SELECTION_MODE_KEY = "yanisa_selection_mode";
-const PENDING_BOOKING_KEY = "yanisa_pending_booking";
 
 /** Align with CitySelection / StudioStep: city id is slug-like, lowercased */
 function cityKeyFromStudioLocation(studio: { location?: { city?: string } } | null): string | null {
@@ -52,6 +54,7 @@ function BookingContent() {
     setPartnerBranding,
     partnerBranding,
     partnerSlug,
+    resetBooking,
   } = useBooking();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -91,10 +94,10 @@ function BookingContent() {
           const ck = cityKeyFromStudioLocation(studio);
           if (ck) {
             setSelectedCity(ck);
-            localStorage.setItem(ONBOARDING_KEY, ck);
+            localStorage.setItem(BOOKING_ONBOARDING_KEY, ck);
           }
           setSelectionMode("studio");
-          localStorage.setItem(SELECTION_MODE_KEY, "studio");
+          localStorage.setItem(BOOKING_SELECTION_MODE_KEY, "studio");
           goToStep(2); // jump to DateTimeStep
         }
       }).catch(() => {/* ignore */}).finally(() => setLoadingFromUrl(false));
@@ -105,7 +108,7 @@ function BookingContent() {
     // Handle "Book Now" from studio listing — studio pre-selected, skip to date/time
     const preselect = searchParams.get("preselect");
     if (preselect === "1") {
-      const raw = sessionStorage.getItem("yanisa_preselected_studio");
+      const raw = sessionStorage.getItem(BOOKING_PRESELECT_STUDIO_KEY);
       if (raw) {
         try {
           const studio = JSON.parse(raw);
@@ -115,10 +118,10 @@ function BookingContent() {
           const ck = cityKeyFromStudioLocation(studio);
           if (ck) {
             setSelectedCity(ck);
-            localStorage.setItem(ONBOARDING_KEY, ck);
+            localStorage.setItem(BOOKING_ONBOARDING_KEY, ck);
           }
           setSelectionMode("studio");
-          localStorage.setItem(SELECTION_MODE_KEY, "studio");
+          localStorage.setItem(BOOKING_SELECTION_MODE_KEY, "studio");
           goToStep(2);
           return;
         } catch {
@@ -127,8 +130,8 @@ function BookingContent() {
       }
     }
 
-    const storedOnboarding = localStorage.getItem(ONBOARDING_KEY);
-    const storedBooking = localStorage.getItem(PENDING_BOOKING_KEY);
+    const storedOnboarding = localStorage.getItem(BOOKING_ONBOARDING_KEY);
+    const storedBooking = localStorage.getItem(BOOKING_PENDING_KEY);
 
     if (storedBooking) {
       try {
@@ -180,10 +183,10 @@ function BookingContent() {
   };
 
   const handleCitySelect = (city: string, mode?: "studio" | "date") => {
-    localStorage.setItem(ONBOARDING_KEY, city);
+    localStorage.setItem(BOOKING_ONBOARDING_KEY, city);
     setSelectedCity(city);
     if (mode) {
-      localStorage.setItem(SELECTION_MODE_KEY, mode);
+      localStorage.setItem(BOOKING_SELECTION_MODE_KEY, mode);
       setSelectionMode(mode);
       setShowOnboarding(false);
       setShowSelectionPopup(false);
@@ -191,13 +194,13 @@ function BookingContent() {
   };
 
   const handleSelectStudio = () => {
-    localStorage.setItem(SELECTION_MODE_KEY, "studio");
+    localStorage.setItem(BOOKING_SELECTION_MODE_KEY, "studio");
     setSelectionMode("studio");
     setShowSelectionPopup(false);
   };
 
   const handleSelectDate = () => {
-    localStorage.setItem(SELECTION_MODE_KEY, "date");
+    localStorage.setItem(BOOKING_SELECTION_MODE_KEY, "date");
     setSelectionMode("date");
     setShowSelectionPopup(false);
   };
@@ -298,7 +301,11 @@ function BookingContent() {
               </span>
             )
           ) : (
-            <Link href="/" className="flex items-center gap-2 group">
+            <Link
+              href="/"
+              onClick={() => resetBooking()}
+              className="flex items-center gap-2 group"
+            >
               <span className="text-2xl font-bold tracking-tight text-white">
                 p<span className="text-[#D9FC67]">o</span>dX
               </span>
@@ -315,7 +322,10 @@ function BookingContent() {
       {selectionMode && (
         <StepProgress
           onBack={handleGoBack}
-          onExit={() => router.back()}
+          onExit={() => {
+            resetBooking();
+            router.push("/");
+          }}
           showSteps={!showPayment}
         />
       )}
