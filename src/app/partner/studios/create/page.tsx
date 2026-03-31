@@ -12,6 +12,7 @@ import {
   X,
   Users,
   Clock,
+  CreditCard,
   CheckCircle,
   Shield,
   Trash2,
