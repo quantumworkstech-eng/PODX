@@ -10,69 +10,22 @@ import {
   ChevronLeft,
   Upload,
   X,
-  IndianRupee,
   Users,
-  Clock,
-  Mic,
-  Video,
-  Lightbulb,
-  Music,
-  Volume2,
-  Wifi,
-  Car,
-  Coffee,
-  Monitor,
-  Building2,
   CheckCircle,
   Shield,
   Trash2,
   Plus,
   Loader2,
   AlertCircle,
-  CreditCard,
   Image as ImageIcon,
-  Radio,
-  Film,
-  Camera,
-  Headphones,
-  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCities, City } from "@/lib/data";
-import { PartnerStudioLocationPicker } from "@/components/maps/PartnerStudioLocationPicker";
 import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
-import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartnerInventoryPicker";
 import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddonPicker";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const EQUIPMENT_OPTIONS = [
-  { id: "microphones", name: "Professional Microphones", icon: Mic },
-  { id: "headphones", name: "Studio Headphones", icon: Headphones },
-  { id: "cameras", name: "Video Cameras", icon: Video },
-  { id: "lighting", name: "Studio Lighting", icon: Lightbulb },
-  { id: "mixer", name: "Audio Mixer", icon: Volume2 },
-  { id: "soundproofing", name: "Soundproofing", icon: Volume2 },
-  { id: "teleprompter", name: "Teleprompter", icon: Monitor },
-  { id: "monitor", name: "Reference Monitors", icon: Monitor },
-];
-
-const SERVICES_OPTIONS = [
-  { id: "recording", name: "Recording", icon: Mic },
-  { id: "editing", name: "Editing", icon: Film },
-  { id: "live_streaming", name: "Live Streaming", icon: Radio },
-  { id: "production_support", name: "Production Support", icon: Music },
-  { id: "photography", name: "Photography", icon: Camera },
-  { id: "podcasting", name: "Podcasting", icon: BookOpen },
-];
-
-const AMENITIES_OPTIONS = [
-  { id: "wifi", name: "Free WiFi", icon: Wifi },
-  { id: "ac", name: "Air Conditioning", icon: Building2 },
-  { id: "parking", name: "Parking", icon: Car },
-  { id: "refreshments", name: "Refreshments", icon: Coffee },
-];
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -94,6 +47,19 @@ interface CancellationRule {
   deductionPercent: number;
 }
 
+interface PkgFeature {
+  text: string;
+  included: boolean;
+}
+
+interface StudioPackage {
+  name: string;
+  description: string;
+  price_per_hour: number;
+  features: PkgFeature[];
+  is_popular: boolean;
+}
+
 interface RescheduleRule {
   id: string;
   type: "days" | "hours";
@@ -110,8 +76,6 @@ interface StudioFormData {
   city: string;
   state: string;
   country: string;
-  latitude?: number;
-  longitude?: number;
   pricePerHour: number;
   discountPercent: number;
   workingHours: { start: string; end: string };
@@ -128,7 +92,41 @@ interface StudioFormData {
   partnerServiceIds: string[];
   partnerAddonSelections: { id: string; enabled_for_booking: boolean }[];
   studioPlatformAddonIds: string[];
+  packages: StudioPackage[];
 }
+
+const DEFAULT_PKG_FEATURES: PkgFeature[][] = [
+  [
+    { text: "Professional studio access", included: true },
+    { text: "High-quality equipment", included: true },
+    { text: "On-site technical support", included: true },
+    { text: "Raw audio/video files", included: true },
+    { text: "Live mix monitoring", included: false },
+    { text: "Professional editing", included: false },
+  ],
+  [
+    { text: "Professional studio access", included: true },
+    { text: "High-quality equipment", included: true },
+    { text: "On-site technical support", included: true },
+    { text: "Raw audio/video files", included: true },
+    { text: "Live mix monitoring", included: true },
+    { text: "Professional editing", included: false },
+  ],
+  [
+    { text: "Professional studio access", included: true },
+    { text: "High-quality equipment", included: true },
+    { text: "On-site technical support", included: true },
+    { text: "Raw audio/video files", included: true },
+    { text: "Live mix monitoring", included: true },
+    { text: "Professional editing", included: true },
+  ],
+];
+
+const DEFAULT_PKG_TEMPLATES: StudioPackage[] = [
+  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+];
 
 const initialFormData: StudioFormData = {
   name: "",
@@ -164,13 +162,14 @@ const initialFormData: StudioFormData = {
   partnerServiceIds: [],
   partnerAddonSelections: [],
   studioPlatformAddonIds: [],
+  packages: DEFAULT_PKG_TEMPLATES,
 };
 
 const STEPS = [
   { id: 1, name: "Basic Info", short: "Info" },
   { id: 2, name: "Location", short: "Location" },
   { id: 3, name: "Pricing", short: "Pricing" },
-  { id: 4, name: "Equipment", short: "Equipment" },
+  { id: 4, name: "Packages", short: "Packages" },
   { id: 5, name: "Add-ons", short: "Add-ons" },
   { id: 6, name: "Photos", short: "Photos" },
   { id: 7, name: "Policies", short: "Policies" },
@@ -204,11 +203,6 @@ function CreateStudioPageInner() {
   const [platformAddons, setPlatformAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<"active" | "no_plan" | "loading" | null>(null);
-
-  // Dynamic equipment/services/amenities from DB
-  const [platformEquipment, setPlatformEquipment] = useState<{ id: string; category: string; slug: string; name: string }[]>([]);
-  const [customEquipment, setCustomEquipment] = useState<{ id: string; category: string; name: string }[]>([]);
-  const [equipmentLoaded, setEquipmentLoaded] = useState(false);
 
   const [inventoryLibrary, setInventoryLibrary] = useState<{
     equipment: { id: string; subcategory: string; model_name: string; default_quantity: number }[];
@@ -261,6 +255,7 @@ function CreateStudioPageInner() {
           partnerEquipmentSelections: studio.partner_inventory?.partnerEquipmentSelections ?? [],
           partnerServiceIds: studio.partner_inventory?.partnerServiceIds ?? [],
           partnerAddonSelections: studio.partner_inventory?.partnerAddonSelections ?? [],
+          packages: studio.packages?.length ? studio.packages : DEFAULT_PKG_TEMPLATES,
         }));
       })
       .catch(() => {})
@@ -268,19 +263,6 @@ function CreateStudioPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId]);
 
-  // Load equipment options when reaching step 4
-  useEffect(() => {
-    if (currentStep === 4 && !equipmentLoaded) {
-      Promise.all([
-        fetch("/api/admin/equipment").then((r) => r.json()),
-        fetch("/api/partner/custom-equipment").then((r) => r.json()),
-      ]).then(([platform, custom]) => {
-        setPlatformEquipment(platform.items || []);
-        setCustomEquipment(custom.items || []);
-        setEquipmentLoaded(true);
-      }).catch(() => setEquipmentLoaded(true));
-    }
-  }, [currentStep, equipmentLoaded]);
 
   const refreshInventory = useCallback(() => {
     fetch("/api/partner/inventory")
@@ -296,7 +278,7 @@ function CreateStudioPageInner() {
   }, []);
 
   useEffect(() => {
-    if ((currentStep === 4 || currentStep === 5) && !inventoryLoaded) {
+    if (currentStep === 5 && !inventoryLoaded) {
       fetch("/api/partner/inventory")
         .then((r) => r.json())
         .then((d) => {
@@ -385,14 +367,8 @@ function CreateStudioPageInner() {
         if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
         if (formData.availableDays.length === 0) return "Please select at least one available day.";
         return "";
-      case 4: {
-        const hasPartner =
-          (formData.partnerEquipmentSelections?.length ?? 0) > 0 ||
-          (formData.partnerServiceIds?.length ?? 0) > 0;
-        if (formData.equipment.length === 0 && formData.services.length === 0 && !hasPartner)
-          return "Please select at least one equipment item, service, or saved catalog item.";
+      case 4:
         return "";
-      }
       case 5:
         return "";
       case 6:
@@ -463,6 +439,7 @@ function CreateStudioPageInner() {
             partnerServiceIds: formData.partnerServiceIds || [],
             partnerAddonSelections: formData.partnerAddonSelections || [],
             addonIds: formData.studioPlatformAddonIds || [],
+            packages: formData.packages.filter((p) => p.name.trim()),
           }),
         });
         if (!res.ok) {
@@ -499,6 +476,7 @@ function CreateStudioPageInner() {
             partnerServiceIds: formData.partnerServiceIds || [],
             partnerAddonSelections: formData.partnerAddonSelections || [],
             addonIds: formData.studioPlatformAddonIds || [],
+            packages: formData.packages.filter((p) => p.name.trim()),
             saveAsDraft: true,
           }),
         });
@@ -614,6 +592,7 @@ function CreateStudioPageInner() {
             partnerServiceIds: formData.partnerServiceIds || [],
             partnerAddonSelections: formData.partnerAddonSelections || [],
             addonIds: formData.studioPlatformAddonIds || [],
+            packages: formData.packages.filter((p) => p.name.trim()),
             review_status: "pending_review",
           }),
         });
@@ -645,6 +624,7 @@ function CreateStudioPageInner() {
             partnerServiceIds: formData.partnerServiceIds || [],
             partnerAddonSelections: formData.partnerAddonSelections || [],
             addonIds: formData.studioPlatformAddonIds || [],
+            packages: formData.packages.filter((p) => p.name.trim()),
           }),
         });
       }
@@ -803,21 +783,60 @@ function CreateStudioPageInner() {
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Location & Address</h2>
-        <p className="text-white/60">Enter your exact studio address so clients can find you</p>
+        <p className="text-white/60">Enter your studio address so clients can find you</p>
       </div>
 
-      <PartnerStudioLocationPicker
-        cities={cities}
-        value={{
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          country: formData.country,
-          latitude: formData.latitude,
-          longitude: formData.longitude,
-        }}
-        onChange={(patch) => updateFormData(patch)}
-      />
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-white/80 text-sm font-medium mb-2 block">City *</label>
+            <select
+              value={formData.city}
+              onChange={(e) => updateFormData({ city: e.target.value })}
+              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
+            >
+              <option value="" className="bg-[#141414]">Select city…</option>
+              {cities.map((c) => (
+                <option key={c.id} value={c.name} className="bg-[#141414]">{c.name}</option>
+              ))}
+              <option value="Other" className="bg-[#141414]">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-white/80 text-sm font-medium mb-2 block">State *</label>
+            <input
+              type="text"
+              value={formData.state}
+              onChange={(e) => updateFormData({ state: e.target.value })}
+              placeholder="e.g., Maharashtra"
+              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-white/80 text-sm font-medium mb-2 block">Full Address *</label>
+          <textarea
+            value={formData.address}
+            onChange={(e) => updateFormData({ address: e.target.value })}
+            placeholder="e.g., 301, Creative Hub, Linking Road, Bandra West"
+            rows={3}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors resize-none"
+          />
+          <p className="text-white/30 text-xs mt-1.5">Include building name, floor, street, and landmark if applicable</p>
+        </div>
+
+        <div>
+          <label className="text-white/80 text-sm font-medium mb-2 block">Country</label>
+          <input
+            type="text"
+            value={formData.country}
+            onChange={(e) => updateFormData({ country: e.target.value })}
+            placeholder="India"
+            className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
+          />
+        </div>
+      </div>
     </div>
   );
 
@@ -931,133 +950,202 @@ function CreateStudioPageInner() {
     </div>
   );
 
-  // ─── Step 4: Equipment & Services ────────────────────────────────────────────
+  // ─── Package helpers ─────────────────────────────────────────────────────────
 
-  const renderEquipmentGrid = (
-    items: { id: string; slug?: string; name: string }[],
-    field: "equipment" | "services" | "amenities"
-  ) => {
-    const selected: string[] = formData[field];
-    return items.map((item) => {
-      const key = item.slug ?? item.id;
-      const isSelected = selected.includes(key);
-      return (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => {
-            const next = isSelected ? selected.filter((v) => v !== key) : [...selected, key];
-            updateFormData({ [field]: next });
-          }}
-          className={cn(
-            "relative p-4 rounded-xl border transition-all flex flex-col items-center gap-2 text-center",
-            isSelected ? "border-[#D9FC67] bg-[#D9FC67]/10" : "border-white/10 bg-white/5 hover:border-white/20"
-          )}
-        >
-          <span className={cn("text-xs leading-tight", isSelected ? "text-white" : "text-white/60")}>{item.name}</span>
-          {isSelected && <CheckCircle className="absolute top-2 right-2 w-4 h-4 text-[#D9FC67]" />}
-        </button>
-      );
-    });
+  const updatePackage = (index: number, updates: Partial<StudioPackage>) => {
+    const next = [...formData.packages];
+    next[index] = { ...DEFAULT_PKG_TEMPLATES[index], ...next[index], ...updates };
+    updateFormData({ packages: next });
+  };
+
+  const addPkgFeature = (pkgIndex: number) => {
+    const next = [...formData.packages];
+    const pkg = { ...DEFAULT_PKG_TEMPLATES[pkgIndex], ...next[pkgIndex] };
+    pkg.features = [...(pkg.features || []), { text: "", included: true }];
+    next[pkgIndex] = pkg;
+    updateFormData({ packages: next });
+  };
+
+  const removePkgFeature = (pkgIndex: number, featIndex: number) => {
+    const next = [...formData.packages];
+    const pkg = { ...next[pkgIndex] };
+    pkg.features = pkg.features.filter((_, fi) => fi !== featIndex);
+    next[pkgIndex] = pkg;
+    updateFormData({ packages: next });
+  };
+
+  const updatePkgFeatureText = (pkgIndex: number, featIndex: number, text: string) => {
+    const next = [...formData.packages];
+    const pkg = { ...next[pkgIndex] };
+    pkg.features = pkg.features.map((f, fi) => fi === featIndex ? { ...f, text } : f);
+    next[pkgIndex] = pkg;
+    updateFormData({ packages: next });
+  };
+
+  const togglePkgFeatureIncluded = (pkgIndex: number, featIndex: number) => {
+    const next = [...formData.packages];
+    const pkg = { ...next[pkgIndex] };
+    pkg.features = pkg.features.map((f, fi) => fi === featIndex ? { ...f, included: !f.included } : f);
+    next[pkgIndex] = pkg;
+    updateFormData({ packages: next });
+  };
+
+  const applyDefaultPkgFeatures = (pkgIndex: number) => {
+    updatePackage(pkgIndex, { features: DEFAULT_PKG_FEATURES[pkgIndex] ?? [] });
   };
 
   const renderStep4 = () => {
-    // Merge platform defaults + custom (custom items use custom_ prefix to avoid collision)
-    const equipItems = [
-      ...(platformEquipment.filter((i) => i.category === "equipment").length > 0
-        ? platformEquipment.filter((i) => i.category === "equipment")
-        : EQUIPMENT_OPTIONS.map((o) => ({ id: o.id, category: "equipment", slug: o.id, name: o.name }))),
-      ...customEquipment.filter((i) => i.category === "equipment").map((i) => ({ ...i, slug: `custom_${i.id}` })),
-    ];
-    const serviceItems = [
-      ...(platformEquipment.filter((i) => i.category === "service").length > 0
-        ? platformEquipment.filter((i) => i.category === "service")
-        : SERVICES_OPTIONS.map((o) => ({ id: o.id, category: "service", slug: o.id, name: o.name }))),
-      ...customEquipment.filter((i) => i.category === "service").map((i) => ({ ...i, slug: `custom_${i.id}` })),
-    ];
-    const amenityItems = [
-      ...(platformEquipment.filter((i) => i.category === "amenity").length > 0
-        ? platformEquipment.filter((i) => i.category === "amenity")
-        : AMENITIES_OPTIONS.map((o) => ({ id: o.id, category: "amenity", slug: o.id, name: o.name }))),
-      ...customEquipment.filter((i) => i.category === "amenity").map((i) => ({ ...i, slug: `custom_${i.id}` })),
+    const pkgPlaceholders = [
+      { name: "Basic Recording", desc: "Raw recording session with professional equipment" },
+      { name: "Standard Mix", desc: "Recording with live mix monitoring by our engineer" },
+      { name: "Premium Edit", desc: "Full session with post-production editing included" },
     ];
 
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">Equipment & Services</h2>
-          <p className="text-white/60">What equipment and services does your studio offer?</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Booking Packages</h2>
+          <p className="text-white/60">Define up to 3 packages clients can choose during booking</p>
         </div>
 
-        {!equipmentLoaded && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 text-[#D9FC67] animate-spin mr-2" />
-            <span className="text-white/40 text-sm">Loading options…</span>
-          </div>
-        )}
+        <div className="space-y-5">
+          {[0, 1, 2].map((i) => {
+            const pkg = formData.packages[i] ?? DEFAULT_PKG_TEMPLATES[i];
+            const ph = pkgPlaceholders[i];
+            const hasName = pkg.name.trim().length > 0;
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "rounded-2xl border transition-all",
+                  hasName ? "border-[#D9FC67]/25 bg-[#D9FC67]/[0.03]" : "border-white/10 bg-white/[0.02]"
+                )}
+              >
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-sm font-bold shrink-0">{i + 1}</span>
+                      <span className="text-white/60 text-sm font-medium">
+                        {hasName ? pkg.name : `Package ${i + 1} (optional)`}
+                      </span>
+                      {pkg.is_popular && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D9FC67]/20 text-[#D9FC67] font-bold uppercase">Best Deal</span>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 text-white/45 text-xs cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={pkg.is_popular}
+                        onChange={(e) => updatePackage(i, { is_popular: e.target.checked })}
+                        className="rounded border-white/20 accent-[#D9FC67]"
+                      />
+                      Mark as Best Deal
+                    </label>
+                  </div>
 
-        {equipmentLoaded && (
-          <div className="space-y-8">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-white/80 text-sm font-medium">Equipment</p>
-                  <p className="text-white/40 text-xs mt-0.5">Select all equipment available in your studio</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-white/60 text-xs mb-1.5 block">Package Name</label>
+                      <input
+                        value={pkg.name}
+                        onChange={(e) => updatePackage(i, { name: e.target.value })}
+                        placeholder={ph.name}
+                        className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-white placeholder:text-white/25 focus:border-[#D9FC67] focus:outline-none text-sm transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-white/60 text-xs mb-1.5 block">
+                        Additional Price/hr
+                        <span className="text-white/30 ml-1 font-normal">(₹, leave 0 if included in studio rate)</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={pkg.price_per_hour}
+                          onChange={(e) => updatePackage(i, { price_per_hour: parseInt(e.target.value) || 0 })}
+                          className="w-full h-11 bg-white/5 border border-white/10 rounded-xl pl-7 pr-4 text-white focus:border-[#D9FC67] focus:outline-none text-sm transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-white/60 text-xs mb-1.5 block">Description</label>
+                    <input
+                      value={pkg.description}
+                      onChange={(e) => updatePackage(i, { description: e.target.value })}
+                      placeholder={ph.desc}
+                      className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-white placeholder:text-white/25 focus:border-[#D9FC67] focus:outline-none text-sm transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-white/60 text-xs">Features</label>
+                      <div className="flex items-center gap-3">
+                        {pkg.features.length === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => applyDefaultPkgFeatures(i)}
+                            className="text-white/30 hover:text-[#D9FC67]/70 text-xs underline underline-offset-2 transition-colors"
+                          >
+                            Load defaults
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addPkgFeature(i)}
+                          className="text-[#D9FC67]/60 hover:text-[#D9FC67] text-xs flex items-center gap-1 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" /> Add feature
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {pkg.features.map((feat, fi) => (
+                        <div key={fi} className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => togglePkgFeatureIncluded(i, fi)}
+                            title={feat.included ? "Click to mark as excluded" : "Click to mark as included"}
+                            className={cn(
+                              "w-5 h-5 rounded-full flex items-center justify-center transition-colors shrink-0",
+                              feat.included ? "bg-[#D9FC67]/20 text-[#D9FC67]" : "bg-red-500/10 text-red-400/60"
+                            )}
+                          >
+                            {feat.included ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                          </button>
+                          <input
+                            value={feat.text}
+                            onChange={(e) => updatePkgFeatureText(i, fi, e.target.value)}
+                            placeholder="e.g., Professional studio access"
+                            className="flex-1 h-9 bg-white/5 border border-white/10 rounded-lg px-3 text-white placeholder:text-white/25 focus:border-[#D9FC67]/50 focus:outline-none text-sm transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePkgFeature(i, fi)}
+                            className="text-white/25 hover:text-red-400 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {pkg.features.length === 0 && (
+                        <p className="text-white/25 text-xs pl-7">No features added yet — use defaults or add manually.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInventoryDrawerTab("equipment");
-                    setInventoryDrawerOpen(true);
-                  }}
-                  className="text-xs text-[#D9FC67]/70 hover:text-[#D9FC67] transition-colors"
-                >
-                  + Manage custom
-                </button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {renderEquipmentGrid(equipItems, "equipment")}
-              </div>
-            </div>
+            );
+          })}
+        </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-white/80 text-sm font-medium">Services Offered</p>
-                  <p className="text-white/40 text-xs mt-0.5">Select services your studio provides to clients</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {renderEquipmentGrid(serviceItems, "services")}
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-white/80 text-sm font-medium">Amenities</p>
-                  <p className="text-white/40 text-xs mt-0.5">Additional facilities available at your studio</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {renderEquipmentGrid(amenityItems, "amenities")}
-              </div>
-            </div>
-
-            <StudioPartnerInventoryPicker
-              equipment={inventoryLibrary.equipment}
-              services={inventoryLibrary.services}
-              partnerEquipmentSelections={formData.partnerEquipmentSelections}
-              onChangeEquipment={(next) => updateFormData({ partnerEquipmentSelections: next })}
-              partnerServiceIds={formData.partnerServiceIds}
-              onChangeServices={(next) => updateFormData({ partnerServiceIds: next })}
-              onManageInventory={() => {
-                setInventoryDrawerTab("equipment");
-                setInventoryDrawerOpen(true);
-              }}
-            />
-          </div>
-        )}
+        <p className="text-white/25 text-xs text-center">
+          Leave package name empty to skip it. At least 1 package is recommended.
+        </p>
       </div>
     );
   };
@@ -1067,37 +1155,13 @@ function CreateStudioPageInner() {
   const renderStep5 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Add-ons for this studio</h2>
-        <p className="text-white/60">Choose what customers can add during booking — platform + your custom upsells</p>
-      </div>
-
-      <div className="p-4 bg-[#D9FC67]/5 border border-[#D9FC67]/15 rounded-xl mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <p className="text-white/50 text-xs">
-          Create custom add-ons under{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setInventoryDrawerTab("addons");
-              setInventoryDrawerOpen(true);
-            }}
-            className="text-[#D9FC67]/80 hover:text-[#D9FC67] underline underline-offset-2"
-          >
-            Manage custom
-          </button>{" "}
-          if you need new items.
-        </p>
+        <h2 className="text-2xl font-bold text-white mb-2">Add-ons for this Studio</h2>
+        <p className="text-white/60">Platform add-ons are auto-applied to all studios. Select which of your own add-ons to offer.</p>
       </div>
 
       {addonsLoading && !inventoryLoaded ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 text-[#D9FC67] animate-spin" />
-        </div>
-      ) : platformAddons.length === 0 && inventoryLibrary.addons.length === 0 ? (
-        <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
-          <p className="text-white/40 font-medium">No add-ons available yet</p>
-          <p className="text-white/20 text-sm mt-1">
-            Add platform add-ons from admin, or create your own under Manage custom.
-          </p>
         </div>
       ) : (
         <StudioPartnerAddonPicker
@@ -1109,6 +1173,22 @@ function CreateStudioPageInner() {
           onChangePartnerSelections={(rows) => updateFormData({ partnerAddonSelections: rows })}
         />
       )}
+
+      <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+        <p className="text-white/35 text-xs">
+          Need to create new add-ons? Go to the{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setInventoryDrawerTab("addons");
+              setInventoryDrawerOpen(true);
+            }}
+            className="text-[#D9FC67]/70 hover:text-[#D9FC67] underline underline-offset-2"
+          >
+            Add-ons Manager
+          </button>
+        </p>
+      </div>
     </div>
   );
 
@@ -1220,10 +1300,10 @@ function CreateStudioPageInner() {
           type="url"
           value={formData.videoUrl}
           onChange={(e) => updateFormData({ videoUrl: e.target.value })}
-          placeholder="Paste YouTube or Vimeo URL (e.g., https://youtube.com/watch?v=...)"
+          placeholder="YouTube, Vimeo, or Google Drive link (e.g., https://youtube.com/watch?v=...)"
           className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
         />
-        <p className="text-white/30 text-xs mt-1">A walkthrough video helps clients visualise the space before booking</p>
+        <p className="text-white/30 text-xs mt-1">YouTube, Vimeo, or Google Drive links are supported. A walkthrough video helps clients visualise the space before booking.</p>
       </div>
     </div>
   );
@@ -1542,46 +1622,33 @@ function CreateStudioPageInner() {
             </div>
           </div>
 
-          {/* Equipment & Services */}
+          {/* Packages */}
           <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white font-semibold text-sm">Equipment & Services</h3>
+              <h3 className="text-white font-semibold text-sm">Packages</h3>
               <button onClick={() => setCurrentStep(4)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
             </div>
-            {formData.equipment.length === 0 &&
-            formData.services.length === 0 &&
-            formData.amenities.length === 0 &&
-            formData.partnerEquipmentSelections.length === 0 &&
-            formData.partnerServiceIds.length === 0 ? (
-              <p className="text-white/30 text-sm">None selected</p>
+            {formData.packages.filter((p) => p.name.trim()).length === 0 ? (
+              <p className="text-white/30 text-sm">No packages defined yet</p>
             ) : (
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {formData.equipment.map((eq) => (
-                    <span key={eq} className="px-2.5 py-1 bg-white/10 rounded-full text-xs text-white">{eq}</span>
-                  ))}
-                  {formData.services.map((s) => (
-                    <span key={s} className="px-2.5 py-1 bg-[#D9FC67]/10 rounded-full text-xs text-[#D9FC67]">{s}</span>
-                  ))}
-                  {formData.amenities.map((am) => (
-                    <span key={am} className="px-2.5 py-1 bg-blue-400/10 rounded-full text-xs text-blue-400">{am}</span>
-                  ))}
-                </div>
-                {(formData.partnerEquipmentSelections.length > 0 || formData.partnerServiceIds.length > 0) && (
-                  <p className="text-white/45 text-xs">
-                    Saved catalog: {formData.partnerEquipmentSelections.length} equipment
-                    {formData.partnerEquipmentSelections.length === 1 ? "" : " items"},{" "}
-                    {formData.partnerServiceIds.length} service
-                    {formData.partnerServiceIds.length === 1 ? "" : "s"}
-                  </p>
-                )}
-                {(formData.studioPlatformAddonIds.length > 0 || formData.partnerAddonSelections.length > 0) && (
-                  <p className="text-white/45 text-xs">
-                    Add-ons: {formData.studioPlatformAddonIds.length} platform ·{" "}
-                    {formData.partnerAddonSelections.length} custom
-                  </p>
-                )}
+                {formData.packages.filter((p) => p.name.trim()).map((pkg, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg">
+                    <span className="text-white text-xs font-medium">{pkg.name}</span>
+                    <div className="flex items-center gap-2">
+                      {pkg.is_popular && <span className="text-[10px] text-[#D9FC67] font-bold">BEST DEAL</span>}
+                      <span className="text-white/50 text-xs">
+                        {pkg.price_per_hour === 0 ? "Included" : `+₹${pkg.price_per_hour}/hr`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+            {(formData.studioPlatformAddonIds.length > 0 || formData.partnerAddonSelections.length > 0) && (
+              <p className="text-white/40 text-xs mt-3">
+                Add-ons: {formData.studioPlatformAddonIds.length} platform · {formData.partnerAddonSelections.length} custom
+              </p>
             )}
           </div>
 

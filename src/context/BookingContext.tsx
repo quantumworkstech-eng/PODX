@@ -78,6 +78,7 @@ interface BookingContextType extends BookingState {
   addAddOn: (addOn: AddOnService) => void;
   removeAddOn: (addOnId: string) => void;
   toggleAddOn: (addOn: AddOnService) => void;
+  updateAddOnQty: (addOnId: string, qty: number) => void;
   /** Drop selections not in this id set (e.g. studio’s available add-ons changed). */
   pruneAddOnsToIds: (allowedIds: Set<string>) => void;
   nextStep: () => void;
@@ -284,7 +285,19 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           selectedAddOns: prev.selectedAddOns.filter((a) => a.id !== addOn.id),
         };
       }
-      return { ...prev, selectedAddOns: [...prev.selectedAddOns, addOn] };
+      return { ...prev, selectedAddOns: [...prev.selectedAddOns, { ...addOn, qty: 1 }] };
+    });
+  }, []);
+
+  const updateAddOnQty = useCallback((addOnId: string, qty: number) => {
+    setState((prev) => {
+      if (qty <= 0) {
+        return { ...prev, selectedAddOns: prev.selectedAddOns.filter((a) => a.id !== addOnId) };
+      }
+      return {
+        ...prev,
+        selectedAddOns: prev.selectedAddOns.map((a) => a.id === addOnId ? { ...a, qty } : a),
+      };
     });
   }, []);
 
@@ -332,7 +345,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, [state.selectedPackage, state.duration]);
 
   const getAddOnsPrice = useCallback(() => {
-    return state.selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0);
+    return state.selectedAddOns.reduce((sum, addOn) => sum + addOn.price * (addOn.qty ?? 1), 0);
   }, [state.selectedAddOns]);
 
   const getSubtotal = useCallback(() => {
@@ -462,6 +475,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     addAddOn,
     removeAddOn,
     toggleAddOn,
+    updateAddOnQty,
     pruneAddOnsToIds,
     nextStep,
     prevStep,

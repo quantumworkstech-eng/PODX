@@ -18,6 +18,8 @@ export interface AddOnService {
   thumbnail?: string;
   /** Used for admin / Recommended badge (e.g. category `popular`) */
   category?: string;
+  /** Selected quantity (default 1 when in cart) */
+  qty?: number;
 }
 
 export interface TimeSlot {

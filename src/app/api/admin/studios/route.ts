@@ -66,7 +66,12 @@ export async function POST(request: NextRequest) {
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const body = await request.json();
-  const { name, description, short_description, address, city, state, country, owner_email, price_per_hour, capacity } = body;
+  const {
+    name, description, short_description, address, city, state, country,
+    owner_email, price_per_hour, capacity, video_url,
+    images, available_days, working_hours, cancellation_rules, packages,
+    partner_addon_selections, addon_ids,
+  } = body;
 
   if (!name || !city || !owner_email) {
     return NextResponse.json({ error: 'name, city, and owner_email are required' }, { status: 400 });
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
     country: country || 'India',
     owner_id: ownerUser.id,
     is_active: false,
-    review_status: 'pending_review',
+    review_status: 'approved',
   }).select('id, name, slug').single();
 
   if (studioErr || !studio) {
@@ -103,5 +108,71 @@ export async function POST(request: NextRequest) {
     is_active: true,
   });
 
-  return NextResponse.json({ studio }, { status: 201 });
+  // Store images
+  if (Array.isArray(images) && images.length > 0) {
+    await supabaseAdmin.from('studio_images').insert(
+      images.map((url: string, idx: number) => ({ studio_id: studio.id, image_url: url, display_order: idx }))
+    );
+  }
+
+  // Store video URL
+  if (video_url) {
+    try { await supabaseAdmin.from('studios').update({ video_url }).eq('id', studio.id); } catch {}
+  }
+
+  // Store working hours
+  if (Array.isArray(available_days) && working_hours?.start) {
+    const allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    await supabaseAdmin.from('studio_hours').delete().eq('studio_id', studio.id);
+    await supabaseAdmin.from('studio_hours').insert(
+      allDays.map((day) => ({
+        studio_id: studio.id,
+        day_of_week: day,
+        open_time: working_hours.start,
+        close_time: working_hours.end,
+        is_closed: !available_days.includes(day),
+      }))
+    );
+  }
+
+  // Store cancellation policies
+  if (Array.isArray(cancellation_rules) && cancellation_rules.length > 0) {
+    await supabaseAdmin.from('cancellation_policies').insert(
+      cancellation_rules.map((rule: any) => ({
+        studio_id: studio.id,
+        hours_before: rule.type === 'days' ? Number(rule.value) * 24 : Number(rule.value),
+        refund_percentage: Number(rule.refundPercent),
+        description: `${rule.refundPercent}% refund if cancelled ${rule.value}+ ${rule.type} before`,
+      }))
+    );
+  }
+
+  // Link platform add-ons
+  if (Array.isArray(addon_ids) && addon_ids.length > 0) {
+    await supabaseAdmin.from('studio_addons').insert(
+      addon_ids.map((addon_id: string) => ({ studio_id: studio.id, addon_id }))
+    );
+  }
+
+  // Save packages
+  if (Array.isArray(packages) && packages.length > 0) {
+    const validPackages = packages.filter((p: any) => p.name?.trim());
+    if (validPackages.length > 0) {
+      try {
+        await supabaseAdmin.from('studio_packages').insert(
+          validPackages.map((pkg: any, idx: number) => ({
+            studio_id: studio.id,
+            name: String(pkg.name).trim(),
+            description: pkg.description || null,
+            price_per_hour: Math.max(0, parseInt(pkg.price_per_hour) || 0),
+            features: Array.isArray(pkg.features) ? pkg.features : [],
+            is_popular: !!pkg.is_popular,
+            display_order: idx,
+          }))
+        );
+      } catch { /* table may not exist yet */ }
+    }
+  }
+
+  return NextResponse.json({ studio, studioId: studio.id }, { status: 201 });
 }

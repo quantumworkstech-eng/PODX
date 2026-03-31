@@ -502,11 +502,18 @@ function AdminStudiosPageInner() {
           ))}
           <button
             onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-white hover:bg-white/15 transition-colors border border-white/10"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Quick Add
+          </button>
+          <a
+            href="/admin/studios/create"
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-[#D9FC67] text-black hover:bg-[#E8FF8A] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            Add Studio
-          </button>
+            Create Studio
+          </a>
         </div>
       </div>
 
@@ -571,15 +578,14 @@ function AdminStudiosPageInner() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1 flex-wrap relative z-10">
-                          <button
-                            type="button"
-                            onClick={() => void openEdit(studio.id)}
-                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors"
+                          <a
+                            href={`/admin/studios/edit/${studio.id}`}
+                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors inline-flex"
                             title="Edit studio"
                             aria-label="Edit studio"
                           >
                             <Pencil className="w-4 h-4" />
-                          </button>
+                          </a>
                           {studio.review_status !== "approved" && studio.review_status !== "deleted" && (
                             <button
                               type="button"

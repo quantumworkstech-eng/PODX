@@ -434,71 +434,87 @@ export default function PartnerEquipmentPage() {
               ))}
 
               {filteredStudioAddons.map((it) => (
-                <div key={`ad-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-28 px-5 py-4 flex items-center justify-between relative">
-                    <div
-                      className={cn(
-                        "absolute inset-0",
-                        it.thumbnail_url ? "" : "bg-gradient-to-r from-amber-500/15 to-transparent"
-                      )}
-                      style={
-                        it.thumbnail_url
-                          ? {
-                              backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.15)), url(${it.thumbnail_url})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                            }
-                          : undefined
-                      }
-                    />
-                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
-                    <div className="min-w-0 relative z-[1]">
-                      <p className="text-white font-semibold truncate">{it.name}</p>
-                      <p className="text-white/50 text-xs truncate">
-                        {(it.addon_type || AD_LABEL[it.addon_kind] || it.addon_kind)}
-                        {" · qty "}
-                        {it.quantity ?? 1}
-                        {" · ₹"}
-                        {Number(it.price).toLocaleString("en-IN")}
-                      </p>
-                    </div>
+                <div key={`ad-${it.id}`} className="group rounded-2xl border border-white/10 bg-[#141414] overflow-hidden transition-all duration-300 hover:border-white/25">
+                  <div className="relative h-36 overflow-hidden">
+                    {it.thumbnail_url ? (
+                      <div
+                        className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+                        style={{
+                          backgroundImage: `url(${it.thumbnail_url})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-transparent" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                    {/* Type badge */}
+                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-black/50 text-white/80 border border-white/20 backdrop-blur-sm">
+                      {it.addon_type || AD_LABEL[it.addon_kind] || it.addon_kind}
+                    </span>
+
+                    {/* Delete button */}
                     <button
                       type="button"
                       onClick={() => deleteAddon(it.id)}
-                      className="p-2 text-white/70 hover:text-red-300 hover:bg-red-500/15 rounded-lg shrink-0 relative z-[1]"
+                      className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-lg text-white/60 hover:text-red-300 hover:bg-red-500/20 transition-colors backdrop-blur-sm"
                       title="Remove"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
+
+                    {/* Qty badge */}
+                    {(it.quantity ?? 1) > 1 && (
+                      <span className="absolute top-3 right-10 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 backdrop-blur-sm">
+                        qty {it.quantity}
+                      </span>
+                    )}
+
+                    <div className="absolute bottom-3 left-4 right-4">
+                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm">{it.name}</h3>
+                    </div>
                   </div>
-                  <div className="px-5 py-4 flex items-center justify-between">
-                    <span className="text-white/40 text-xs">
-                      {it.category === "equipment" ? "Equipment add-on" : "Service add-on"}
-                    </span>
-                    <span className="text-white/60 text-xs">Private to you</span>
+                  <div className="p-4 bg-[#0d0d0d]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xl font-bold text-white">
+                        ₹{Number(it.price).toLocaleString("en-IN")}
+                        <span className="text-white/40 text-sm font-normal ml-1">/ unit</span>
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                        {it.category === "equipment" ? "Equipment" : "Service"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
 
               {filteredPlatformAddons.map((it) => (
-                <div key={`pa-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-28 bg-gradient-to-r from-emerald-500/15 to-transparent px-5 py-4 flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold truncate">{it.name}</p>
-                      <p className="text-white/40 text-xs truncate">
-                        {it.category ? `${it.category} · ` : ""}
-                        {"₹"}
-                        {Number(it.price).toLocaleString("en-IN")}
-                      </p>
-                    </div>
-                    <span className="text-[11px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0">
+                <div key={`pa-${it.id}`} className="group rounded-2xl border border-emerald-500/20 bg-[#141414] overflow-hidden">
+                  <div className="relative h-36 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       Platform
                     </span>
+                    <div className="absolute bottom-3 left-4 right-4">
+                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm">{it.name}</h3>
+                    </div>
                   </div>
-                  <div className="px-5 py-4">
-                    <p className="text-white/50 text-xs line-clamp-2">
-                      {it.description || "Platform add-on"}
-                    </p>
+                  <div className="p-4 bg-[#0d0d0d]">
+                    {it.description && (
+                      <p className="text-white/50 text-sm mb-3 line-clamp-2">{it.description}</p>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xl font-bold text-white">
+                        ₹{Number(it.price).toLocaleString("en-IN")}
+                        <span className="text-white/40 text-sm font-normal ml-1">/ session</span>
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                        Auto-applied
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}

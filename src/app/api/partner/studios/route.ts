@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
     partnerEquipmentSelections,
     partnerServiceIds,
     partnerAddonSelections,
+    packages,
     saveAsDraft,
   } = body;
 
@@ -231,6 +232,26 @@ export async function POST(request: NextRequest) {
       });
     } catch (e) {
       console.error('partner inventory save (create studio):', e);
+    }
+  }
+
+  // Save packages if provided
+  if (Array.isArray(packages) && packages.length > 0) {
+    const validPackages = packages.filter((p: any) => p.name?.trim());
+    if (validPackages.length > 0) {
+      try {
+        await supabaseAdmin.from('studio_packages').insert(
+          validPackages.map((pkg: any, idx: number) => ({
+            studio_id: studio.id,
+            name: String(pkg.name).trim(),
+            description: pkg.description || null,
+            price_per_hour: Math.max(0, parseInt(pkg.price_per_hour) || 0),
+            features: Array.isArray(pkg.features) ? pkg.features : [],
+            is_popular: !!pkg.is_popular,
+            display_order: idx,
+          }))
+        );
+      } catch { /* table may not exist yet */ }
     }
   }
 

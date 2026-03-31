@@ -23,6 +23,7 @@ export async function GET(
     { data: policies },
     { data: studioAddons },
     { data: allAddons },
+    { data: studioPackages },
   ] = await Promise.all([
     supabaseAdmin
       .from('studios')
@@ -67,6 +68,11 @@ export async function GET(
       .eq('is_active', true)
       .order('category')
       .order('name'),
+    supabaseAdmin
+      .from('studio_packages')
+      .select('*')
+      .eq('studio_id', id)
+      .order('display_order'),
   ]);
 
   if (studioErr || !studio) {
@@ -92,7 +98,139 @@ export async function GET(
     policies: policies || [],
     studioAddonIds: (studioAddons || []).map((sa: any) => sa.addon_id),
     allAddons: allAddons || [],
+    packages: (studioPackages || []).map((p: any) => ({
+      name: p.name,
+      description: p.description || '',
+      price_per_hour: p.price_per_hour || 0,
+      features: Array.isArray(p.features) ? p.features : [],
+      is_popular: !!p.is_popular,
+    })),
   });
+}
+
+// PUT — full studio replace (used by the edit page)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const email = await getAdminEmail();
+  if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+
+  const { id } = await params;
+  const body = await request.json();
+  const {
+    name, description, short_description, address, city, state, country,
+    owner_email, price_per_hour, capacity, video_url,
+    images, available_days, working_hours, cancellation_rules, packages,
+    addon_ids,
+  } = body;
+
+  // Optionally update owner
+  if (owner_email) {
+    const { data: ownerUser } = await supabaseAdmin.from('users').select('id').eq('email', owner_email).maybeSingle();
+    if (!ownerUser) return NextResponse.json({ error: 'Owner user not found.' }, { status: 400 });
+    await supabaseAdmin.from('studios').update({ owner_id: ownerUser.id }).eq('id', id);
+  }
+
+  // Update basic studio fields
+  const studioUpdate: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+    admin_last_edited_at: new Date().toISOString(),
+    admin_last_edited_by: email,
+  };
+  if (name) studioUpdate.name = name;
+  if (description !== undefined) studioUpdate.description = description;
+  if (short_description !== undefined) studioUpdate.short_description = short_description;
+  if (address !== undefined) studioUpdate.address = address;
+  if (city) studioUpdate.city = city;
+  if (state !== undefined) studioUpdate.state = state;
+  if (country) studioUpdate.country = country;
+  if (video_url !== undefined) studioUpdate.video_url = video_url;
+  await supabaseAdmin.from('studios').update(studioUpdate).eq('id', id);
+
+  // Update room price/capacity
+  const { data: existingRoom } = await supabaseAdmin.from('rooms').select('id').eq('studio_id', id).maybeSingle();
+  if (existingRoom) {
+    await supabaseAdmin.from('rooms').update({
+      price_per_hour: Number(price_per_hour) || 1000,
+      capacity: Number(capacity) || 4,
+    }).eq('studio_id', id);
+  }
+
+  // Replace images
+  if (Array.isArray(images)) {
+    await supabaseAdmin.from('studio_images').delete().eq('studio_id', id);
+    if (images.length > 0) {
+      await supabaseAdmin.from('studio_images').insert(
+        images.map((url: string, idx: number) => ({ studio_id: id, image_url: url, display_order: idx }))
+      );
+    }
+  }
+
+  // Replace hours
+  if (Array.isArray(available_days) && working_hours?.start) {
+    const allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    await supabaseAdmin.from('studio_hours').delete().eq('studio_id', id);
+    await supabaseAdmin.from('studio_hours').insert(
+      allDays.map((day) => ({
+        studio_id: id,
+        day_of_week: day,
+        open_time: working_hours.start,
+        close_time: working_hours.end,
+        is_closed: !available_days.includes(day),
+      }))
+    );
+  }
+
+  // Replace cancellation policies
+  if (Array.isArray(cancellation_rules)) {
+    await supabaseAdmin.from('cancellation_policies').delete().eq('studio_id', id);
+    if (cancellation_rules.length > 0) {
+      await supabaseAdmin.from('cancellation_policies').insert(
+        cancellation_rules.map((rule: any) => ({
+          studio_id: id,
+          hours_before: rule.type === 'days' ? Number(rule.value) * 24 : Number(rule.value),
+          refund_percentage: Number(rule.refundPercent),
+          description: `${rule.refundPercent}% refund if cancelled ${rule.value}+ ${rule.type} before`,
+        }))
+      );
+    }
+  }
+
+  // Replace packages
+  if (Array.isArray(packages)) {
+    try {
+      await supabaseAdmin.from('studio_packages').delete().eq('studio_id', id);
+      const validPackages = packages.filter((p: any) => p.name?.trim());
+      if (validPackages.length > 0) {
+        await supabaseAdmin.from('studio_packages').insert(
+          validPackages.map((pkg: any, idx: number) => ({
+            studio_id: id,
+            name: String(pkg.name).trim(),
+            description: pkg.description || null,
+            price_per_hour: Math.max(0, parseInt(pkg.price_per_hour) || 0),
+            features: Array.isArray(pkg.features) ? pkg.features : [],
+            is_popular: !!pkg.is_popular,
+            display_order: idx,
+          }))
+        );
+      }
+    } catch { /* studio_packages table may not exist */ }
+  }
+
+  // Replace addons
+  if (Array.isArray(addon_ids)) {
+    await supabaseAdmin.from('studio_addons').delete().eq('studio_id', id);
+    if (addon_ids.length > 0) {
+      await supabaseAdmin.from('studio_addons').insert(
+        addon_ids.map((addon_id: string) => ({ studio_id: id, addon_id }))
+      );
+    }
+  }
+
+  await logAdminAction(email, 'studio_full_edit', 'studio', id);
+  return NextResponse.json({ success: true, studioId: id });
 }
 
 // PATCH update studio details or perform actions

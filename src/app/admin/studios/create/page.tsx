@@ -2,10 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Check, ChevronLeft, Upload, X,
-  Users, Plus, Loader2, AlertCircle, CheckCircle,
+  Users, Clock, Plus, Loader2, AlertCircle, CheckCircle,
   Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ interface AdminStudioFormData {
   state: string;
   country: string;
   pricePerHour: number;
+  discountPercent: number;
   workingHours: { start: string; end: string };
   availableDays: string[];
   images: string[];
@@ -54,6 +55,7 @@ interface AdminStudioFormData {
   cancellationRules: CancellationRule[];
   packages: StudioPackage[];
   addonIds: string[];
+  partnerAddonSelections: { id: string; enabled_for_booking: boolean }[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -104,45 +106,41 @@ const DEFAULT_PKG_FEATURES: PkgFeature[][] = [
 
 const EMPTY_PKG: StudioPackage = { name: "", description: "", price_per_hour: 0, features: [], is_popular: false };
 
-const DEFAULT_CANCELLATION_RULES: CancellationRule[] = [
-  { id: "1", type: "days", value: 7, refundPercent: 100, deductionPercent: 0 },
-  { id: "2", type: "days", value: 3, refundPercent: 80, deductionPercent: 20 },
-  { id: "3", type: "hours", value: 24, refundPercent: 50, deductionPercent: 50 },
-  { id: "4", type: "hours", value: 0, refundPercent: 0, deductionPercent: 100 },
-];
+const initialFormData: AdminStudioFormData = {
+  ownerEmail: "",
+  name: "",
+  shortDescription: "",
+  fullDescription: "",
+  capacity: 4,
+  address: "",
+  city: "",
+  state: "",
+  country: "India",
+  pricePerHour: 1500,
+  discountPercent: 0,
+  workingHours: { start: "09:00", end: "21:00" },
+  availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  images: [],
+  videoUrl: "",
+  useCustomPolicies: false,
+  cancellationRules: [
+    { id: "1", type: "days", value: 7, refundPercent: 100, deductionPercent: 0 },
+    { id: "2", type: "days", value: 3, refundPercent: 80, deductionPercent: 20 },
+    { id: "3", type: "hours", value: 24, refundPercent: 50, deductionPercent: 50 },
+    { id: "4", type: "hours", value: 0, refundPercent: 0, deductionPercent: 100 },
+  ],
+  packages: [EMPTY_PKG, EMPTY_PKG, EMPTY_PKG],
+  addonIds: [],
+  partnerAddonSelections: [],
+};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function AdminEditStudioPageInner() {
+function AdminCreateStudioPageInner() {
   const router = useRouter();
-  const params = useParams();
-  const studioId = typeof params.id === "string" ? params.id : params.id?.[0] ?? "";
-
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<AdminStudioFormData>({
-    ownerEmail: "",
-    name: "",
-    shortDescription: "",
-    fullDescription: "",
-    capacity: 4,
-    address: "",
-    city: "",
-    state: "",
-    country: "India",
-    pricePerHour: 1500,
-    workingHours: { start: "09:00", end: "21:00" },
-    availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    images: [],
-    videoUrl: "",
-    useCustomPolicies: false,
-    cancellationRules: DEFAULT_CANCELLATION_RULES,
-    packages: [EMPTY_PKG, EMPTY_PKG, EMPTY_PKG],
-    addonIds: [],
-  });
-
+  const [formData, setFormData] = useState<AdminStudioFormData>(initialFormData);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
-  const [dataError, setDataError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [stepError, setStepError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -150,10 +148,10 @@ function AdminEditStudioPageInner() {
   const [cities, setCities] = useState<City[]>([]);
   const [partners, setPartners] = useState<{ id: string; email: string; name: string }[]>([]);
   const [partnersLoading, setPartnersLoading] = useState(true);
+  const [platformAddons, setPlatformAddons] = useState<any[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load cities and partners
   useEffect(() => {
     getCities().then(setCities).catch(console.error);
     fetch("/api/admin/partners")
@@ -163,73 +161,14 @@ function AdminEditStudioPageInner() {
       .finally(() => setPartnersLoading(false));
   }, []);
 
-  // Load existing studio data
   useEffect(() => {
-    if (!studioId) return;
-    setIsDataLoading(true);
-    fetch(`/api/admin/studios/${studioId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const s = data.studio;
-        if (!s) { setDataError("Studio not found."); return; }
-
-        // Map DB hours to working hours + available days
-        const hoursArr: { day_of_week: string; open_time: string; close_time: string; is_closed: boolean }[] = data.hours || [];
-        const openDays = hoursArr.filter((h) => !h.is_closed).map((h) => h.day_of_week);
-        const firstOpenDay = hoursArr.find((h) => !h.is_closed);
-        const workingHours = firstOpenDay
-          ? { start: firstOpenDay.open_time?.slice(0, 5) ?? "09:00", end: firstOpenDay.close_time?.slice(0, 5) ?? "21:00" }
-          : { start: "09:00", end: "21:00" };
-
-        // Map cancellation policies
-        const policies: { hours_before: number; refund_percentage: number }[] = data.policies || [];
-        let cancellationRules: CancellationRule[] = DEFAULT_CANCELLATION_RULES;
-        if (policies.length > 0) {
-          cancellationRules = policies.map((p, idx) => {
-            const hb = Number(p.hours_before);
-            const isDays = hb > 0 && hb % 24 === 0;
-            return {
-              id: String(idx + 1),
-              type: isDays ? "days" : "hours",
-              value: isDays ? hb / 24 : hb,
-              refundPercent: Number(p.refund_percentage),
-              deductionPercent: 100 - Number(p.refund_percentage),
-            };
-          });
-        }
-
-        // Map packages — fill up to 3 with empties
-        const dbPackages: StudioPackage[] = (data.packages || []).slice(0, 3);
-        const pkgCount = dbPackages.length;
-        const packages: StudioPackage[] = [
-          ...dbPackages,
-          ...Array.from({ length: Math.max(0, 3 - pkgCount) }, () => ({ ...EMPTY_PKG })),
-        ];
-
-        setFormData({
-          ownerEmail: s.owner_email || "",
-          name: s.name || "",
-          shortDescription: s.short_description || "",
-          fullDescription: s.description || "",
-          capacity: s.capacity || 4,
-          address: s.address || "",
-          city: s.city || "",
-          state: s.state || "",
-          country: s.country || "India",
-          pricePerHour: s.price_per_hour || 1500,
-          workingHours,
-          availableDays: openDays.length > 0 ? openDays : ["Mon", "Tue", "Wed", "Thu", "Fri"],
-          images: (data.images || []).map((img: { image_url: string }) => img.image_url),
-          videoUrl: s.video_url || "",
-          useCustomPolicies: policies.length > 0,
-          cancellationRules,
-          packages,
-          addonIds: data.studioAddonIds || [],
-        });
-      })
-      .catch(() => setDataError("Failed to load studio data."))
-      .finally(() => setIsDataLoading(false));
-  }, [studioId]);
+    if (currentStep === 4 && platformAddons.length === 0) {
+      fetch("/api/addons")
+        .then((r) => r.json())
+        .then((d) => setPlatformAddons(d.addons || []))
+        .catch(() => {});
+    }
+  }, [currentStep]);
 
   const updateFormData = (updates: Partial<AdminStudioFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -273,7 +212,7 @@ function AdminEditStudioPageInner() {
   const validateStep = (step: number): string => {
     switch (step) {
       case 1:
-        if (!formData.ownerEmail.trim()) return "Please select or enter a partner email.";
+        if (!formData.ownerEmail.trim()) return "Please select a partner.";
         if (!formData.name.trim()) return "Studio name is required.";
         if (!formData.shortDescription.trim() || formData.shortDescription.trim().length < 20)
           return "Short description must be at least 20 characters.";
@@ -360,8 +299,8 @@ function AdminEditStudioPageInner() {
     setIsLoading(true);
     setSubmitError("");
     try {
-      const res = await fetch(`/api/admin/studios/${studioId}`, {
-        method: "PUT",
+      const res = await fetch("/api/admin/studios", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
@@ -378,14 +317,14 @@ function AdminEditStudioPageInner() {
           video_url: formData.videoUrl || null,
           available_days: formData.availableDays,
           working_hours: formData.workingHours,
-          cancellation_rules: formData.useCustomPolicies ? formData.cancellationRules : [],
+          cancellation_rules: formData.useCustomPolicies ? formData.cancellationRules : null,
           packages: formData.packages.filter((p) => p.name.trim()),
           addon_ids: formData.addonIds,
         }),
       });
       if (!res.ok) {
         const err = await res.json();
-        setSubmitError(err.error || "Failed to save studio.");
+        setSubmitError(err.error || "Failed to create studio.");
         setIsLoading(false);
         return;
       }
@@ -437,7 +376,7 @@ function AdminEditStudioPageInner() {
       <div className="space-y-6 animate-fade-in">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-white mb-2">Partner & Studio Info</h2>
-          <p className="text-white/60">Update the partner and basic studio details</p>
+          <p className="text-white/60">Select the partner and enter basic studio details</p>
         </div>
 
         <div className="space-y-5">
@@ -473,9 +412,6 @@ function AdminEditStudioPageInner() {
                 placeholder="partner@email.com"
                 className="w-full mt-2 h-12 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none text-sm"
               />
-            )}
-            {formData.ownerEmail && partners.length > 0 && !partners.find((p) => p.email === formData.ownerEmail) && (
-              <p className="text-amber-400 text-xs mt-1.5">Current owner email: {formData.ownerEmail}</p>
             )}
           </div>
 
@@ -541,7 +477,7 @@ function AdminEditStudioPageInner() {
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Location & Address</h2>
-        <p className="text-white/60">Update the studio address</p>
+        <p className="text-white/60">Enter the studio address</p>
       </div>
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -586,7 +522,7 @@ function AdminEditStudioPageInner() {
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Pricing & Availability</h2>
-        <p className="text-white/60">Update rates and working hours</p>
+        <p className="text-white/60">Set rates and working hours</p>
       </div>
       <div className="space-y-4">
         <div>
@@ -826,8 +762,8 @@ function AdminEditStudioPageInner() {
   const renderStep7 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Review & Save</h2>
-        <p className="text-white/60">Review all changes before saving.</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Review & Submit</h2>
+        <p className="text-white/60">The studio will be created as <span className="text-green-400 font-medium">Approved</span> and visible on the platform.</p>
       </div>
       <div className="space-y-4">
         <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-2 text-sm">
@@ -890,18 +826,6 @@ function AdminEditStudioPageInner() {
     }
   };
 
-  if (dataError) {
-    return (
-      <div className="-m-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <p className="text-white font-semibold">{dataError}</p>
-          <Link href="/admin/studios" className="text-[#D9FC67] text-sm hover:underline">← Back to Studios</Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="-m-6">
       <header className="border-b border-white/5 px-6 py-3 bg-[#09090b]">
@@ -910,74 +834,65 @@ function AdminEditStudioPageInner() {
             <ChevronLeft className="w-4 h-4" />
             Back to Studios
           </Link>
-          <h1 className="text-lg font-bold text-white">Edit Studio (Admin)</h1>
+          <h1 className="text-lg font-bold text-white">Create Studio (Admin)</h1>
           <span className="w-24" />
         </div>
       </header>
 
-      {isDataLoading ? (
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center space-y-4">
-            <Loader2 className="w-10 h-10 text-[#D9FC67] animate-spin mx-auto" />
-            <p className="text-white/50 text-sm">Loading studio data…</p>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        {renderStepIndicator()}
+
+        <div className="bg-[#141414] border border-white/5 rounded-2xl p-6 sm:p-8">
+          {renderCurrentStep()}
+        </div>
+
+        {stepError && (
+          <div className="mt-4 flex items-start gap-2 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-xl">
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <p className="text-red-400 text-sm">{stepError}</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mt-6 gap-3 flex-wrap">
+          <Button variant="outline" onClick={handleBack} disabled={currentStep === 1}
+            className="border-white/10 text-white hover:bg-white/5 disabled:opacity-40">
+            <ArrowLeft className="w-4 h-4 mr-2" />Back
+          </Button>
+
+          <div className="flex items-center gap-2">
+            {currentStep < 7 ? (
+              <Button onClick={handleNext} disabled={uploadingImages}
+                className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50">
+                {uploadingImages ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading…</> : <>Continue<ArrowRight className="w-4 h-4 ml-2" /></>}
+              </Button>
+            ) : (
+              <div className="flex flex-col items-end gap-2">
+                {submitError && (
+                  <p className="text-red-400 text-sm flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" /> {submitError}
+                  </p>
+                )}
+                <Button onClick={handleSubmit} disabled={isLoading}
+                  className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50">
+                  {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</> : <><CheckCircle className="w-4 h-4 mr-2" />Create Studio</>}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-      ) : (
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-          {renderStepIndicator()}
-
-          <div className="bg-[#141414] border border-white/5 rounded-2xl p-6 sm:p-8">
-            {renderCurrentStep()}
-          </div>
-
-          {stepError && (
-            <div className="mt-4 flex items-start gap-2 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-xl">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-red-400 text-sm">{stepError}</p>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mt-6 gap-3 flex-wrap">
-            <Button variant="outline" onClick={handleBack} disabled={currentStep === 1}
-              className="border-white/10 text-white hover:bg-white/5 disabled:opacity-40">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back
-            </Button>
-
-            <div className="flex items-center gap-2">
-              {currentStep < 7 ? (
-                <Button onClick={handleNext} disabled={uploadingImages}
-                  className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50">
-                  {uploadingImages ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading…</> : <>Continue<ArrowRight className="w-4 h-4 ml-2" /></>}
-                </Button>
-              ) : (
-                <div className="flex flex-col items-end gap-2">
-                  {submitError && (
-                    <p className="text-red-400 text-sm flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" /> {submitError}
-                    </p>
-                  )}
-                  <Button onClick={handleSubmit} disabled={isLoading}
-                    className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50">
-                    {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : <><CheckCircle className="w-4 h-4 mr-2" />Save Changes</>}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
-      )}
+      </main>
     </div>
   );
 }
 
-export default function AdminEditStudioPage() {
+export default function AdminCreateStudioPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
-      <AdminEditStudioPageInner />
+      <AdminCreateStudioPageInner />
     </Suspense>
   );
 }

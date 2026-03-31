@@ -11,7 +11,7 @@ import {
 import type { AddOnService } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { Loader2, Sparkles, Check, Plus, Trash2, Search } from "lucide-react";
+import { Loader2, Sparkles, Check, Plus, Minus, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Variant = "checkout" | "step";
@@ -24,7 +24,7 @@ export function BookingAddonsSection({
   /** Client-side filter for step variant */
   searchTerm?: string;
 }) {
-  const { selectedStudio, selectedAddOns, toggleAddOn, pruneAddOnsToIds } = useBooking();
+  const { selectedStudio, selectedAddOns, toggleAddOn, updateAddOnQty, pruneAddOnsToIds } = useBooking();
   const [catalog, setCatalog] = useState<AddOnService[]>([]);
   /** Starts true so first paint shows loading without syncing setState in the effect body. */
   const [loading, setLoading] = useState(true);
@@ -64,6 +64,7 @@ export function BookingAddonsSection({
       : catalog;
 
   const isSelected = (id: string) => selectedAddOns.some((a) => a.id === id);
+  const getQty = (id: string) => selectedAddOns.find((a) => a.id === id)?.qty ?? 1;
 
   if (!selectedStudio) return null;
 
@@ -105,6 +106,7 @@ export function BookingAddonsSection({
         <ul className="space-y-3">
           {catalog.map((addon) => {
             const selected = isSelected(addon.id);
+            const qty = getQty(addon.id);
             const thumb = addon.thumbnail || ADDON_PLACEHOLDER_IMAGE;
             return (
               <li key={addon.id}>
@@ -129,6 +131,11 @@ export function BookingAddonsSection({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-white font-medium text-sm">{addon.name}</span>
+                        {selected && qty > 1 && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#D9FC67]/15 text-[#D9FC67] border border-[#D9FC67]/25">
+                            ×{qty}
+                          </span>
+                        )}
                         {isRecommendedAddon(addon) && (
                           <span className="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-[#D9FC67]/15 text-[#D9FC67] border border-[#D9FC67]/25">
                             Recommended
@@ -144,7 +151,7 @@ export function BookingAddonsSection({
                         </div>
                         {selected && (
                           <div className="text-[#D9FC67] text-xs font-semibold tabular-nums">
-                            + ₹{addon.price.toLocaleString("en-IN")}
+                            + ₹{(addon.price * qty).toLocaleString("en-IN")}
                           </div>
                         )}
                       </div>
@@ -181,6 +188,7 @@ export function BookingAddonsSection({
     <div className="grid sm:grid-cols-2 gap-4">
       {filtered.map((addon) => {
         const selected = isSelected(addon.id);
+        const qty = getQty(addon.id);
         const thumb = addon.thumbnail || ADDON_PLACEHOLDER_IMAGE;
         return (
           <div
@@ -213,32 +221,45 @@ export function BookingAddonsSection({
               <p className="text-white/50 text-sm mb-3 line-clamp-2">{addon.description}</p>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-col">
-                  <span className="text-xl font-bold text-white">₹{addon.price.toLocaleString("en-IN")}</span>
+                  <span className="text-xl font-bold text-white">
+                    ₹{addon.price.toLocaleString("en-IN")}
+                    <span className="text-white/40 text-sm font-normal ml-1">/ unit</span>
+                  </span>
                   {selected && (
-                    <span className="text-[#D9FC67] text-xs font-semibold">Added to booking</span>
+                    <span className="text-[#D9FC67] text-xs font-semibold">
+                      ₹{(addon.price * qty).toLocaleString("en-IN")} total
+                    </span>
                   )}
                 </div>
-                <Button
-                  type="button"
-                  onClick={() => toggleAddOn(addon)}
-                  size="sm"
-                  className={cn(
-                    "font-semibold transition-all",
-                    selected ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-white/10 text-white hover:bg-white/20"
-                  )}
-                >
-                  {selected ? (
-                    <>
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Remove
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add
-                    </>
-                  )}
-                </Button>
+                {selected ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateAddOnQty(addon.id, qty - 1)}
+                      className="w-8 h-8 rounded-full border border-white/20 bg-white/5 hover:border-[#D9FC67] hover:text-[#D9FC67] text-white flex items-center justify-center transition-colors"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="w-8 text-center text-white font-bold text-base tabular-nums">{qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateAddOnQty(addon.id, qty + 1)}
+                      className="w-8 h-8 rounded-full border border-[#D9FC67]/50 bg-[#D9FC67]/10 hover:bg-[#D9FC67]/20 text-[#D9FC67] flex items-center justify-center transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={() => toggleAddOn(addon)}
+                    size="sm"
+                    className="bg-white/10 text-white hover:bg-white/20 font-semibold transition-all"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                )}
               </div>
             </div>
           </div>

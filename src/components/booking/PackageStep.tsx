@@ -2,18 +2,62 @@
 
 import { useBooking } from "@/context/BookingContext";
 import { SERVICE_PACKAGES } from "@/lib/booking-types";
+import type { ServicePackage } from "@/lib/booking-types";
 import { Button } from "@/components/ui/button";
-import { Check, X, Sparkles, ArrowRight } from "lucide-react";
+import { Check, X, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 export function PackageStep() {
-  const { selectedPackage, setSelectedPackage, nextStep, canProceed, duration } = useBooking();
+  const { selectedPackage, setSelectedPackage, nextStep, canProceed, duration, selectedStudio } = useBooking();
+  const [packages, setPackages] = useState<ServicePackage[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSelectAndContinue = (pkg: typeof SERVICE_PACKAGES[0]) => {
+  useEffect(() => {
+    if (!selectedStudio?.id) {
+      setPackages(SERVICE_PACKAGES);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/studios/${encodeURIComponent(selectedStudio.id)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const studioPkgs: any[] = data.packages ?? [];
+        if (studioPkgs.length > 0) {
+          setPackages(
+            studioPkgs.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description || "",
+              price_per_hour: Number(p.price_per_hour) || 0,
+              features: Array.isArray(p.features) ? p.features : [],
+              is_popular: !!p.is_popular,
+            }))
+          );
+        } else {
+          setPackages(SERVICE_PACKAGES);
+        }
+      })
+      .catch(() => { if (!cancelled) setPackages(SERVICE_PACKAGES); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedStudio?.id]);
+
+  const handleSelectAndContinue = (pkg: ServicePackage) => {
     setSelectedPackage(pkg);
     // Small delay so user sees the selection state before advancing
     setTimeout(() => nextStep(), 150);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 text-[#D9FC67] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -23,7 +67,7 @@ export function PackageStep() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {SERVICE_PACKAGES.map((pkg) => {
+        {packages.map((pkg) => {
           const isSelected = selectedPackage?.id === pkg.id;
           const totalPrice = pkg.price_per_hour * duration;
 
@@ -142,6 +186,7 @@ export function PackageStep() {
           </Button>
         </div>
       )}
+      
     </div>
   );
 }

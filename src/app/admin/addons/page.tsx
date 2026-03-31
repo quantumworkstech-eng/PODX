@@ -281,82 +281,91 @@ export default function AdminAddonsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((addon) => (
-            <div key={addon.id} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-              <div className="h-28 relative">
+            <div key={addon.id} className="group rounded-2xl border border-white/10 bg-[#141414] overflow-hidden transition-all duration-300 hover:border-white/25">
+              {/* Image area */}
+              <div className="relative h-36 overflow-hidden">
                 {addon.thumbnail_url ? (
-                  <>
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.15)), url(${addon.thumbnail_url})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
-                  </>
+                  <div
+                    className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+                    style={{
+                      backgroundImage: `url(${addon.thumbnail_url})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/15 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 via-purple-500/10 to-transparent" />
                 )}
-                <div className="absolute inset-0 px-5 py-4 flex items-center justify-between">
-                  <div className="min-w-0 relative z-[1]">
-                    <p className="text-white font-semibold truncate">{addon.name}</p>
-                    <p className="text-white/50 text-xs truncate">
-                      {addon.addon_type || addon.category}
-                      {` · ₹${Number(addon.price).toLocaleString("en-IN")}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 relative z-[1]">
-                    <button
-                      onClick={() => openEdit(addon)}
-                      className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/50 hover:text-blue-400 transition-colors"
-                      title="Edit"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => toggleActive(addon)}
-                      disabled={actionLoading === `toggle-${addon.id}`}
-                      className={cn(
-                        "p-1.5 rounded-lg transition-colors",
-                        addon.is_active
-                          ? "hover:bg-orange-500/10 text-white/50 hover:text-orange-400"
-                          : "hover:bg-green-500/10 text-white/50 hover:text-green-400"
-                      )}
-                      title={addon.is_active ? "Disable" : "Enable"}
-                    >
-                      {actionLoading === `toggle-${addon.id}` ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Power className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setDeleteId(addon.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/50 hover:text-red-400 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                {/* Type badge top-left */}
+                {(addon.addon_type || addon.category) && (
+                  <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-black/50 text-white/80 border border-white/20 backdrop-blur-sm">
+                    {addon.addon_type || addon.category}
+                  </span>
+                )}
+
+                {/* Action buttons top-right */}
+                <div className="absolute top-2 right-2 flex items-center gap-1">
+                  <button
+                    onClick={() => openEdit(addon)}
+                    className="p-1.5 rounded-lg bg-black/50 hover:bg-blue-500/20 text-white/60 hover:text-blue-400 transition-colors backdrop-blur-sm"
+                    title="Edit"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleActive(addon)}
+                    disabled={actionLoading === `toggle-${addon.id}`}
+                    className={cn(
+                      "p-1.5 rounded-lg bg-black/50 backdrop-blur-sm transition-colors",
+                      addon.is_active
+                        ? "hover:bg-orange-500/20 text-white/60 hover:text-orange-400"
+                        : "hover:bg-green-500/20 text-white/60 hover:text-green-400"
+                    )}
+                    title={addon.is_active ? "Disable" : "Enable"}
+                  >
+                    {actionLoading === `toggle-${addon.id}` ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Power className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setDeleteId(addon.id)}
+                    className="p-1.5 rounded-lg bg-black/50 hover:bg-red-500/20 text-white/60 hover:text-red-400 transition-colors backdrop-blur-sm"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Name at bottom of image */}
+                <div className="absolute bottom-3 left-4 right-4">
+                  <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm">{addon.name}</h3>
                 </div>
               </div>
-              <div className="px-5 py-3 flex items-center justify-between">
-                <span className="text-white/40 text-xs capitalize">{addon.category}</span>
-                <span className={cn(
-                  "text-xs px-2 py-0.5 rounded-full border",
-                  addon.is_active
-                    ? "bg-green-500/10 text-green-400 border-green-500/20"
-                    : "bg-red-500/10 text-red-400 border-red-500/20"
-                )}>
-                  {addon.is_active ? "Active" : "Inactive"}
-                </span>
-              </div>
-              {addon.description && (
-                <div className="px-5 pb-4">
-                  <p className="text-white/40 text-xs line-clamp-2">{addon.description}</p>
+
+              {/* Card body */}
+              <div className="p-4 bg-[#0d0d0d]">
+                {addon.description && (
+                  <p className="text-white/50 text-sm mb-3 line-clamp-2">{addon.description}</p>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xl font-bold text-white">
+                    ₹{Number(addon.price).toLocaleString("en-IN")}
+                    <span className="text-white/40 text-sm font-normal ml-1">/ session</span>
+                  </span>
+                  <span className={cn(
+                    "text-xs px-2.5 py-1 rounded-full border font-medium",
+                    addon.is_active
+                      ? "bg-green-500/10 text-green-400 border-green-500/20"
+                      : "bg-red-500/10 text-red-400 border-red-500/20"
+                  )}>
+                    {addon.is_active ? "Active" : "Inactive"}
+                  </span>
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </div>

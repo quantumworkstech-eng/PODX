@@ -145,6 +145,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     useCustomPolicies,
     review_status, // allow transitioning draft → pending_review
     videoUrl,
+    packages, // [{ name, description, price_per_hour, features, is_popular }]
   } = body;
 
   // Update studios table
@@ -308,6 +309,25 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } else if (useCustomPolicies === false) {
     // Clear custom policies to use platform defaults
     await supabaseAdmin.from('cancellation_policies').delete().eq('studio_id', id);
+  }
+
+  // Save packages if provided
+  if (packages !== undefined && Array.isArray(packages)) {
+    await supabaseAdmin.from('studio_packages').delete().eq('studio_id', id);
+    const validPackages = packages.filter((p: any) => p.name?.trim());
+    if (validPackages.length > 0) {
+      await supabaseAdmin.from('studio_packages').insert(
+        validPackages.map((pkg: any, idx: number) => ({
+          studio_id: id,
+          name: String(pkg.name).trim(),
+          description: pkg.description || null,
+          price_per_hour: Math.max(0, parseInt(pkg.price_per_hour) || 0),
+          features: Array.isArray(pkg.features) ? pkg.features : [],
+          is_popular: !!pkg.is_popular,
+          display_order: idx,
+        }))
+      );
+    }
   }
 
   // If draft is being submitted for review, notify admins

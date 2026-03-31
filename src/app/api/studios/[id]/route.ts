@@ -68,6 +68,17 @@ export async function GET(
     (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
 
+  // Fetch studio-specific packages
+  let studioPackages: any[] = [];
+  try {
+    const { data: pkgRows } = await supabase
+      .from('studio_packages')
+      .select('id, name, description, price_per_hour, features, is_popular, display_order')
+      .eq('studio_id', id)
+      .order('display_order');
+    studioPackages = pkgRows ?? [];
+  } catch { /* table may not exist yet */ }
+
   return NextResponse.json({
     id: (studio as any).id,
     name: (studio as any).name,
@@ -89,5 +100,6 @@ export async function GET(
     amenities,
     addons,
     booking_inventory,
+    packages: studioPackages,
   });
 }

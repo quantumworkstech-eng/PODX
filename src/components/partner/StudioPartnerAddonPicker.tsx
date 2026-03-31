@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 
 type PAddon = {
   id: string;
@@ -63,40 +63,35 @@ export function StudioPartnerAddonPicker({
     <div className="space-y-6">
       {platformAddons.length > 0 && (
         <div>
-          <p className="text-white/80 text-sm font-medium mb-2">Platform add-ons</p>
+          <div className="flex items-center gap-2 mb-1">
+            <Lock className="w-3.5 h-3.5 text-emerald-400" />
+            <p className="text-white/80 text-sm font-medium">Platform add-ons</p>
+          </div>
           <p className="text-white/35 text-xs mb-3">
-            Managed by PodX — attach the ones customers can buy for this studio.
+            Created by PodX admin — automatically available to clients on <strong className="text-white/50">all</strong> studios. Cannot be removed.
           </p>
           <div className="space-y-2">
-            {platformAddons.map((a) => {
-              const selected = selectedPlatformIds.includes(a.id);
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => togglePlatform(a.id)}
-                  className={cn(
-                    "w-full flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors",
-                    selected
-                      ? "border-[#D9FC67]/50 bg-[#D9FC67]/5"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
+            {platformAddons.map((a) => (
+              <div
+                key={a.id}
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04]"
+              >
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-medium">{a.name}</p>
+                  {a.description && (
+                    <p className="text-white/40 text-xs mt-0.5 line-clamp-2">{a.description}</p>
                   )}
-                >
-                  <div className="min-w-0">
-                    <p className="text-white text-sm font-medium">{a.name}</p>
-                    {a.description && (
-                      <p className="text-white/40 text-xs mt-0.5 line-clamp-2">{a.description}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[#D9FC67] text-sm font-semibold">
-                      ₹{Number(a.price).toLocaleString("en-IN")}
-                    </span>
-                    {selected && <Check className="w-4 h-4 text-[#D9FC67]" />}
-                  </div>
-                </button>
-              );
-            })}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-emerald-300 text-sm font-semibold">
+                    ₹{Number(a.price).toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    Auto
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
