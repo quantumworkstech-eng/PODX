@@ -188,6 +188,29 @@ export default function PartnerEquipmentPage() {
   const q = query.trim().toLowerCase();
   const matchesQ = (s: string | null | undefined) => !q || String(s ?? "").toLowerCase().includes(q);
 
+  const readApiError = async (res: Response): Promise<string> => {
+    // Some upstream errors (413, 502, auth redirects) can return HTML/text.
+    const ct = res.headers.get("content-type") || "";
+    try {
+      if (ct.includes("application/json")) {
+        const j: any = await res.json();
+        return String(j?.error || j?.message || `Request failed (${res.status})`);
+      }
+    } catch {
+      // fall through to text
+    }
+    try {
+      const t = await res.text();
+      const trimmed = t.trim();
+      if (!trimmed) return `Request failed (${res.status})`;
+      // Avoid dumping full HTML into the UI
+      if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) return `Request failed (${res.status})`;
+      return trimmed.slice(0, 180);
+    } catch {
+      return `Request failed (${res.status})`;
+    }
+  };
+
   const filteredEquipment =
     (typeFilter === "all" || typeFilter === "equipment") && (sourceFilter === "all" || sourceFilter === "studio")
       ? equipment.filter((e) => matchesQ(e.model_name) || matchesQ(EQ_LABEL[e.subcategory] || e.subcategory))
@@ -626,9 +649,10 @@ export default function PartnerEquipmentPage() {
                     const fd = new FormData();
                     fd.append("file", newThumbFile);
                     const up = await fetch("/api/partner/upload-image", { method: "POST", body: fd });
-                    const upJson = await up.json();
-                    if (!up.ok) throw new Error(upJson?.error || "Upload failed");
-                    thumbUrl = upJson.url;
+                    if (!up.ok) throw new Error(await readApiError(up));
+                    const upJson: any = await up.json().catch(() => ({}));
+                    thumbUrl = String(upJson?.url || "");
+                    if (!thumbUrl) throw new Error("Upload failed");
                     setNewThumbUrl(thumbUrl);
                   }
 
@@ -647,8 +671,7 @@ export default function PartnerEquipmentPage() {
                       is_active: true,
                     }),
                   });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data?.error || "Failed to create add-on");
+                  if (!res.ok) throw new Error(await readApiError(res));
 
                   setNewOpen(false);
                   refreshAll();
