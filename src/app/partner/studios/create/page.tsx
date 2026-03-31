@@ -242,8 +242,6 @@ function CreateStudioPageInner() {
           city: studio.city || "",
           state: studio.state || "",
           country: studio.country || "India",
-          latitude: studio.latitude ?? undefined,
-          longitude: studio.longitude ?? undefined,
           pricePerHour: studio.price_per_hour || prev.pricePerHour,
           capacity: studio.capacity || prev.capacity,
           equipment: allEquip.filter((e) => EQUIP_IDS.has(e)),
@@ -431,8 +429,6 @@ function CreateStudioPageInner() {
             equipment: allEquipment,
             images: formData.images,
             videoUrl: formData.videoUrl || null,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
             availableDays: formData.availableDays,
             workingHours: formData.workingHours,
             partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
@@ -468,8 +464,6 @@ function CreateStudioPageInner() {
             amenities: formData.amenities,
             images: formData.images,
             videoUrl: formData.videoUrl || null,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
             cancellationRules: null,
             rescheduleRules: null,
             partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
@@ -582,8 +576,6 @@ function CreateStudioPageInner() {
             equipment: allEquipment,
             images: formData.images,
             videoUrl: formData.videoUrl || null,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
             availableDays: formData.availableDays,
             workingHours: formData.workingHours,
             cancellationRules: formData.useCustomPolicies ? formData.cancellationRules : null,
@@ -616,8 +608,6 @@ function CreateStudioPageInner() {
             amenities: formData.amenities,
             images: formData.images,
             videoUrl: formData.videoUrl || null,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
             cancellationRules: formData.useCustomPolicies ? formData.cancellationRules : null,
             rescheduleRules: formData.useCustomPolicies ? formData.rescheduleRules : null,
             partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
@@ -1598,11 +1588,6 @@ function CreateStudioPageInner() {
               <p><span className="text-white/40">City:</span> <span className="text-white ml-2">{formData.city}</span></p>
               <p><span className="text-white/40">State:</span> <span className="text-white ml-2">{formData.state}</span></p>
               <p><span className="text-white/40">Address:</span> <span className="text-white ml-2">{formData.address}</span></p>
-              {formData.latitude != null && formData.longitude != null ? (
-                <p className="flex items-center gap-1"><span className="text-white/40">Coordinates:</span> <span className="text-green-400 text-xs ml-2">✓ {formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)}</span></p>
-              ) : (
-                <p><span className="text-white/40">Coordinates:</span> <span className="text-white/50 text-xs ml-2">Not set — optional; address above is still saved</span></p>
-              )}
             </div>
           </div>
 
