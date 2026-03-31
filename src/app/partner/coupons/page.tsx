@@ -200,8 +200,7 @@ export default function PartnerCouponsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Coupons & Promo Codes</h1>
-          <p className="text-white/50 text-sm mt-1">
+          <p className="text-white/50 text-sm">
             Create discount codes for your clients to use at checkout
           </p>
         </div>

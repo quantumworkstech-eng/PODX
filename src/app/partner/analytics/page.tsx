@@ -94,7 +94,6 @@ export default function PartnerAnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Analytics</h2>
           <p className="text-white/40">Business performance insights</p>
         </div>
         <div className="flex gap-2">

@@ -68,7 +68,6 @@ export default function LandingCMSPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Landing Page CMS</h2>
           <p className="text-white/40">Manage all content sections of the landing page</p>
         </div>
         <Link href="/" target="_blank">

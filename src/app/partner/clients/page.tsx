@@ -89,7 +89,6 @@ export default function PartnerClientsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Clients</h2>
           <p className="text-white/40">{total} total client{total !== 1 ? "s" : ""}</p>
         </div>
         <Button onClick={() => setShowAddModal(true)} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold">

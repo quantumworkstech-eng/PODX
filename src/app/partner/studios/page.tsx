@@ -438,7 +438,6 @@ export default function PartnerStudiosPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">My Studios</h2>
           <p className="text-white/40">Manage your podcast studio listings</p>
         </div>
         <Link href="/partner/studios/create" className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold px-4 py-2 rounded-full inline-flex items-center">

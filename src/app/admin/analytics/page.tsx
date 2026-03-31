@@ -50,7 +50,6 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-bold text-white">Platform Analytics</h2>
         <p className="text-white/40 text-sm">Last 12 months performance overview</p>
       </div>
 

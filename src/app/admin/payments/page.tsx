@@ -62,7 +62,6 @@ export default function AdminPaymentsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white">Payment Control</h2>
           <p className="text-white/40 text-sm">{total.toLocaleString()} total transactions</p>
         </div>
         <div className="flex gap-2">

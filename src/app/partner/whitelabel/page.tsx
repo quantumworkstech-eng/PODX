@@ -197,7 +197,6 @@ export default function WhiteLabelSettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">White-Label Settings</h2>
           <p className="text-white/40">Configure your branded booking platform</p>
         </div>
         <div className="flex items-center gap-3">

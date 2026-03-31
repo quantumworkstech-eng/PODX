@@ -105,8 +105,7 @@ export default function AdminEquipmentPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Equipment & Add-ons</h1>
-          <p className="text-white/40 text-sm mt-1">
+          <p className="text-white/40 text-sm">
             Manage default equipment, services, and amenities shown to partners during studio creation.
           </p>
         </div>

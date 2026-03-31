@@ -308,8 +308,7 @@ export default function AdminWhiteLabelPage() {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">White-Label Management</h1>
-        <p className="text-white/40 text-sm mt-1">
+        <p className="text-white/40 text-sm">
           {total} white-label partner{total !== 1 ? "s" : ""} · manage branding, studios, and payouts
         </p>
       </div>

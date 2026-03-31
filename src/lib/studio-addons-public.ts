@@ -1,7 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toPartnerAddonPublicId } from "@/lib/partner-inventory-ids";
 
-/** Platform + partner add-ons for a studio (public read). */
+/** Platform + partner add-ons for a studio (public read).
+ *  - ALL active platform_addons (admin-created) are auto-applied to every studio.
+ *  - Partner add-ons are only included if explicitly linked to this studio.
+ */
 export async function fetchMergedStudioAddons(
   supabase: SupabaseClient,
   studioId: string
@@ -15,36 +18,24 @@ export async function fetchMergedStudioAddons(
     is_active?: boolean;
   }[]
 > {
-  const { data: rows } = await supabase
-    .from("studio_addons")
-    .select(
-      `
-      platform_addons (
-        id,
-        name,
-        description,
-        price,
-        category,
-        is_active
-      )
-    `
-    )
-    .eq("studio_id", studioId);
+  // 1. Fetch ALL active platform add-ons (admin-created, auto-applied to all studios)
+  const { data: platformRows } = await supabase
+    .from("platform_addons")
+    .select("id, name, description, price, category, is_active")
+    .eq("is_active", true)
+    .order("category")
+    .order("name");
 
-  const platform = (rows ?? [])
-    .map((r: { platform_addons: unknown }) => r.platform_addons)
-    .filter((a) => {
-      const row = a as { is_active?: boolean } | null;
-      return Boolean(row && row.is_active !== false);
-    }) as {
-      id: string;
-      name: string;
-      description: string | null;
-      price: number | string;
-      category?: string | null;
-      is_active?: boolean;
-    }[];
+  const platform = (platformRows ?? []) as {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number | string;
+    category?: string | null;
+    is_active?: boolean;
+  }[];
 
+  // 2. Fetch partner add-ons linked to this specific studio
   let partner: {
     id: string;
     name: string;

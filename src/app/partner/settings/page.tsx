@@ -180,7 +180,6 @@ export default function PartnerSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Settings</h2>
         <p className="text-white/40">Manage your account settings and preferences</p>
       </div>
 

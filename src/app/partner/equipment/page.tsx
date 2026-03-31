@@ -188,6 +188,29 @@ export default function PartnerEquipmentPage() {
   const q = query.trim().toLowerCase();
   const matchesQ = (s: string | null | undefined) => !q || String(s ?? "").toLowerCase().includes(q);
 
+  const compressImage = (file: File, maxPx = 1280, quality = 0.82): Promise<File> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round((height * maxPx) / width); width = maxPx; }
+          else { width = Math.round((width * maxPx) / height); height = maxPx; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => resolve(blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file),
+          "image/jpeg", quality
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+
   const readApiError = async (res: Response): Promise<string> => {
     // Some upstream errors (413, 502, auth redirects) can return HTML/text.
     const ct = res.headers.get("content-type") || "";
@@ -243,8 +266,7 @@ export default function PartnerEquipmentPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Add-ons</h1>
-          <p className="text-white/40 text-sm mt-1">
+          <p className="text-white/40 text-sm">
             Manage your reusable catalog (equipment, services, and bookable add-ons). Attach them to studios when editing a listing.
           </p>
         </div>
@@ -646,8 +668,9 @@ export default function PartnerEquipmentPage() {
                 try {
                   let thumbUrl = newThumbUrl;
                   if (!thumbUrl && newThumbFile) {
+                    const compressed = await compressImage(newThumbFile);
                     const fd = new FormData();
-                    fd.append("file", newThumbFile);
+                    fd.append("file", compressed);
                     const up = await fetch("/api/partner/upload-image", { method: "POST", body: fd });
                     if (!up.ok) throw new Error(await readApiError(up));
                     const upJson: any = await up.json().catch(() => ({}));

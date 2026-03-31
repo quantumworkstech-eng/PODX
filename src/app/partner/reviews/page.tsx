@@ -32,7 +32,6 @@ export default function PartnerReviewsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-white">Reviews</h2>
         <p className="text-white/40 text-sm">Manage and respond to customer reviews</p>
       </div>
 

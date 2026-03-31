@@ -72,7 +72,6 @@ export default function AdminPartnersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-white">Partner Management</h2>
           <p className="text-white/40 text-sm">{partners.length} registered studio partners</p>
         </div>
         <button

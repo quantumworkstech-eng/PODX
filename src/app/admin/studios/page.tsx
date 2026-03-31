@@ -484,7 +484,6 @@ function AdminStudiosPageInner() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white">Studio Management</h2>
           <p className="text-white/40 text-sm">{total.toLocaleString()} total studios · Full control</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">

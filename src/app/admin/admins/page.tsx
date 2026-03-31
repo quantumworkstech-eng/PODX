@@ -84,7 +84,6 @@ export default function AdminAdminsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white">Admin Management</h2>
           <p className="text-white/40 text-sm">{total} admins on this platform</p>
         </div>
         <button

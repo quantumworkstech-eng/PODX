@@ -135,7 +135,6 @@ export default function PartnerEarningsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Earnings</h2>
           <p className="text-white/40">Track your revenue and payments</p>
         </div>
         <div className="flex gap-2">
