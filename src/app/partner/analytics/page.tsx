@@ -6,6 +6,7 @@ import {
   Clock, XCircle, BarChart3, ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 interface AnalyticsData {
   summary: {
@@ -90,6 +91,7 @@ export default function PartnerAnalyticsPage() {
   ];
 
   return (
+    <FeatureGate featureKey="analytics_access">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -251,5 +253,6 @@ export default function PartnerAnalyticsPage() {
         </div>
       </div>
     </div>
+    </FeatureGate>
   );
 }

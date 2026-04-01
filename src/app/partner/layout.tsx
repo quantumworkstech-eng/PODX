@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
+import { PartnerFeatureProvider, usePartnerFeatures } from "@/context/PartnerFeatureContext";
 import {
   isPartnerStudioVisibleActive,
   PARTNER_STUDIOS_CHANGED,
@@ -33,21 +34,21 @@ import {
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 
-const menuItems = [
-  { id: "dashboard", label: "Dashboard Overview", icon: BarChart3, href: "/partner/dashboard" },
-  { id: "studios", label: "My Studios", icon: Building2, href: "/partner/studios" },
-  { id: "bookings", label: "Bookings", icon: Calendar, href: "/partner/bookings" },
-  { id: "clients", label: "Clients", icon: Users, href: "/partner/clients" },
-  { id: "analytics", label: "Analytics", icon: TrendingUp, href: "/partner/analytics" },
-  { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings" },
-  { id: "billing", label: "Billing & Plans", icon: CreditCard, href: "/partner/billing" },
-  { id: "equipment", label: "Add-ons", icon: Settings, href: "/partner/equipment" },
-  { id: "coupons", label: "Coupons", icon: Tag, href: "/partner/coupons" },
-  { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
-  { id: "branding", label: "Landing Builder", icon: Layout, href: "/partner/branding", badge: "New" },
-  { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel" },
-  { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },
-  { id: "settings", label: "Settings", icon: Settings, href: "/partner/settings" },
+const ALL_MENU_ITEMS = [
+  { id: "dashboard", label: "Dashboard Overview", icon: BarChart3, href: "/partner/dashboard", featureKey: null },
+  { id: "studios", label: "My Studios", icon: Building2, href: "/partner/studios", featureKey: "studio_edit" },
+  { id: "bookings", label: "Bookings", icon: Calendar, href: "/partner/bookings", featureKey: "booking_management" },
+  { id: "clients", label: "Clients", icon: Users, href: "/partner/clients", featureKey: "client_management" },
+  { id: "analytics", label: "Analytics", icon: TrendingUp, href: "/partner/analytics", featureKey: "analytics_access" },
+  { id: "earnings", label: "Earnings", icon: DollarSign, href: "/partner/earnings", featureKey: "payout_access" },
+  { id: "billing", label: "Billing & Plans", icon: CreditCard, href: "/partner/billing", featureKey: "billing_access" },
+  { id: "equipment", label: "Add-ons", icon: Settings, href: "/partner/equipment", featureKey: "addons_management" },
+  { id: "coupons", label: "Coupons", icon: Tag, href: "/partner/coupons", featureKey: "coupon_management" },
+  { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews", featureKey: "reviews_management" },
+  { id: "branding", label: "Landing Builder", icon: Layout, href: "/partner/branding", featureKey: "landing_builder", badge: "New" },
+  { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel", featureKey: "white_label" },
+  { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies", featureKey: "policies_management" },
+  { id: "settings", label: "Settings", icon: Settings, href: "/partner/settings", featureKey: null },
 ];
 
 interface PartnerDashboardProps {
@@ -55,6 +56,14 @@ interface PartnerDashboardProps {
 }
 
 export default function PartnerDashboardLayout({ children }: PartnerDashboardProps) {
+  return (
+    <PartnerFeatureProvider>
+      <PartnerDashboardInner>{children}</PartnerDashboardInner>
+    </PartnerFeatureProvider>
+  );
+}
+
+function PartnerDashboardInner({ children }: PartnerDashboardProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -62,6 +71,7 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
   const [activeStudios, setActiveStudios] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [subStatus, setSubStatus] = useState<"active" | "grace_period" | "expired" | null>(null);
+  const { featureMap } = usePartnerFeatures();
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -108,6 +118,12 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
       })
       .catch(() => {});
   }, [status, isAuthPage]);
+
+  const menuItems = ALL_MENU_ITEMS.filter((item) => {
+    if (!item.featureKey) return true;
+    if (featureMap === null) return true;
+    return featureMap[item.featureKey] !== false;
+  });
 
   if (status === "loading" && !isAuthPage) {
     return (

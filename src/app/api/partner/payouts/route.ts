@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
+import { isFeatureEnabled } from "@/lib/feature-access";
 
 // GET: payout history + pending earnings
 export async function GET(req: NextRequest) {
@@ -17,6 +18,14 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const payoutEnabled = await isFeatureEnabled(user.id, "payout_access");
+  if (!payoutEnabled) {
+    return NextResponse.json(
+      { error: "Payout access is not enabled for your account.", code: "FEATURE_DISABLED" },
+      { status: 403 }
+    );
+  }
 
   const [{ data: history }, { data: earnings }] = await Promise.all([
     supabase

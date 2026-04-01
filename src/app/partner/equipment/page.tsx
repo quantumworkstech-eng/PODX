@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 type EquipmentRow = {
   id: string;
@@ -263,6 +264,7 @@ export default function PartnerEquipmentPage() {
     filteredPlatformAddons.length === 0;
 
   return (
+    <FeatureGate featureKey="addons_management">
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -727,5 +729,6 @@ export default function PartnerEquipmentPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </FeatureGate>
   );
 }

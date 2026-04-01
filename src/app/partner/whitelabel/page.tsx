@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { WhiteLabelAssetUpload } from "@/components/partner/WhiteLabelAssetUpload";
 import { cn } from "@/lib/utils";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 interface Branding {
   brand_name?: string;
@@ -193,6 +194,7 @@ export default function WhiteLabelSettingsPage() {
   }
 
   return (
+    <FeatureGate featureKey="white_label">
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -630,6 +632,7 @@ export default function WhiteLabelSettingsPage() {
         )}
       </div>
     </div>
+    </FeatureGate>
   );
 }
 

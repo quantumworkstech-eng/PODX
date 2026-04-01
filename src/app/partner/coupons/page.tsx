@@ -15,6 +15,7 @@ import {
   Calendar,
   Building2,
 } from "lucide-react";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 interface Coupon {
   id: string;
@@ -196,6 +197,7 @@ export default function PartnerCouponsPage() {
   }
 
   return (
+    <FeatureGate featureKey="coupon_management">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -543,5 +545,6 @@ export default function PartnerCouponsPage() {
         </div>
       )}
     </div>
+    </FeatureGate>
   );
 }

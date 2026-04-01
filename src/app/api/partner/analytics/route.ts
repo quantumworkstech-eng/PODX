@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
 import { getPartnerSubscription, isSubscriptionActive, checkFeature } from "@/lib/subscription-gates";
+import { isFeatureEnabled } from "@/lib/feature-access";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -17,6 +18,15 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Feature access gate
+  const analyticsEnabled = await isFeatureEnabled(user.id, "analytics_access");
+  if (!analyticsEnabled) {
+    return NextResponse.json(
+      { error: "Analytics access is not enabled for your account.", code: "FEATURE_DISABLED" },
+      { status: 403 }
+    );
+  }
 
   // Subscription gate
   const sub = await getPartnerSubscription(user.id);

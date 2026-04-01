@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Star, Building2 } from "lucide-react";
 import { ReviewList } from "@/components/reviews/ReviewList";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 export default function PartnerReviewsPage() {
   const [studios, setStudios] = useState<any[]>([]);
@@ -30,6 +31,7 @@ export default function PartnerReviewsPage() {
   }
 
   return (
+    <FeatureGate featureKey="reviews_management">
     <div className="space-y-6">
       <div>
         <p className="text-white/40 text-sm">Manage and respond to customer reviews</p>
@@ -83,5 +85,6 @@ export default function PartnerReviewsPage() {
         </>
       )}
     </div>
+    </FeatureGate>
   );
 }

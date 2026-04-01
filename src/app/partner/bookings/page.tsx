@@ -15,6 +15,7 @@ import {
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 interface AddOn {
   name: string;
@@ -184,6 +185,7 @@ export default function PartnerBookingsPage() {
     new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
+    <FeatureGate featureKey="booking_management">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -639,5 +641,6 @@ export default function PartnerBookingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </FeatureGate>
   );
 }

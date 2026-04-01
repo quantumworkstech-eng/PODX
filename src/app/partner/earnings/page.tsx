@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 interface Booking {
   id: string;
@@ -132,6 +133,7 @@ export default function PartnerEarningsPage() {
   }
 
   return (
+    <FeatureGate featureKey="payout_access">
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -261,5 +263,6 @@ export default function PartnerEarningsPage() {
         </div>
       </div>
     </div>
+    </FeatureGate>
   );
 }

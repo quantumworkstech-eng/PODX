@@ -24,6 +24,7 @@ import {
   type LandingTemplate,
 } from "@/types/landing";
 import { Button } from "@/components/ui/button";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -837,6 +838,7 @@ export default function LandingBuilderPage() {
   }
 
   return (
+    <FeatureGate featureKey="landing_builder">
     <div className="flex flex-col h-[calc(100vh-73px)] -m-6 overflow-hidden">
 
       {/* ── Top Bar ───────────────────────────────────────────────── */}
@@ -1389,6 +1391,7 @@ export default function LandingBuilderPage() {
         </div>
       )}
     </div>
+    </FeatureGate>
   );
 }
 

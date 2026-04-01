@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { FeatureGate } from "@/components/partner/FeatureGate";
 
 interface Client {
   id: string;
@@ -85,6 +86,7 @@ export default function PartnerClientsPage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
+    <FeatureGate featureKey="client_management">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -269,5 +271,6 @@ export default function PartnerClientsPage() {
         </div>
       )}
     </div>
+    </FeatureGate>
   );
 }

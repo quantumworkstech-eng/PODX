@@ -387,3 +387,27 @@ export interface StudioAnalytics {
   page_views: number;
   created_at: Date;
 }
+
+// ─── Feature Access Control ──────────────────────────────────────────────────
+
+export interface Feature {
+  id: string;
+  feature_key: string;
+  feature_name: string;
+  description?: string;
+  category: string;
+  is_default_enabled: boolean;
+  created_at: Date;
+}
+
+export interface PartnerFeatureAccess {
+  id: string;
+  partner_id: string;
+  feature_key: string;
+  is_enabled: boolean;
+  updated_at: Date;
+}
+
+export interface PartnerFeatureMap {
+  [feature_key: string]: boolean;
+}
