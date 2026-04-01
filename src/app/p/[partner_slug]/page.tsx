@@ -3,26 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
-import { StudioCardMedia } from "@/components/StudioCardMedia";
+import { SectionRenderer } from "@/components/landing-sections/SectionRenderer";
 import { BOOKING_PENDING_KEY, BOOKING_PRESELECT_STUDIO_KEY } from "@/lib/booking-flow-storage";
 import {
-  MapPin,
-  Users,
-  Star,
-  ArrowRight,
-  Phone,
-  Mail,
-  Calendar,
-  ChevronRight,
-  Mic,
-  Camera,
-  Headphones,
-  Wifi,
-  Shield,
-  Zap,
-  Globe,
-  Info,
+  MapPin, Users, Star, ArrowRight, Phone, Mail, Calendar,
+  ChevronRight, Mic, Camera, Headphones, Wifi, Shield, Zap, Globe, Info,
 } from "lucide-react";
+import { StudioCardMedia } from "@/components/StudioCardMedia";
+import type { LandingSection, SectionBranding } from "@/types/landing";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +50,7 @@ interface Branding {
   background_color: string;
   text_color: string;
   button_text_color: string;
+  font_family?: string;
   booking_page_title: string;
   booking_page_description: string;
   contact_email: string;
@@ -75,7 +64,7 @@ interface Branding {
   partner_id: string;
 }
 
-// ── Feature list ───────────────────────────────────────────────────────────
+// ── Legacy hardcoded features list (used when no sections configured) ─────
 
 const FEATURES = [
   { icon: Mic, label: "Professional Equipment", desc: "Studio-grade microphones, mixers, and monitors" },
@@ -86,6 +75,63 @@ const FEATURES = [
   { icon: Zap, label: "Instant Availability", desc: "Real-time slot availability and instant booking" },
 ];
 
+// ── Section impression tracking hook ─────────────────────────────────────
+
+function useSectionImpression(sectionId: string, partnerId: string, sectionType: string) {
+  const tracked = useRef(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current || tracked.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !tracked.current) {
+          tracked.current = true;
+          fetch("/api/public/analytics/impression", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ section_id: sectionId, partner_id: partnerId, section_type: sectionType }),
+          }).catch(() => {});
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [sectionId, partnerId, sectionType]);
+
+  return ref;
+}
+
+// ── Section wrapper with impression tracking ──────────────────────────────
+
+function TrackedSection({
+  section, branding, studios, onBookNow, onViewDetails, onScrollToStudios,
+}: {
+  section: LandingSection;
+  branding: SectionBranding;
+  studios: Studio[];
+  onBookNow: (studio: Studio) => void;
+  onViewDetails: (studio: Studio) => void;
+  onScrollToStudios: () => void;
+}) {
+  const ref = useSectionImpression(section.id, branding.partner_id, section.type);
+
+  return (
+    <div ref={ref}>
+      <SectionRenderer
+        section={section}
+        branding={branding}
+        studios={studios}
+        isPreview={false}
+        onBookNow={onBookNow}
+        onViewDetails={onViewDetails}
+        onScrollToStudios={onScrollToStudios}
+      />
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function WhiteLabelLandingPage() {
@@ -93,6 +139,7 @@ export default function WhiteLabelLandingPage() {
   const router = useRouter();
   const [branding, setBranding] = useState<Branding | null>(null);
   const [studios, setStudios] = useState<Studio[]>([]);
+  const [sections, setSections] = useState<LandingSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const studiosRef = useRef<HTMLElement>(null);
@@ -105,9 +152,10 @@ export default function WhiteLabelLandingPage() {
         if (!r.ok) throw new Error("Partner not found");
         return r.json();
       })
-      .then(({ branding, studios }) => {
-        setBranding(branding);
-        setStudios(studios);
+      .then(({ branding: b, studios: s, sections: sec }) => {
+        setBranding(b);
+        setStudios(s);
+        setSections(sec || []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -150,7 +198,6 @@ export default function WhiteLabelLandingPage() {
   const secondary = branding.secondary_color || "#0a0a0a";
 
   const handleBookNow = (studio: Studio) => {
-    // Store the studio in sessionStorage in the format expected by book page
     const activeRooms = studio.rooms?.filter((r) => r.is_active) || [];
     const minPrice = activeRooms.length > 0 ? Math.min(...activeRooms.map((r) => r.price_per_hour)) : 0;
     const maxCap = activeRooms.length > 0 ? Math.max(...activeRooms.map((r) => r.capacity)) : 2;
@@ -170,11 +217,7 @@ export default function WhiteLabelLandingPage() {
       description: studio.short_description || studio.description || "",
       amenities: ["WiFi", "AC", "Parking"],
     };
-    try {
-      localStorage.removeItem(BOOKING_PENDING_KEY);
-    } catch {
-      /* ignore */
-    }
+    try { localStorage.removeItem(BOOKING_PENDING_KEY); } catch { /* ignore */ }
     sessionStorage.setItem(BOOKING_PRESELECT_STUDIO_KEY, JSON.stringify(studioForSession));
     router.push(`/book?preselect=1&partner=${branding.partner_slug}&source=whitelabel`);
   };
@@ -183,19 +226,73 @@ export default function WhiteLabelLandingPage() {
     studiosRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const sectionBranding: SectionBranding = {
+    brand_name: branding.brand_name,
+    partner_slug: branding.partner_slug,
+    logo_url: branding.logo_url,
+    tagline: branding.tagline,
+    primary_color: primary,
+    secondary_color: secondary,
+    background_color: branding.background_color || "#09090b",
+    text_color: branding.text_color || "#ffffff",
+    button_text_color: btnText,
+    font_family: branding.font_family,
+    contact_email: branding.contact_email,
+    contact_phone: branding.contact_phone,
+    contact_address: branding.contact_address,
+    website_url: branding.website_url,
+    instagram_url: branding.instagram_url,
+    twitter_url: branding.twitter_url,
+    linkedin_url: branding.linkedin_url,
+    youtube_url: branding.youtube_url,
+    partner_id: branding.partner_id,
+  };
+
+  // ── Dynamic section-based render ──────────────────────────────────────
+
+  if (sections.length > 0) {
+    return (
+      <div className="min-h-screen">
+        {sections.map((section) => (
+          <TrackedSection
+            key={section.id}
+            section={section}
+            branding={sectionBranding}
+            studios={studios}
+            onBookNow={handleBookNow}
+            onViewDetails={(studio) => { setDetailStudio(studio); setDetailStudioId(studio.id); }}
+            onScrollToStudios={scrollToStudios}
+          />
+        ))}
+
+        <StudioDetailModal
+          studioId={detailStudioId}
+          studioName={detailStudio?.name}
+          coverImage={detailStudio?.featured_image_url}
+          onClose={() => { setDetailStudioId(null); setDetailStudio(null); }}
+          onBookNow={() => {
+            if (detailStudio) handleBookNow(detailStudio);
+            setDetailStudioId(null);
+            setDetailStudio(null);
+          }}
+          primaryColor={primary}
+          buttonTextColor={btnText}
+        />
+      </div>
+    );
+  }
+
+  // ── Legacy hardcoded layout (backwards-compatible fallback) ───────────
+
   return (
     <div className="min-h-screen">
 
       {/* ── Hero Section ────────────────────────────────────────── */}
       <section className="relative min-h-[88vh] flex flex-col items-center justify-center px-6 py-24 overflow-hidden">
-        {/* Background gradient */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(ellipse 80% 60% at 50% -10%, ${primary}25 0%, transparent 70%)`,
-          }}
+          style={{ background: `radial-gradient(ellipse 80% 60% at 50% -10%, ${primary}25 0%, transparent 70%)` }}
         />
-        {/* Subtle grid */}
         <div
           className="absolute inset-0 pointer-events-none opacity-[0.03]"
           style={{
@@ -203,9 +300,7 @@ export default function WhiteLabelLandingPage() {
             backgroundSize: "60px 60px",
           }}
         />
-
         <div className="relative max-w-4xl mx-auto text-center">
-          {/* Live badge */}
           <div
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-8"
             style={{ background: `${primary}15`, color: primary, border: `1px solid ${primary}25` }}
@@ -213,47 +308,30 @@ export default function WhiteLabelLandingPage() {
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: primary }} />
             {studios.length} Studio{studios.length !== 1 ? "s" : ""} Available · Book Instantly
           </div>
-
-          {/* Headline */}
           <h1
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6"
             style={{ letterSpacing: "-0.02em" }}
           >
             {branding.booking_page_title || `Book with ${branding.brand_name}`}
           </h1>
-
-          {/* Subheading */}
           {(branding.booking_page_description || branding.tagline) && (
-            <p
-              className="text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
-              style={{ opacity: 0.6 }}
-            >
+            <p className="text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed" style={{ opacity: 0.6 }}>
               {branding.booking_page_description || branding.tagline}
             </p>
           )}
-
-          {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={scrollToStudios}
               className="flex items-center gap-2 px-8 py-4 rounded-2xl text-base font-bold transition-all hover:scale-105 hover:shadow-lg"
-              style={{
-                background: primary,
-                color: btnText,
-                boxShadow: `0 0 40px ${primary}30`,
-              }}
+              style={{ background: primary, color: btnText, boxShadow: `0 0 40px ${primary}30` }}
             >
-              Browse Studios
-              <ArrowRight className="w-5 h-5" />
+              Browse Studios <ArrowRight className="w-5 h-5" />
             </button>
             {branding.contact_email && (
               <a
                 href={`mailto:${branding.contact_email}`}
                 className="flex items-center gap-2 px-8 py-4 rounded-2xl text-base font-medium transition-all hover:scale-105"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                }}
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
               >
                 <Mail className="w-5 h-5" style={{ opacity: 0.6 }} />
                 Get in Touch
@@ -261,14 +339,12 @@ export default function WhiteLabelLandingPage() {
             )}
           </div>
         </div>
-
-        {/* Scroll indicator */}
         <div
           className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer"
           onClick={scrollToStudios}
           style={{ opacity: 0.3 }}
         >
-          <div className="w-px h-10" style={{ background: `linear-gradient(to bottom, transparent, currentColor)` }} />
+          <div className="w-px h-10" style={{ background: "linear-gradient(to bottom, transparent, currentColor)" }} />
           <ChevronRight className="w-4 h-4 rotate-90" />
         </div>
       </section>
@@ -276,7 +352,7 @@ export default function WhiteLabelLandingPage() {
       {/* ── Stats strip ─────────────────────────────────────────── */}
       <div
         className="px-6 py-8"
-        style={{ background: `${secondary}`, borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+        style={{ background: secondary, borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
       >
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
@@ -286,12 +362,8 @@ export default function WhiteLabelLandingPage() {
             { value: "Instant", label: "Booking" },
           ].map(({ value, label }) => (
             <div key={label}>
-              <p className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: primary }}>
-                {value}
-              </p>
-              <p className="text-sm" style={{ opacity: 0.5 }}>
-                {label}
-              </p>
+              <p className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: primary }}>{value}</p>
+              <p className="text-sm" style={{ opacity: 0.5 }}>{label}</p>
             </div>
           ))}
         </div>
@@ -304,14 +376,11 @@ export default function WhiteLabelLandingPage() {
             <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary, opacity: 0.7 }}>
               Our Spaces
             </p>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Choose Your Studio
-            </h2>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Choose Your Studio</h2>
             <p className="max-w-xl mx-auto" style={{ opacity: 0.5 }}>
               Professional recording environments designed for creators, podcasters, and content teams.
             </p>
           </div>
-
           {studios.length === 0 ? (
             <div className="text-center py-24" style={{ opacity: 0.4 }}>
               <Calendar className="w-14 h-14 mx-auto mb-5" />
@@ -322,29 +391,15 @@ export default function WhiteLabelLandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {studios.map((studio) => {
                 const activeRooms = studio.rooms?.filter((r) => r.is_active) || [];
-                const minPrice =
-                  activeRooms.length > 0
-                    ? Math.min(...activeRooms.map((r) => r.price_per_hour))
-                    : null;
-                const maxCap =
-                  activeRooms.length > 0
-                    ? Math.max(...activeRooms.map((r) => r.capacity))
-                    : null;
-
+                const minPrice = activeRooms.length > 0 ? Math.min(...activeRooms.map((r) => r.price_per_hour)) : null;
+                const maxCap = activeRooms.length > 0 ? Math.max(...activeRooms.map((r) => r.capacity)) : null;
                 return (
                   <div
                     key={studio.id}
-                    onClick={() => {
-                      setDetailStudio(studio);
-                      setDetailStudioId(studio.id);
-                    }}
+                    onClick={() => { setDetailStudio(studio); setDetailStudioId(studio.id); }}
                     className="group rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                   >
-                    {/* Studio image */}
                     <div className="relative h-52 overflow-hidden">
                       {studio.featured_image_url ? (
                         <StudioCardMedia
@@ -364,7 +419,6 @@ export default function WhiteLabelLandingPage() {
                           {studio.name[0]}
                         </div>
                       )}
-                      {/* Overlay gradient */}
                       <div
                         className="absolute inset-0 pointer-events-none"
                         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)" }}
@@ -374,33 +428,23 @@ export default function WhiteLabelLandingPage() {
                           className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
                           style={{ background: primary, color: btnText }}
                         >
-                          <Star className="w-3 h-3" />
-                          Verified
+                          <Star className="w-3 h-3" /> Verified
                         </div>
                       )}
-                      {/* City tag on image */}
                       {studio.city && (
                         <div
                           className="absolute bottom-3 left-3 flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full"
                           style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.8)" }}
                         >
-                          <MapPin className="w-3 h-3" />
-                          {studio.city}
+                          <MapPin className="w-3 h-3" /> {studio.city}
                         </div>
                       )}
                     </div>
-
-                    {/* Studio info */}
                     <div className="p-5">
                       <h3 className="text-lg font-bold mb-1">{studio.name}</h3>
-
                       {studio.short_description && (
-                        <p className="text-sm mb-4 line-clamp-2" style={{ opacity: 0.5 }}>
-                          {studio.short_description}
-                        </p>
+                        <p className="text-sm mb-4 line-clamp-2" style={{ opacity: 0.5 }}>{studio.short_description}</p>
                       )}
-
-                      {/* Room previews */}
                       {activeRooms.length > 0 && (
                         <div className="space-y-1.5 mb-4">
                           {activeRooms.slice(0, 2).map((room) => (
@@ -412,11 +456,6 @@ export default function WhiteLabelLandingPage() {
                               <div className="flex items-center gap-2" style={{ opacity: 0.7 }}>
                                 <Users className="w-3.5 h-3.5" style={{ opacity: 0.5 }} />
                                 <span>{room.name}</span>
-                                {room.capacity > 0 && (
-                                  <span className="text-xs" style={{ opacity: 0.4 }}>
-                                    · up to {room.capacity}
-                                  </span>
-                                )}
                               </div>
                               <span className="font-semibold text-sm" style={{ color: primary }}>
                                 ₹{room.price_per_hour.toLocaleString()}/hr
@@ -430,59 +469,35 @@ export default function WhiteLabelLandingPage() {
                           )}
                         </div>
                       )}
-
                       <div className="flex items-center justify-between">
                         <div>
                           {minPrice !== null && (
                             <>
-                              <p className="text-xs" style={{ opacity: 0.35 }}>
-                                Starting from
-                              </p>
+                              <p className="text-xs" style={{ opacity: 0.35 }}>Starting from</p>
                               <p className="font-bold text-lg" style={{ color: primary }}>
                                 ₹{minPrice.toLocaleString()}
-                                <span className="text-sm font-normal" style={{ opacity: 0.6 }}>
-                                  /hr
-                                </span>
+                                <span className="text-sm font-normal" style={{ opacity: 0.6 }}>/hr</span>
                               </p>
                             </>
                           )}
                           {maxCap !== null && maxCap > 0 && (
-                            <p className="text-xs mt-0.5" style={{ opacity: 0.35 }}>
-                              Up to {maxCap} people
-                            </p>
+                            <p className="text-xs mt-0.5" style={{ opacity: 0.35 }}>Up to {maxCap} people</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          {/* View Details icon button */}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDetailStudio(studio);
-                              setDetailStudioId(studio.id);
-                            }}
-                            title="View studio details"
+                            onClick={(e) => { e.stopPropagation(); setDetailStudio(studio); setDetailStudioId(studio.id); }}
                             className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105"
-                            style={{
-                              background: "rgba(255,255,255,0.06)",
-                              border: "1px solid rgba(255,255,255,0.12)",
-                            }}
+                            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
                           >
                             <Info className="w-4 h-4" style={{ opacity: 0.6 }} />
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleBookNow(studio);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleBookNow(studio); }}
                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 hover:shadow-lg"
-                            style={{
-                              background: primary,
-                              color: btnText,
-                              boxShadow: `0 4px 20px ${primary}20`,
-                            }}
+                            style={{ background: primary, color: btnText, boxShadow: `0 4px 20px ${primary}20` }}
                           >
-                            Book Now
-                            <ArrowRight className="w-4 h-4" />
+                            Book Now <ArrowRight className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -498,16 +513,14 @@ export default function WhiteLabelLandingPage() {
       {/* ── Features Section ─────────────────────────────────────── */}
       <section
         className="px-6 py-20"
-        style={{ background: `${secondary}`, borderTop: "1px solid rgba(255,255,255,0.04)" }}
+        style={{ background: secondary, borderTop: "1px solid rgba(255,255,255,0.04)" }}
       >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary, opacity: 0.7 }}>
               Why Choose Us
             </p>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Everything You Need to Create
-            </h2>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Everything You Need to Create</h2>
             <p className="max-w-xl mx-auto" style={{ opacity: 0.5 }}>
               From intimate podcast recordings to full-scale video productions — we have the gear, space, and expertise.
             </p>
@@ -517,10 +530,7 @@ export default function WhiteLabelLandingPage() {
               <div
                 key={label}
                 className="p-6 rounded-2xl transition-all hover:scale-[1.02]"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
@@ -529,9 +539,7 @@ export default function WhiteLabelLandingPage() {
                   <Icon className="w-5 h-5" style={{ color: primary }} />
                 </div>
                 <h3 className="font-semibold mb-1.5">{label}</h3>
-                <p className="text-sm" style={{ opacity: 0.5 }}>
-                  {desc}
-                </p>
+                <p className="text-sm" style={{ opacity: 0.5 }}>{desc}</p>
               </div>
             ))}
           </div>
@@ -554,16 +562,9 @@ export default function WhiteLabelLandingPage() {
               { step: "03", title: "Pay & Create", desc: "Secure payment via Razorpay. Get instant confirmation and show up ready to record." },
             ].map(({ step, title, desc }) => (
               <div key={step} className="relative">
-                <div
-                  className="text-6xl font-black mb-4 leading-none"
-                  style={{ color: `${primary}15` }}
-                >
-                  {step}
-                </div>
+                <div className="text-6xl font-black mb-4 leading-none" style={{ color: `${primary}15` }}>{step}</div>
                 <h3 className="font-bold text-lg mb-2">{title}</h3>
-                <p className="text-sm" style={{ opacity: 0.5 }}>
-                  {desc}
-                </p>
+                <p className="text-sm" style={{ opacity: 0.5 }}>{desc}</p>
               </div>
             ))}
           </div>
@@ -575,32 +576,21 @@ export default function WhiteLabelLandingPage() {
         <div className="max-w-4xl mx-auto">
           <div
             className="rounded-3xl p-10 sm:p-14 text-center relative overflow-hidden"
-            style={{
-              background: `linear-gradient(135deg, ${primary}20 0%, ${primary}05 100%)`,
-              border: `1px solid ${primary}20`,
-            }}
+            style={{ background: `linear-gradient(135deg, ${primary}20 0%, ${primary}05 100%)`, border: `1px solid ${primary}20` }}
           >
             <div
               className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `radial-gradient(ellipse at 50% 100%, ${primary}15 0%, transparent 70%)`,
-              }}
+              style={{ background: `radial-gradient(ellipse at 50% 100%, ${primary}15 0%, transparent 70%)` }}
             />
             <div className="relative">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-                Ready to Record Your Next Episode?
-              </h2>
+              <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to Record Your Next Episode?</h2>
               <p className="text-lg mb-8 max-w-xl mx-auto" style={{ opacity: 0.6 }}>
                 Join hundreds of creators who trust {branding.brand_name} for their recording needs.
               </p>
               <button
                 onClick={scrollToStudios}
                 className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl text-base font-bold transition-all hover:scale-105"
-                style={{
-                  background: primary,
-                  color: btnText,
-                  boxShadow: `0 8px 40px ${primary}30`,
-                }}
+                style={{ background: primary, color: btnText, boxShadow: `0 8px 40px ${primary}30` }}
               >
                 <Calendar className="w-5 h-5" />
                 Book a Studio Now
@@ -629,10 +619,7 @@ export default function WhiteLabelLandingPage() {
       {(branding.contact_email || branding.contact_phone || branding.contact_address) && (
         <section
           className="px-6 py-16"
-          style={{
-            background: `${secondary}`,
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-          }}
+          style={{ background: secondary, borderTop: "1px solid rgba(255,255,255,0.05)" }}
         >
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
@@ -640,66 +627,38 @@ export default function WhiteLabelLandingPage() {
                 Get in Touch
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold mb-3">Have Questions?</h2>
-              <p style={{ opacity: 0.5 }}>
-                We&rsquo;re happy to help you find the perfect studio for your needs.
-              </p>
+              <p style={{ opacity: 0.5 }}>We&rsquo;re happy to help you find the perfect studio for your needs.</p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               {branding.contact_phone && (
-                <a
-                  href={`tel:${branding.contact_phone}`}
-                  className="flex items-center gap-3 text-sm transition-all hover:scale-105"
-                  style={{ opacity: 0.7 }}
-                >
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: `${primary}15` }}
-                  >
+                <a href={`tel:${branding.contact_phone}`} className="flex items-center gap-3 text-sm transition-all hover:scale-105" style={{ opacity: 0.7 }}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${primary}15` }}>
                     <Phone className="w-5 h-5" style={{ color: primary }} />
                   </div>
                   <div>
-                    <p className="text-xs mb-0.5" style={{ opacity: 0.5 }}>
-                      Call Us
-                    </p>
+                    <p className="text-xs mb-0.5" style={{ opacity: 0.5 }}>Call Us</p>
                     <p className="font-semibold">{branding.contact_phone}</p>
                   </div>
                 </a>
               )}
               {branding.contact_email && (
-                <a
-                  href={`mailto:${branding.contact_email}`}
-                  className="flex items-center gap-3 text-sm transition-all hover:scale-105"
-                  style={{ opacity: 0.7 }}
-                >
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: `${primary}15` }}
-                  >
+                <a href={`mailto:${branding.contact_email}`} className="flex items-center gap-3 text-sm transition-all hover:scale-105" style={{ opacity: 0.7 }}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${primary}15` }}>
                     <Mail className="w-5 h-5" style={{ color: primary }} />
                   </div>
                   <div>
-                    <p className="text-xs mb-0.5" style={{ opacity: 0.5 }}>
-                      Email Us
-                    </p>
+                    <p className="text-xs mb-0.5" style={{ opacity: 0.5 }}>Email Us</p>
                     <p className="font-semibold">{branding.contact_email}</p>
                   </div>
                 </a>
               )}
               {branding.contact_address && (
-                <div
-                  className="flex items-center gap-3 text-sm"
-                  style={{ opacity: 0.7 }}
-                >
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: `${primary}15` }}
-                  >
+                <div className="flex items-center gap-3 text-sm" style={{ opacity: 0.7 }}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${primary}15` }}>
                     <MapPin className="w-5 h-5" style={{ color: primary }} />
                   </div>
                   <div>
-                    <p className="text-xs mb-0.5" style={{ opacity: 0.5 }}>
-                      Visit Us
-                    </p>
+                    <p className="text-xs mb-0.5" style={{ opacity: 0.5 }}>Visit Us</p>
                     <p className="font-semibold">{branding.contact_address}</p>
                   </div>
                 </div>

@@ -37,6 +37,20 @@ export async function GET(
     .eq("owner_id", branding.partner_id)
     .eq("is_active", true);
 
+  // Fetch landing page config + sections (null if not set up yet)
+  const { data: landingPage } = await supabase
+    .from("partner_landing_pages")
+    .select("*")
+    .eq("partner_id", branding.partner_id)
+    .single();
+
+  const { data: sections } = await supabase
+    .from("partner_landing_sections")
+    .select("*")
+    .eq("partner_id", branding.partner_id)
+    .eq("is_visible", true)
+    .order("order_index");
+
   return NextResponse.json({
     branding: {
       brand_name: branding.brand_name,
@@ -56,11 +70,15 @@ export async function GET(
       website_url: branding.website_url,
       instagram_url: branding.instagram_url,
       twitter_url: branding.twitter_url,
+      linkedin_url: branding.linkedin_url,
+      youtube_url: branding.youtube_url,
       contact_email: branding.contact_email,
       contact_phone: branding.contact_phone,
       contact_address: branding.contact_address,
       partner_id: branding.partner_id,
     },
     studios: studios || [],
+    sections: sections || [],
+    landingPage: landingPage || null,
   });
 }

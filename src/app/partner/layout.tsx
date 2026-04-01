@@ -22,6 +22,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Tag,
+  Layout,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,8 @@ const menuItems = [
   { id: "equipment", label: "Add-ons", icon: Settings, href: "/partner/equipment" },
   { id: "coupons", label: "Coupons", icon: Tag, href: "/partner/coupons" },
   { id: "reviews", label: "Reviews", icon: Star, href: "/partner/reviews" },
-  { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel", badge: "New" },
+  { id: "branding", label: "Landing Builder", icon: Layout, href: "/partner/branding", badge: "New" },
+  { id: "whitelabel", label: "White-Label", icon: Globe, href: "/partner/whitelabel" },
   { id: "policies", label: "Policies", icon: Shield, href: "/partner/policies" },
   { id: "settings", label: "Settings", icon: Settings, href: "/partner/settings" },
 ];
@@ -276,6 +278,14 @@ export default function PartnerDashboardLayout({ children }: PartnerDashboardPro
                           <p className="text-white/40 text-xs truncate">{session?.user?.email}</p>
                         </div>
                         <div className="p-1">
+                          <Link
+                            href="/partner/branding"
+                            onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                          >
+                            <Layout className="w-4 h-4" />
+                            Landing Builder
+                          </Link>
                           <Link
                             href="/partner/whitelabel"
                             onClick={() => setProfileOpen(false)}
