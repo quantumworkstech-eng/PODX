@@ -204,65 +204,71 @@ export function PaymentStep() {
         }),
       });
 
-      if (createRes.ok) {
-        const data = await createRes.json();
-        if (data.bookingNumber) bookingNumber = data.bookingNumber;
-      } else {
-        console.error("DB booking creation failed — using local record only");
+      if (!createRes.ok) {
+        const errData = await createRes.json().catch(() => ({}));
+        throw new Error(
+          errData.error ||
+            `Booking save failed (HTTP ${createRes.status}). Your payment of ₹${total.toLocaleString()} was captured. Please contact support with Payment ID: ${paymentId}`
+        );
       }
+
+      const data = await createRes.json();
+      if (data.bookingNumber) bookingNumber = data.bookingNumber;
+
+      // ── Step 3: Build local record and persist ────────────────────────────
+      const sessionStartIso =
+        date && timeSlot
+          ? parseISTDateTime(formatCalendarDateLocal(date), timeSlot).toISOString()
+          : date?.toISOString() || "";
+      const booking: BookingRecord = {
+        id: bookingNumber,
+        date: sessionStartIso,
+        timeSlot: timeSlot || "",
+        duration,
+        participants,
+        studio: {
+          id: selectedStudio?.id || "",
+          name: selectedStudio?.name || "",
+          location: selectedStudio?.location || { area: "", city: "" },
+          cover_image: selectedStudio?.cover_image || "",
+        },
+        package: selectedPackage
+          ? {
+              id: selectedPackage.id,
+              name: selectedPackage.name,
+              price_per_hour: selectedPackage.price_per_hour,
+            }
+          : null,
+        addOns: selectedAddOns.map((a) => ({
+          id: a.id,
+          name: a.name,
+          price: a.price,
+        })),
+        totalPrice: total,
+        subtotal,
+        tax,
+        status: "confirmed",
+        paymentId,
+        createdAt: new Date().toISOString(),
+      };
+
+      saveBookingToHistory(booking);
+      sessionStorage.setItem("yanisa_new_booking", JSON.stringify(booking));
+
+      paymentInFlight.current = false;
+      setIsProcessing(false);
+      resetBooking();
+      router.push("/dashboard?booking=success");
     } catch (err: any) {
       console.error("Post-payment error:", err);
-      // Payment was captured — don't block the user. Show a soft warning.
+      paymentInFlight.current = false;
+      setIsProcessing(false);
+      // Payment was already captured — show a clear error so the user can contact support.
       setPaymentError(
         err?.message ||
-          "Payment captured but booking confirmation had an issue. Please check your dashboard."
+          `Your payment was captured but the booking could not be confirmed. Please contact support with Payment ID: ${paymentId}`
       );
     }
-
-    // ── Step 3: Build local record and persist ──────────────────────────────
-    const sessionStartIso =
-      date && timeSlot
-        ? parseISTDateTime(formatCalendarDateLocal(date), timeSlot).toISOString()
-        : date?.toISOString() || "";
-    const booking: BookingRecord = {
-      id: bookingNumber,
-      date: sessionStartIso,
-      timeSlot: timeSlot || "",
-      duration,
-      participants,
-      studio: {
-        id: selectedStudio?.id || "",
-        name: selectedStudio?.name || "",
-        location: selectedStudio?.location || { area: "", city: "" },
-        cover_image: selectedStudio?.cover_image || "",
-      },
-      package: selectedPackage
-        ? {
-            id: selectedPackage.id,
-            name: selectedPackage.name,
-            price_per_hour: selectedPackage.price_per_hour,
-          }
-        : null,
-      addOns: selectedAddOns.map((a) => ({
-        id: a.id,
-        name: a.name,
-        price: a.price,
-      })),
-      totalPrice: total,
-      subtotal,
-      tax,
-      status: "confirmed",
-      paymentId,
-      createdAt: new Date().toISOString(),
-    };
-
-    saveBookingToHistory(booking);
-    sessionStorage.setItem("yanisa_new_booking", JSON.stringify(booking));
-
-    paymentInFlight.current = false;
-    setIsProcessing(false);
-    resetBooking();
-    router.push("/dashboard?booking=success");
   };
 
   const handlePayment = async () => {

@@ -267,19 +267,66 @@ export async function POST(request: NextRequest) {
     if (bookingSource) insertData.booking_source = bookingSource;
     if (whitelabelSlug) insertData.whitelabel_slug = whitelabelSlug;
 
-    const { data: booking, error: bookingError } = await supabaseAdmin
-      .from("bookings")
-      .insert(insertData)
-      .select()
-      .single();
+    let bookingData: any = null;
+    let bookingError: any = null;
 
+    // First attempt — with all optional tracking columns
+    {
+      const res = await supabaseAdmin
+        .from("bookings")
+        .insert(insertData)
+        .select()
+        .single();
+      bookingData = res.data;
+      bookingError = res.error;
+    }
+
+    // If the error is about a missing column (whitelabel migration not yet run),
+    // retry with only the guaranteed core columns so the booking still saves.
     if (bookingError) {
+      const msg = String(bookingError?.message ?? bookingError?.code ?? "").toLowerCase();
+      const isMissingColumn =
+        msg.includes("column") ||
+        msg.includes("does not exist") ||
+        msg.includes("42703") || // PostgreSQL error code for undefined_column
+        msg.includes("schema");
+
+      if (isMissingColumn) {
+        console.warn(
+          "Booking insert failed with column error — retrying with core fields only:",
+          bookingError.message
+        );
+        const coreInsert: Record<string, any> = {
+          booking_number: insertData.booking_number,
+          user_id: insertData.user_id,
+          studio_id: insertData.studio_id,
+          start_time: insertData.start_time,
+          end_time: insertData.end_time,
+          status: insertData.status,
+          total_price: insertData.total_price,
+          notes: insertData.notes,
+        };
+        if (insertData.room_id) coreInsert.room_id = insertData.room_id;
+
+        const res2 = await supabaseAdmin
+          .from("bookings")
+          .insert(coreInsert)
+          .select()
+          .single();
+        bookingData = res2.data;
+        bookingError = res2.error;
+      }
+    }
+
+    if (bookingError || !bookingData) {
       console.error("Error creating booking:", bookingError);
       return NextResponse.json(
-        { error: "Failed to create booking" },
+        { error: bookingError?.message || "Failed to create booking" },
         { status: 500 }
       );
     }
+
+    const booking = bookingData;
 
     // Create add-on records
     if (addOns && addOns.length > 0) {
