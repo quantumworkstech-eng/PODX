@@ -131,18 +131,30 @@ export const ADD_ON_SERVICES: AddOnService[] = [
 
 export const TIME_SLOTS: TimeSlot[] = [
   { time: "09:00", available: true },
+  { time: "09:30", available: true },
   { time: "10:00", available: true },
+  { time: "10:30", available: true },
   { time: "11:00", available: true },
+  { time: "11:30", available: true },
   { time: "12:00", available: true },
+  { time: "12:30", available: true },
   { time: "13:00", available: true },
+  { time: "13:30", available: true },
   { time: "14:00", available: true },
+  { time: "14:30", available: true },
   { time: "15:00", available: true },
+  { time: "15:30", available: true },
   { time: "16:00", available: true },
+  { time: "16:30", available: true },
   { time: "17:00", available: true },
+  { time: "17:30", available: true },
   { time: "18:00", available: true },
+  { time: "18:30", available: true },
   { time: "19:00", available: true },
+  { time: "19:30", available: true },
   { time: "20:00", available: true },
+  { time: "20:30", available: true },
 ];
 
-export const DURATION_OPTIONS = [1, 2, 3, 4];
+export const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4];
 export const PARTICIPANT_OPTIONS = [1, 2, 3, 4, 5];

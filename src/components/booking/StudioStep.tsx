@@ -25,13 +25,17 @@ import { StudioCardMedia } from "@/components/StudioCardMedia";
 import { StudioDetailModal } from "@/components/StudioDetailModal";
 
 const ALL_SLOTS = [
-  "09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00",
+  "09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30",
+  "13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30",
+  "17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30",
 ];
 const fmt = (slot: string) => {
-  const h = parseInt(slot);
-  if (h === 12) return "12 PM";
-  if (h > 12) return `${h - 12} PM`;
-  return `${h} AM`;
+  const [hStr, mStr] = slot.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr || "0", 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = (h % 12) || 12;
+  return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 };
 
 function StudioCardSkeleton() {

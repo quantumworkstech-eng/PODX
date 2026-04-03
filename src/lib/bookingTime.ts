@@ -87,6 +87,43 @@ export function intervalsOverlapHalfOpen(a0: Date, a1: Date, b0: Date, b1: Date)
 }
 
 /**
+ * For a calendar day in IST, return "HH:MM" strings (30-minute slots)
+ * where a 30-minute slot starting at that time overlaps any booking (+ buffer after end).
+ * slotMin / slotMax are in total minutes from midnight (e.g. 9*60=540 for 09:00).
+ */
+export function computeBookedSlotLabels(
+  dateYYYYMMDD: string,
+  bookings: { start_time: string; end_time: string }[],
+  bufferMinutes: number,
+  slotMinMinutes: number,
+  slotMaxMinutes: number
+): string[] {
+  const blocked = new Set<string>();
+  const bufferMs = bufferMinutes * 60 * 1000;
+  const SLOT_DURATION_MS = 30 * 60 * 1000;
+
+  for (let m = slotMinMinutes; m <= slotMaxMinutes; m += 30) {
+    const hh = String(Math.floor(m / 60)).padStart(2, "0");
+    const mm = String(m % 60).padStart(2, "0");
+    const slotLabel = `${hh}:${mm}`;
+    const slotStart = parseISTDateTime(dateYYYYMMDD, slotLabel);
+    const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MS);
+
+    for (const b of bookings) {
+      const b0 = new Date(b.start_time);
+      const b1 = new Date(new Date(b.end_time).getTime() + bufferMs);
+      if (intervalsOverlapHalfOpen(slotStart, slotEnd, b0, b1)) {
+        blocked.add(slotLabel);
+        break;
+      }
+    }
+  }
+
+  return Array.from(blocked).sort();
+}
+
+/**
+ * @deprecated Use computeBookedSlotLabels with slotMinMinutes/slotMaxMinutes.
  * For a calendar day in IST and operating hours (e.g. 9–20), return "HH:00" strings
  * where a 1-hour slot starting at that hour overlaps any booking (+ buffer after end).
  */
@@ -97,23 +134,11 @@ export function computeBookedHourLabels(
   hourMin: number,
   hourMax: number
 ): string[] {
-  const blocked = new Set<string>();
-  const bufferMs = bufferMinutes * 60 * 1000;
-
-  for (let H = hourMin; H <= hourMax; H++) {
-    const hh = `${String(H).padStart(2, "0")}:00`;
-    const slotStart = parseISTDateTime(dateYYYYMMDD, hh);
-    const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
-
-    for (const b of bookings) {
-      const b0 = new Date(b.start_time);
-      const b1 = new Date(new Date(b.end_time).getTime() + bufferMs);
-      if (intervalsOverlapHalfOpen(slotStart, slotEnd, b0, b1)) {
-        blocked.add(hh);
-        break;
-      }
-    }
-  }
-
-  return Array.from(blocked).sort();
+  return computeBookedSlotLabels(
+    dateYYYYMMDD,
+    bookings,
+    bufferMinutes,
+    hourMin * 60,
+    hourMax * 60
+  );
 }

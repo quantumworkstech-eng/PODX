@@ -34,8 +34,7 @@ export async function GET() {
     .select(`
       id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at,
       studios!studio_id(id, name, city, address),
-      users!user_id(id, email, profiles(full_name, phone)),
-      rooms!room_id(price_per_hour)
+      users!user_id(id, email)
     `)
     .in('studio_id', studioIds)
     .order('start_time', { ascending: false });
@@ -55,20 +54,17 @@ export async function GET() {
     const fmt = (d: Date) =>
       `${getHourInIST(d).toString().padStart(2, '0')}:${getMinuteInIST(d).toString().padStart(2, '0')}`;
 
-    const roomArr = b.rooms;
-    const room = Array.isArray(roomArr) ? roomArr[0] : roomArr;
-    const profileArr = b.users?.profiles;
-    const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
-    const customerName = profile?.full_name || b.users?.email?.split('@')[0] || 'Customer';
+    const customerName = notes.customerName || b.users?.email?.split('@')[0] || 'Customer';
 
     const addOns: { name: string; price: number }[] = notes.addOns || [];
     const pkg = notes.package || null;
-    const pricePerHour = room?.price_per_hour || 0;
-    const basePrice = pricePerHour * duration;
-    const packagePrice = pkg ? (pkg.price_per_hour || 0) * duration : 0;
+    const totalPaid = Number(b.total_price) || 0;
+    // Reverse-calculate base components from stored total
     const addOnsTotal = addOns.reduce((s: number, a: any) => s + (a.price || 0), 0);
-    const subtotal = basePrice + packagePrice + addOnsTotal;
-    const gst = subtotal * 0.18;
+    const packagePrice = pkg ? (pkg.price_per_hour || 0) * duration : 0;
+    const subtotal = notes.subtotal || totalPaid / 1.18;
+    const gst = notes.tax || subtotal * 0.18;
+    const basePrice = Math.max(0, subtotal - packagePrice - addOnsTotal);
 
     return {
       id: b.booking_number || b.id,
@@ -83,7 +79,7 @@ export async function GET() {
       customer: {
         name: customerName,
         email: b.users?.email || '',
-        phone: profile?.phone || '',
+        phone: notes.customerPhone || '',
       },
       date: b.start_time,
       endDate: b.end_time,

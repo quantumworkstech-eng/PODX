@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { getCities, City } from "@/lib/data";
 import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
 import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddonPicker";
+import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartnerInventoryPicker";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,46 @@ const TIME_SLOTS = [
 ];
 
 const DRAFT_KEY = "podx_draft_studio";
+
+const INDIA_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Chandigarh", "Delhi", "Jammu & Kashmir", "Ladakh", "Puducherry",
+];
+
+const CITY_STATE_MAP: Record<string, string> = {
+  "Mumbai": "Maharashtra", "Pune": "Maharashtra", "Nashik": "Maharashtra",
+  "Nagpur": "Maharashtra", "Thane": "Maharashtra", "Navi Mumbai": "Maharashtra",
+  "Aurangabad": "Maharashtra", "Solapur": "Maharashtra",
+  "Delhi": "Delhi", "New Delhi": "Delhi", "Noida": "Uttar Pradesh",
+  "Gurgaon": "Haryana", "Gurugram": "Haryana", "Faridabad": "Haryana",
+  "Bengaluru": "Karnataka", "Bangalore": "Karnataka", "Mysuru": "Karnataka",
+  "Mysore": "Karnataka", "Hubli": "Karnataka", "Mangalore": "Karnataka",
+  "Chennai": "Tamil Nadu", "Coimbatore": "Tamil Nadu", "Madurai": "Tamil Nadu",
+  "Hyderabad": "Telangana", "Secunderabad": "Telangana", "Warangal": "Telangana",
+  "Kolkata": "West Bengal", "Howrah": "West Bengal", "Durgapur": "West Bengal",
+  "Ahmedabad": "Gujarat", "Surat": "Gujarat", "Vadodara": "Gujarat",
+  "Rajkot": "Gujarat", "Gandhinagar": "Gujarat",
+  "Jaipur": "Rajasthan", "Jodhpur": "Rajasthan", "Udaipur": "Rajasthan",
+  "Kota": "Rajasthan", "Ajmer": "Rajasthan",
+  "Lucknow": "Uttar Pradesh", "Kanpur": "Uttar Pradesh", "Agra": "Uttar Pradesh",
+  "Varanasi": "Uttar Pradesh", "Allahabad": "Uttar Pradesh",
+  "Patna": "Bihar", "Gaya": "Bihar",
+  "Bhopal": "Madhya Pradesh", "Indore": "Madhya Pradesh", "Gwalior": "Madhya Pradesh",
+  "Raipur": "Chhattisgarh", "Bhilai": "Chhattisgarh",
+  "Ranchi": "Jharkhand", "Jamshedpur": "Jharkhand",
+  "Bhubaneswar": "Odisha", "Cuttack": "Odisha",
+  "Visakhapatnam": "Andhra Pradesh", "Vijayawada": "Andhra Pradesh",
+  "Kochi": "Kerala", "Thiruvananthapuram": "Kerala", "Kozhikode": "Kerala",
+  "Chandigarh": "Chandigarh", "Amritsar": "Punjab", "Ludhiana": "Punjab",
+  "Dehradun": "Uttarakhand", "Haridwar": "Uttarakhand",
+  "Guwahati": "Assam", "Silchar": "Assam",
+  "Srinagar": "Jammu & Kashmir", "Jammu": "Jammu & Kashmir",
+  "Goa": "Goa", "Panaji": "Goa",
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,13 +211,16 @@ const initialFormData: StudioFormData = {
 const STEPS = [
   { id: 1, name: "Basic Info", short: "Info" },
   { id: 2, name: "Location", short: "Location" },
-  { id: 3, name: "Pricing", short: "Pricing" },
-  { id: 4, name: "Packages", short: "Packages" },
-  { id: 5, name: "Add-ons", short: "Add-ons" },
-  { id: 6, name: "Photos", short: "Photos" },
-  { id: 7, name: "Policies", short: "Policies" },
-  { id: 8, name: "Review", short: "Review" },
+  { id: 3, name: "Photos", short: "Photos" },
+  { id: 4, name: "Equipment", short: "Equipment" },
+  { id: 5, name: "Pricing", short: "Pricing" },
+  { id: 6, name: "Packages", short: "Packages" },
+  { id: 7, name: "Add-ons", short: "Add-ons" },
+  { id: 8, name: "Policies", short: "Policy" },
+  { id: 9, name: "Review", short: "Review" },
 ];
+
+const TOTAL_STEPS = STEPS.length;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -278,7 +322,7 @@ function CreateStudioPageInner() {
   }, []);
 
   useEffect(() => {
-    if (currentStep === 5 && !inventoryLoaded) {
+    if ((currentStep === 4 || currentStep === 7) && !inventoryLoaded) {
       fetch("/api/partner/inventory")
         .then((r) => r.json())
         .then((d) => {
@@ -293,9 +337,9 @@ function CreateStudioPageInner() {
     }
   }, [currentStep, inventoryLoaded]);
 
-  // Load platform add-ons when reaching step 5
+  // Load platform add-ons when reaching step 7 (Add-ons)
   useEffect(() => {
-    if (currentStep === 5 && platformAddons.length === 0) {
+    if (currentStep === 7 && platformAddons.length === 0) {
       setAddonsLoading(true);
       fetch("/api/addons")
         .then((r) => r.json())
@@ -307,7 +351,7 @@ function CreateStudioPageInner() {
 
   // Check subscription when reaching review step
   useEffect(() => {
-    if (currentStep === 8 && subscriptionStatus === null) {
+    if (currentStep === TOTAL_STEPS && subscriptionStatus === null) {
       setSubscriptionStatus("loading");
       fetch("/api/partner/subscription")
         .then((r) => r.json())
@@ -319,29 +363,93 @@ function CreateStudioPageInner() {
     }
   }, [currentStep]);
 
-  // Autosave within-session (localStorage) — so browser refreshes don't lose work.
-  // Only active when continuing a draft (draftId present) or nothing in the session yet.
-  // New sessions (no draftId) do NOT restore from this key; it's purely for refresh resilience.
+  // ─── Server-side auto-save (debounced, 3s) ──────────────────────────────────
+  // Automatically saves the form as a draft on the server when the user has entered
+  // at least a studio name. If no draftId yet, creates a new draft and updates the URL.
+  const [autoSaveDraftId, setAutoSaveDraftId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (draftLoading) return; // don't overwrite while loading
+    if (draftLoading) return;
+    if (!formData.name.trim()) return; // need at least a name to auto-save
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
+    autosaveTimer.current = setTimeout(async () => {
+      const allEquipment = [...formData.equipment, ...formData.services, ...formData.amenities];
+      const activeDraftId = draftId || autoSaveDraftId;
       try {
-        const draftData = {
-          ...formData,
-          _draftId: draftId ?? undefined,
-          // Only persist remote image URLs, not blob/base64 strings
-          images: formData.images.filter((url) => url.startsWith("http")),
-        };
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
-      } catch (e) {
-        console.warn("Draft save failed (storage quota?):", e);
+        if (activeDraftId) {
+          // Update existing draft
+          await fetch(`/api/partner/studios/${activeDraftId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: formData.name,
+              shortDescription: formData.shortDescription,
+              description: formData.shortDescription,
+              fullDescription: formData.fullDescription,
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              country: formData.country || "India",
+              pricePerHour: formData.pricePerHour,
+              capacity: formData.capacity,
+              equipment: allEquipment,
+              images: formData.images.filter((u) => u.startsWith("http")),
+              videoUrl: formData.videoUrl || null,
+              availableDays: formData.availableDays,
+              workingHours: formData.workingHours,
+              partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+              partnerServiceIds: formData.partnerServiceIds || [],
+              partnerAddonSelections: formData.partnerAddonSelections || [],
+              addonIds: formData.studioPlatformAddonIds || [],
+              packages: formData.packages.filter((p) => p.name.trim()),
+            }),
+          });
+        } else {
+          // Create new draft
+          const res = await fetch("/api/partner/studios", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: formData.name,
+              description: formData.shortDescription,
+              fullDescription: formData.fullDescription,
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              country: formData.country || "India",
+              pricePerHour: formData.pricePerHour,
+              capacity: formData.capacity,
+              equipment: formData.equipment,
+              images: formData.images.filter((u) => u.startsWith("http")),
+              videoUrl: formData.videoUrl || null,
+              partnerEquipmentSelections: formData.partnerEquipmentSelections || [],
+              partnerServiceIds: formData.partnerServiceIds || [],
+              partnerAddonSelections: formData.partnerAddonSelections || [],
+              addonIds: formData.studioPlatformAddonIds || [],
+              packages: formData.packages.filter((p) => p.name.trim()),
+              saveAsDraft: true,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const newId = data.studioId || data.id;
+            if (newId) {
+              setAutoSaveDraftId(newId);
+              // Update URL so browser refresh continues the same draft
+              const url = new URL(window.location.href);
+              url.searchParams.set("draftId", newId);
+              window.history.replaceState({}, "", url.toString());
+            }
+          }
+        }
+      } catch {
+        // Silently ignore auto-save errors
       }
-    }, 800);
+    }, 3000);
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [formData, draftId, draftLoading]);
+  }, [formData, draftId, autoSaveDraftId, draftLoading]);
 
   const updateFormData = (updates: Partial<StudioFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -364,19 +472,21 @@ function CreateStudioPageInner() {
         if (!formData.state) return "Please select a state.";
         return "";
       case 3:
-        if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
-        if (formData.availableDays.length === 0) return "Please select at least one available day.";
+        if (formData.images.length < 2) return "Please upload at least 2 photos of your studio.";
         return "";
       case 4:
         return "";
       case 5:
+        if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
+        if (formData.availableDays.length === 0) return "Please select at least one available day.";
         return "";
       case 6:
-        if (formData.images.length < 2) return "Please upload at least 2 photos of your studio.";
         return "";
       case 7:
         return "";
       case 8:
+        return "";
+      case 9:
         return "";
       default:
         return "";
@@ -390,7 +500,7 @@ function CreateStudioPageInner() {
       return;
     }
     setStepError("");
-    if (currentStep < 8) setCurrentStep((prev) => prev + 1);
+    if (currentStep < TOTAL_STEPS) setCurrentStep((prev) => prev + 1);
   };
 
   const handleBack = () => {
@@ -784,7 +894,11 @@ function CreateStudioPageInner() {
             <label className="text-white/80 text-sm font-medium mb-2 block">City *</label>
             <select
               value={formData.city}
-              onChange={(e) => updateFormData({ city: e.target.value })}
+              onChange={(e) => {
+                const selectedCity = e.target.value;
+                const autoState = CITY_STATE_MAP[selectedCity] || "";
+                updateFormData({ city: selectedCity, ...(autoState ? { state: autoState } : {}) });
+              }}
               className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
             >
               <option value="" className="bg-[#141414]">Select city…</option>
@@ -795,14 +909,22 @@ function CreateStudioPageInner() {
             </select>
           </div>
           <div>
-            <label className="text-white/80 text-sm font-medium mb-2 block">State *</label>
-            <input
-              type="text"
+            <label className="text-white/80 text-sm font-medium mb-2 block">
+              State *
+              {formData.city && CITY_STATE_MAP[formData.city] && (
+                <span className="text-[#D9FC67] text-xs ml-2 font-normal">Auto-filled</span>
+              )}
+            </label>
+            <select
               value={formData.state}
               onChange={(e) => updateFormData({ state: e.target.value })}
-              placeholder="e.g., Maharashtra"
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
-            />
+              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
+            >
+              <option value="" className="bg-[#141414]">Select state…</option>
+              {INDIA_STATES.map((s) => (
+                <option key={s} value={s} className="bg-[#141414]">{s}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -832,9 +954,171 @@ function CreateStudioPageInner() {
     </div>
   );
 
-  // ─── Step 3: Pricing ─────────────────────────────────────────────────────────
+  // ─── Step 3: Photos ──────────────────────────────────────────────────────────
 
   const renderStep3 = () => (
+    <div className="space-y-6 animate-fade-in">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Studio Photos & Video</h2>
+        <p className="text-white/60">Upload high-quality media to showcase your studio</p>
+      </div>
+
+      {/* Image Upload */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-white/80 text-sm font-medium">
+            Photos *
+            <span className="text-white/40 font-normal ml-2">(min 2, max 10)</span>
+          </label>
+          <span className={cn("text-xs font-medium", formData.images.length >= 2 ? "text-green-400" : "text-white/40")}>
+            {formData.images.length}/10 uploaded
+          </span>
+        </div>
+
+        {formData.images.length < 10 && (
+          <div
+            onDragOver={(e) => { e.preventDefault(); if (!uploadingImages) setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={uploadingImages ? undefined : handleDrop}
+            onClick={() => !uploadingImages && fileInputRef.current?.click()}
+            className={cn(
+              "border-2 border-dashed rounded-2xl p-10 text-center transition-all",
+              uploadingImages ? "border-white/10 opacity-60 cursor-not-allowed" : "cursor-pointer",
+              isDragging ? "border-[#D9FC67] bg-[#D9FC67]/10" : "border-white/10 hover:border-white/20"
+            )}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/jpg,image/png,image/webp"
+              multiple
+              disabled={uploadingImages}
+              onChange={(e) => void handleImageUpload(e.target.files)}
+              className="hidden"
+            />
+            {uploadingImages ? (
+              <>
+                <Loader2 className="w-10 h-10 mx-auto mb-3 text-[#D9FC67] animate-spin" />
+                <p className="text-white font-medium mb-1">Uploading images…</p>
+              </>
+            ) : (
+              <>
+                <Upload className={cn("w-10 h-10 mx-auto mb-3", isDragging ? "text-[#D9FC67]" : "text-white/40")} />
+                <p className="text-white font-medium mb-1">
+                  {isDragging ? "Drop images here" : "Drag & drop or click to upload"}
+                </p>
+              </>
+            )}
+            <p className="text-white/40 text-sm">JPG, PNG, WebP — up to 10MB each</p>
+          </div>
+        )}
+
+        {formData.images.length > 0 && (
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-4">
+            {formData.images.map((img, index) => (
+              <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
+                <img src={img} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute top-2 right-2 p-1 bg-red-500/90 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                {index === 0 ? (
+                  <span className="absolute bottom-2 left-2 bg-[#D9FC67] text-black text-xs px-2 py-0.5 rounded-full font-medium z-10">
+                    Cover
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage(index)}
+                    className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-[#D9FC67] hover:text-black transition-colors z-10"
+                    title="Set as cover image"
+                    aria-label="Set as cover image"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {formData.images.length < 2 && formData.images.length > 0 && (
+          <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> Upload at least {2 - formData.images.length} more photo{2 - formData.images.length > 1 ? "s" : ""} to continue
+          </p>
+        )}
+      </div>
+
+      {/* Video Upload / URL */}
+      <div>
+        <label className="text-white/80 text-sm font-medium mb-2 block">
+          Studio Video
+          <span className="text-white/40 font-normal ml-2">(optional)</span>
+        </label>
+        <input
+          type="url"
+          value={formData.videoUrl}
+          onChange={(e) => updateFormData({ videoUrl: e.target.value })}
+          placeholder="YouTube, Vimeo, or Google Drive link (e.g., https://youtube.com/watch?v=...)"
+          className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
+        />
+        <p className="text-white/30 text-xs mt-1">YouTube, Vimeo, or Google Drive links are supported. A walkthrough video helps clients visualise the space before booking.</p>
+      </div>
+    </div>
+  );
+
+  // ─── Step 4: Equipment ────────────────────────────────────────────────────────
+
+  const renderStep4 = () => (
+    <div className="space-y-6 animate-fade-in">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Equipment & Services</h2>
+        <p className="text-white/60">Select the equipment and services available at your studio</p>
+      </div>
+
+      {!inventoryLoaded ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 text-[#D9FC67] animate-spin" />
+        </div>
+      ) : (
+        <StudioPartnerInventoryPicker
+          equipment={inventoryLibrary.equipment}
+          services={inventoryLibrary.services}
+          partnerEquipmentSelections={formData.partnerEquipmentSelections}
+          onChangeEquipment={(next) => updateFormData({ partnerEquipmentSelections: next })}
+          partnerServiceIds={formData.partnerServiceIds}
+          onChangeServices={(next) => updateFormData({ partnerServiceIds: next })}
+          onManageInventory={() => {
+            setInventoryDrawerTab("equipment");
+            setInventoryDrawerOpen(true);
+          }}
+        />
+      )}
+
+      <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+        <p className="text-white/35 text-xs">
+          Need to add new equipment or services? Go to the{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setInventoryDrawerTab("equipment");
+              setInventoryDrawerOpen(true);
+            }}
+            className="text-[#D9FC67]/70 hover:text-[#D9FC67] underline underline-offset-2"
+          >
+            Equipment Manager
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+
+  // ─── Step 5: Pricing ─────────────────────────────────────────────────────────
+
+  const renderStep5 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Pricing & Availability</h2>
@@ -986,7 +1270,7 @@ function CreateStudioPageInner() {
     updatePackage(pkgIndex, { features: DEFAULT_PKG_FEATURES[pkgIndex] ?? [] });
   };
 
-  const renderStep4 = () => {
+  const renderStep6 = () => {
     const pkgPlaceholders = [
       { name: "Basic Recording", desc: "Raw recording session with professional equipment" },
       { name: "Standard Mix", desc: "Recording with live mix monitoring by our engineer" },
@@ -1142,9 +1426,9 @@ function CreateStudioPageInner() {
     );
   };
 
-  // ─── Step 5: Add-ons ─────────────────────────────────────────────────────────
+  // ─── Step 7: Add-ons ─────────────────────────────────────────────────────────
 
-  const renderStep5 = () => (
+  const renderStep7 = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Add-ons for this Studio</h2>
@@ -1184,125 +1468,9 @@ function CreateStudioPageInner() {
     </div>
   );
 
-  // ─── Step 6: Photos ──────────────────────────────────────────────────────────
+  // ─── Step 8: Policies ────────────────────────────────────────────────────────
 
-  const renderStep6 = () => (
-    <div className="space-y-6 animate-fade-in">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Studio Photos & Video</h2>
-        <p className="text-white/60">Upload high-quality media to showcase your studio</p>
-      </div>
-
-      {/* Image Upload */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-white/80 text-sm font-medium">
-            Photos *
-            <span className="text-white/40 font-normal ml-2">(min 2, max 10)</span>
-          </label>
-          <span className={cn("text-xs font-medium", formData.images.length >= 2 ? "text-green-400" : "text-white/40")}>
-            {formData.images.length}/10 uploaded
-          </span>
-        </div>
-
-        {formData.images.length < 10 && (
-          <div
-            onDragOver={(e) => { e.preventDefault(); if (!uploadingImages) setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={uploadingImages ? undefined : handleDrop}
-            onClick={() => !uploadingImages && fileInputRef.current?.click()}
-            className={cn(
-              "border-2 border-dashed rounded-2xl p-10 text-center transition-all",
-              uploadingImages ? "border-white/10 opacity-60 cursor-not-allowed" : "cursor-pointer",
-              isDragging ? "border-[#D9FC67] bg-[#D9FC67]/10" : "border-white/10 hover:border-white/20"
-            )}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/jpg,image/png,image/webp"
-              multiple
-              disabled={uploadingImages}
-              onChange={(e) => void handleImageUpload(e.target.files)}
-              className="hidden"
-            />
-            {uploadingImages ? (
-              <>
-                <Loader2 className="w-10 h-10 mx-auto mb-3 text-[#D9FC67] animate-spin" />
-                <p className="text-white font-medium mb-1">Uploading images…</p>
-              </>
-            ) : (
-              <>
-                <Upload className={cn("w-10 h-10 mx-auto mb-3", isDragging ? "text-[#D9FC67]" : "text-white/40")} />
-                <p className="text-white font-medium mb-1">
-                  {isDragging ? "Drop images here" : "Drag & drop or click to upload"}
-                </p>
-              </>
-            )}
-            <p className="text-white/40 text-sm">JPG, PNG, WebP — up to 10MB each</p>
-          </div>
-        )}
-
-        {formData.images.length > 0 && (
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-4">
-            {formData.images.map((img, index) => (
-              <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
-                <img src={img} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute top-2 right-2 p-1 bg-red-500/90 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-                {index === 0 ? (
-                  <span className="absolute bottom-2 left-2 bg-[#D9FC67] text-black text-xs px-2 py-0.5 rounded-full font-medium z-10">
-                    Cover
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setCoverImage(index)}
-                    className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-[#D9FC67] hover:text-black transition-colors z-10"
-                    title="Set as cover image"
-                    aria-label="Set as cover image"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {formData.images.length < 2 && formData.images.length > 0 && (
-          <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" /> Upload at least {2 - formData.images.length} more photo{2 - formData.images.length > 1 ? "s" : ""} to continue
-          </p>
-        )}
-      </div>
-
-      {/* Video Upload / URL */}
-      <div>
-        <label className="text-white/80 text-sm font-medium mb-2 block">
-          Studio Video
-          <span className="text-white/40 font-normal ml-2">(optional)</span>
-        </label>
-        <input
-          type="url"
-          value={formData.videoUrl}
-          onChange={(e) => updateFormData({ videoUrl: e.target.value })}
-          placeholder="YouTube, Vimeo, or Google Drive link (e.g., https://youtube.com/watch?v=...)"
-          className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
-        />
-        <p className="text-white/30 text-xs mt-1">YouTube, Vimeo, or Google Drive links are supported. A walkthrough video helps clients visualise the space before booking.</p>
-      </div>
-    </div>
-  );
-
-  // ─── Step 7: Policies ────────────────────────────────────────────────────────
-
-  const renderStep7 = () => {
+  const renderStep8 = () => {
     const addCancellationRule = () => {
       updateFormData({ cancellationRules: [...formData.cancellationRules, { id: Date.now().toString(), type: "days", value: 1, refundPercent: 100, deductionPercent: 0 }] });
     };
@@ -1520,9 +1688,9 @@ function CreateStudioPageInner() {
     );
   };
 
-  // ─── Step 8: Review ──────────────────────────────────────────────────────────
+  // ─── Step 9: Review ──────────────────────────────────────────────────────────
 
-  const renderStep8 = () => {
+  const renderStep9 = () => {
     if (subscriptionStatus === "loading") {
       return (
         <div className="flex items-center justify-center py-20">
@@ -1593,11 +1761,44 @@ function CreateStudioPageInner() {
             </div>
           </div>
 
+          {/* Photos */}
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold text-sm">Photos {formData.videoUrl && "& Video"}</h3>
+              <button onClick={() => setCurrentStep(3)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {formData.images.slice(0, 6).map((img, index) => (
+                <img key={index} src={img} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+              ))}
+              {formData.images.length > 6 && (
+                <div className="w-16 h-16 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white/60 text-xs">+{formData.images.length - 6}</span>
+                </div>
+              )}
+            </div>
+            {formData.videoUrl && (
+              <p className="text-white/40 text-xs mt-2 truncate">Video: {formData.videoUrl}</p>
+            )}
+          </div>
+
+          {/* Equipment */}
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold text-sm">Equipment & Services</h3>
+              <button onClick={() => setCurrentStep(4)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
+            </div>
+            <p className="text-white/50 text-sm">
+              {formData.partnerEquipmentSelections.length} equipment item{formData.partnerEquipmentSelections.length !== 1 ? "s" : ""} ·{" "}
+              {formData.partnerServiceIds.length} service{formData.partnerServiceIds.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
           {/* Pricing */}
           <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white font-semibold text-sm">Pricing & Availability</h3>
-              <button onClick={() => setCurrentStep(3)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
+              <button onClick={() => setCurrentStep(5)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
             </div>
             <div className="space-y-1.5 text-sm">
               <p><span className="text-white/40">Price:</span> <span className="text-white ml-2">₹{formData.pricePerHour.toLocaleString("en-IN")}/hour</span></p>
@@ -1613,7 +1814,7 @@ function CreateStudioPageInner() {
           <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white font-semibold text-sm">Packages</h3>
-              <button onClick={() => setCurrentStep(4)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
+              <button onClick={() => setCurrentStep(6)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
             </div>
             {formData.packages.filter((p) => p.name.trim()).length === 0 ? (
               <p className="text-white/30 text-sm">No packages defined yet</p>
@@ -1639,32 +1840,11 @@ function CreateStudioPageInner() {
             )}
           </div>
 
-          {/* Photos */}
-          <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white font-semibold text-sm">Photos {formData.videoUrl && "& Video"}</h3>
-              <button onClick={() => setCurrentStep(6)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {formData.images.slice(0, 6).map((img, index) => (
-                <img key={index} src={img} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
-              ))}
-              {formData.images.length > 6 && (
-                <div className="w-16 h-16 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-white/60 text-xs">+{formData.images.length - 6}</span>
-                </div>
-              )}
-            </div>
-            {formData.videoUrl && (
-              <p className="text-white/40 text-xs mt-2 truncate">Video: {formData.videoUrl}</p>
-            )}
-          </div>
-
           {/* Policies */}
           <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white font-semibold text-sm">Booking Policies</h3>
-              <button onClick={() => setCurrentStep(7)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
+              <button onClick={() => setCurrentStep(8)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
             </div>
             {formData.useCustomPolicies ? (
               <div className="space-y-4">
@@ -1734,11 +1914,13 @@ function CreateStudioPageInner() {
       case 6: return renderStep6();
       case 7: return renderStep7();
       case 8: return renderStep8();
+      case 9: return renderStep9();
       default: return null;
     }
   };
 
   const isSubmitDisabled = subscriptionStatus === "no_plan" || subscriptionStatus === "loading" || uploadingImages;
+  const isLastStep = currentStep === TOTAL_STEPS;
 
   if (draftLoading) {
     return (
@@ -1798,7 +1980,7 @@ function CreateStudioPageInner() {
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* Save as Draft — always visible while in the flow */}
-            {currentStep < 8 && (
+            {!isLastStep && (
               <Button
                 variant="outline"
                 onClick={() => void handleSaveDraft()}
@@ -1810,7 +1992,7 @@ function CreateStudioPageInner() {
               </Button>
             )}
 
-            {currentStep < 8 ? (
+            {!isLastStep ? (
               <Button
                 onClick={handleNext}
                 disabled={uploadingImages}
@@ -1861,7 +2043,7 @@ function CreateStudioPageInner() {
 
         {/* Autosave notice */}
         <p className="text-center text-white/20 text-xs mt-4">
-          {draftId ? "Continuing draft \u2014 click Save as Draft or Submit for Review to keep changes" : "Use \u201cSave as Draft\u201d to save progress and continue later"}
+          {(draftId || autoSaveDraftId) ? "Auto-saving draft \u2014 your progress is saved automatically" : (formData.name.trim() ? "Auto-saving draft in the background\u2026" : "Enter a studio name to begin auto-saving your draft")}
         </p>
       </main>
 

@@ -132,15 +132,19 @@ export function CheckoutStep() {
 
   const formatTime = () => {
     if (!timeSlot) return "";
-    const [hours] = timeSlot.split(":");
-    const hour = parseInt(hours);
-    const endTime = hour + duration;
-    const fmt = (h: number) => {
-      if (h === 12) return "12 PM";
-      if (h > 12) return `${h - 12} PM`;
-      return `${h} AM`;
+    const [hStr, mStr] = timeSlot.split(":");
+    const startH = parseInt(hStr, 10);
+    const startM = parseInt(mStr || "0", 10);
+    const totalStartMins = startH * 60 + startM;
+    const totalEndMins = totalStartMins + Math.round(duration * 60);
+    const endH = Math.floor(totalEndMins / 60);
+    const endM = totalEndMins % 60;
+    const fmtTime = (h: number, m: number) => {
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = (h % 12) || 12;
+      return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
     };
-    return `${fmt(hour)} – ${fmt(endTime)}`;
+    return `${fmtTime(startH, startM)} – ${fmtTime(endH, endM)}`;
   };
 
   // Step numbers depend on selection mode

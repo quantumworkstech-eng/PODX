@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { computeBookedHourLabels, istDayRangeUtc } from "@/lib/bookingTime";
+import { computeBookedSlotLabels, istDayRangeUtc } from "@/lib/bookingTime";
 
-// Must match client TIME_SLOTS range in src/lib/booking-types.ts
-const SLOT_HOUR_MIN = 9;
-const SLOT_HOUR_MAX = 20;
+// Must match client TIME_SLOTS range in src/lib/booking-types.ts (30-min intervals 09:00–20:30)
+const SLOT_MIN_MINUTES = 9 * 60;   // 09:00
+const SLOT_MAX_MINUTES = 20 * 60 + 30; // 20:30
 
 // ── GET /api/studios/[id]/slots?date=YYYY-MM-DD ────────────────────────
 // Returns hour labels ("09:00" … "20:00") that overlap existing bookings
@@ -66,12 +66,12 @@ export async function GET(
       bookings = bookings.filter((b) => b.id !== excludeBookingId);
     }
 
-    const bookedSlots = computeBookedHourLabels(
+    const bookedSlots = computeBookedSlotLabels(
       date,
       bookings.map(({ start_time, end_time }) => ({ start_time, end_time })),
       bufferMinutes,
-      SLOT_HOUR_MIN,
-      SLOT_HOUR_MAX
+      SLOT_MIN_MINUTES,
+      SLOT_MAX_MINUTES
     );
 
     return NextResponse.json({ bookedSlots });

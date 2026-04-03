@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import {
   calendarDateInIST,
   getHourInIST,
+  getMinuteInIST,
   startEndFromCalendarAndSlot,
 } from "@/lib/bookingTime";
 
@@ -62,7 +63,8 @@ export async function GET() {
       const duration =
         (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
       const hour = getHourInIST(startTime);
-      const timeSlot = `${hour.toString().padStart(2, "0")}:00`;
+      const minute = getMinuteInIST(startTime);
+      const timeSlot = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 
       return {
         id: b.booking_number || b.id,
