@@ -145,15 +145,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve Supabase user UUID
-    const { data: user } = await supabaseAdmin
+    // Resolve Supabase user UUID — auto-create if missing (handles Google OAuth
+    // sign-ins where the DB sync callback may have failed on first login).
+    let user: { id: string } | null = null;
+
+    const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", session.user.email)
       .maybeSingle();
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (existingUser) {
+      user = existingUser;
+    } else {
+      // User not in custom table — upsert them now so the booking can proceed.
+      const { data: upsertedUser, error: upsertErr } = await supabaseAdmin
+        .from("users")
+        .upsert(
+          {
+            email: session.user.email,
+            auth_provider: "google",
+            email_verified: true,
+          },
+          { onConflict: "email", ignoreDuplicates: false }
+        )
+        .select("id")
+        .single();
+
+      if (upsertErr || !upsertedUser) {
+        console.error("Failed to auto-create user for booking:", upsertErr);
+        return NextResponse.json(
+          { error: "Could not resolve your account. Please sign out, sign back in, and try again." },
+          { status: 404 }
+        );
+      }
+      user = upsertedUser;
     }
 
     // Find the first active room for the studio (room_id is required by schema)
