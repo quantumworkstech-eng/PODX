@@ -50,7 +50,8 @@ export async function GET(
   ]);
 
   if (bookingErr || !booking) {
-    return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    console.error('Booking fetch error:', bookingErr, 'id:', id);
+    return NextResponse.json({ error: 'Booking not found', details: bookingErr?.message }, { status: 404 });
   }
 
   return NextResponse.json({
