@@ -43,12 +43,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  // Update role on users table if partner
-  if (role === "partner") {
-    await supabaseAdmin
+  // Append the new role to the user's existing roles (supports multi-role).
+  // e.g. a "user" signing up as partner becomes "user,partner".
+  if (role === "partner" || role === "user") {
+    const { data: currentUser } = await supabaseAdmin
       .from("users")
-      .update({ role: "partner" })
-      .eq("id", user.id);
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const existing = ((currentUser as any)?.role as string | null) || "user";
+    const parts = existing.split(",").map((r: string) => r.trim()).filter(Boolean);
+    if (!parts.includes(role)) {
+      parts.push(role);
+      await supabaseAdmin
+        .from("users")
+        .update({ role: parts.join(",") })
+        .eq("id", user.id);
+    }
   }
 
   // Upsert profile

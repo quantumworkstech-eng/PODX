@@ -124,15 +124,19 @@ export function PaymentStep() {
 
   const formatTime = () => {
     if (!timeSlot) return "";
-    const [hours] = timeSlot.split(":");
-    const hour = parseInt(hours);
-    const endTime = hour + duration;
-    const fmt = (h: number) => {
-      if (h === 12) return "12 PM";
-      if (h > 12) return `${h - 12} PM`;
-      return `${h} AM`;
+    const [hoursStr, minutesStr = "00"] = timeSlot.split(":");
+    const hour = parseInt(hoursStr, 10);
+    const minute = parseInt(minutesStr, 10);
+    const totalStartMinutes = hour * 60 + minute;
+    const totalEndMinutes = totalStartMinutes + Math.round(duration * 60);
+    const fmt = (total: number) => {
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      const ampm = h >= 12 ? "PM" : "AM";
+      const displayH = h % 12 || 12;
+      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
     };
-    return `${fmt(hour)} – ${fmt(endTime)}`;
+    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
   };
 
   const handlePaymentSuccess = async (paymentResponse: any) => {
@@ -178,10 +182,10 @@ export function PaymentStep() {
           participants,
           packageData: selectedPackage
             ? {
-                id: selectedPackage.id,
-                name: selectedPackage.name,
-                price_per_hour: selectedPackage.price_per_hour,
-              }
+              id: selectedPackage.id,
+              name: selectedPackage.name,
+              price_per_hour: selectedPackage.price_per_hour,
+            }
             : null,
           addOns: selectedAddOns.map((a) => ({
             id: a.id,
@@ -208,7 +212,7 @@ export function PaymentStep() {
         const errData = await createRes.json().catch(() => ({}));
         throw new Error(
           errData.error ||
-            `Booking save failed (HTTP ${createRes.status}). Your payment of ₹${total.toLocaleString()} was captured. Please contact support with Payment ID: ${paymentId}`
+          `Booking save failed (HTTP ${createRes.status}). Your payment of ₹${total.toLocaleString()} was captured. Please contact support with Payment ID: ${paymentId}`
         );
       }
 
@@ -234,10 +238,10 @@ export function PaymentStep() {
         },
         package: selectedPackage
           ? {
-              id: selectedPackage.id,
-              name: selectedPackage.name,
-              price_per_hour: selectedPackage.price_per_hour,
-            }
+            id: selectedPackage.id,
+            name: selectedPackage.name,
+            price_per_hour: selectedPackage.price_per_hour,
+          }
           : null,
         addOns: selectedAddOns.map((a) => ({
           id: a.id,
@@ -266,7 +270,7 @@ export function PaymentStep() {
       // Payment was already captured — show a clear error so the user can contact support.
       setPaymentError(
         err?.message ||
-          `Your payment was captured but the booking could not be confirmed. Please contact support with Payment ID: ${paymentId}`
+        `Your payment was captured but the booking could not be confirmed. Please contact support with Payment ID: ${paymentId}`
       );
     }
   };

@@ -86,6 +86,28 @@ async function middlewareLogic(request: NextRequest & { auth: unknown }) {
     }
   }
 
+  // Helper — checks if a comma-separated role string includes a target role
+  function hasRole(userRole: string | undefined | null, target: string): boolean {
+    if (!userRole) return false;
+    return userRole.split(",").map((r) => r.trim()).includes(target);
+  }
+
+  const sessionUser = (request.auth as any)?.user;
+
+  // ── Client dashboard — require "user" role ──────────────────────────────
+  if (pathname.startsWith("/dashboard")) {
+    if (!request.auth) {
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    if (!hasRole(sessionUser?.role, "user")) {
+      const signupUrl = new URL("/auth/signup", request.url);
+      signupUrl.searchParams.set("wrongRole", "1");
+      return NextResponse.redirect(signupUrl);
+    }
+  }
+
   // ── Admin routes — verify admin_session cookie (plain JWS) ─────────────
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     const adminToken = request.cookies.get("admin_session")?.value;
@@ -100,17 +122,21 @@ async function middlewareLogic(request: NextRequest & { auth: unknown }) {
     }
   }
 
-  // ── Partner routes — require authenticated NextAuth session ─────────────
+  // ── Partner routes — require authenticated NextAuth session + partner role ─
   // Note: /partners (plural) is the public marketing landing page — never protected.
   if (
     pathname.startsWith("/partner/") &&
     !PARTNER_PUBLIC.some((p) => pathname.startsWith(p))
   ) {
-    // request.auth is populated by the NextAuth wrapper — null means unauthenticated
     if (!request.auth) {
       const loginUrl = new URL("/partner/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    if (!hasRole(sessionUser?.role, "partner")) {
+      const signupUrl = new URL("/partner/signup", request.url);
+      signupUrl.searchParams.set("wrongRole", "1");
+      return NextResponse.redirect(signupUrl);
     }
   }
 

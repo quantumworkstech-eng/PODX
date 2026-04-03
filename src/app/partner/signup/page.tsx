@@ -32,10 +32,15 @@ function PartnerSignupContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Display OAuth errors returned by NextAuth via ?error= query param
+  // Display OAuth errors or wrong-role redirects
   useEffect(() => {
     const urlError = searchParams.get("error");
-    if (urlError) {
+    const wrongRole = searchParams.get("wrongRole");
+    if (wrongRole === "1") {
+      setError(
+        "Your account doesn't have partner access. Sign up below to add partner access to your existing account."
+      );
+    } else if (urlError) {
       setError(OAUTH_ERRORS[urlError] ?? OAUTH_ERRORS.Default);
     }
   }, [searchParams]);

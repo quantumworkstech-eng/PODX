@@ -212,15 +212,19 @@ export function UpcomingBookings({
   };
 
   const formatTime = (timeSlot: string, duration: number) => {
-    const [hours] = timeSlot.split(":");
-    const hour = parseInt(hours);
-    const endHour = hour + duration;
-    const formatHour = (h: number) => {
-      if (h === 12) return "12 PM";
-      if (h > 12) return `${h - 12} PM`;
-      return `${h} AM`;
+    const [hoursStr, minutesStr = "00"] = timeSlot.split(":");
+    const hour = parseInt(hoursStr, 10);
+    const minute = parseInt(minutesStr, 10);
+    const totalStartMinutes = hour * 60 + minute;
+    const totalEndMinutes = totalStartMinutes + Math.round(duration * 60);
+    const formatMinutes = (total: number) => {
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      const ampm = h >= 12 ? "PM" : "AM";
+      const displayH = h % 12 || 12;
+      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
     };
-    return `${formatHour(hour)} - ${formatHour(endHour)}`;
+    return `${formatMinutes(totalStartMinutes)} - ${formatMinutes(totalEndMinutes)}`;
   };
 
   const handleViewDetails = (booking: BookingData) => {
@@ -371,12 +375,12 @@ export function UpcomingBookings({
         onAddAddons={
           onRefreshBookings
             ? () => {
-                const booking = bookings.find((b) => b.id === activeDropdownId);
-                if (booking) {
-                  setSelectedBooking(booking);
-                  setShowAddAddonsModal(true);
-                }
+              const booking = bookings.find((b) => b.id === activeDropdownId);
+              if (booking) {
+                setSelectedBooking(booking);
+                setShowAddAddonsModal(true);
               }
+            }
             : undefined
         }
         onReschedule={() => {

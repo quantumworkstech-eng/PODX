@@ -346,6 +346,27 @@ export async function POST(request: NextRequest) {
 
     if (bookingError || !bookingData) {
       console.error("Error creating booking:", bookingError);
+
+      // Detect exclusion constraint violation (DB-level double-booking guard).
+      // PostgreSQL error 23P01 = exclusion_violation (from bookings_no_overlap constraint).
+      // Also handle 23505 (unique_violation) as a safety net.
+      const errMsg = String(
+        bookingError?.message ?? bookingError?.code ?? bookingError ?? ""
+      ).toLowerCase();
+      const isDoubleBooking =
+        bookingError?.code === "23P01" ||
+        bookingError?.code === "23505" ||
+        errMsg.includes("bookings_no_overlap") ||
+        errMsg.includes("exclusion") ||
+        errMsg.includes("overlap");
+
+      if (isDoubleBooking) {
+        return NextResponse.json(
+          { error: "This time slot was just taken by another booking. Please choose a different time." },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
         { error: bookingError?.message || "Failed to create booking" },
         { status: 500 }

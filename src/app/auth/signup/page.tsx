@@ -33,14 +33,19 @@ export default function SignupPage() {
 
   useEffect(() => {
     const urlError = searchParams.get("error");
-    if (urlError) {
+    const wrongRole = searchParams.get("wrongRole");
+    if (wrongRole === "1") {
+      setError(
+        "Your account doesn't have client access. Sign up below to add client access to your existing account."
+      );
+    } else if (urlError) {
       setError(NEXTAUTH_ERRORS[urlError] ?? NEXTAUTH_ERRORS.Default);
     }
   }, [searchParams]);
 
   const handleGoogleSignup = async () => {
     setIsLoading(true);
-    await signIn("google", { callbackUrl: "/dashboard" });
+    await signIn("google", { callbackUrl: "/auth/google-onboarding" });
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -93,7 +98,7 @@ export default function SignupPage() {
     await fetch("/api/auth/complete-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, token: verificationToken, name, mobile }),
+      body: JSON.stringify({ email, token: verificationToken, name, mobile, role: "user" }),
     });
     const result = await signIn("credentials", { email, token: verificationToken, redirect: false });
     if (result?.error) {

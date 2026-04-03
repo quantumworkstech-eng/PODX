@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { X, Mail, Lock, User, Loader2, Phone, ArrowRight, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { X, Mail, Loader2, ArrowRight } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -13,28 +12,13 @@ interface AuthModalProps {
   onSaveBooking?: () => void;
 }
 
-const countries = [
-  { code: "+91", name: "India", flag: "🇮🇳" },
-  { code: "+1", name: "USA", flag: "🇺🇸" },
-  { code: "+44", name: "UK", flag: "🇬🇧" },
-  { code: "+971", name: "UAE", flag: "🇦🇪" },
-  { code: "+65", name: "Singapore", flag: "🇸🇬" },
-  { code: "+60", name: "Malaysia", flag: "🇲🇾" },
-  { code: "+88", name: "Bangladesh", flag: "🇧🇩" },
-  { code: "+94", name: "Sri Lanka", flag: "🇱🇰" },
-];
-
 export function AuthModal({ isOpen, onClose, onAuthSuccess, onSaveBooking }: AuthModalProps) {
   const { data: session } = useSession();
-  const [mode, setMode] = useState<"signup" | "login">("signup");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [countryCode, setCountryCode] = useState("+91");
-  const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
 
   if (!isOpen || session) return null;
 
@@ -42,14 +26,20 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, onSaveBooking }: Aut
     e.preventDefault();
     setIsLoading(true);
     setError("");
-
-    const identifier = mode === "signup" ? email : phone ? `${countryCode}${phone}` : email;
-    
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to send code. Please try again.");
+        return;
+      }
       setOtpSent(true);
-    } catch (err) {
-      setError("Failed to send OTP. Please try again.");
+    } catch {
+      setError("Failed to send code. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -59,12 +49,40 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, onSaveBooking }: Aut
     e.preventDefault();
     setIsLoading(true);
     setError("");
-
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const verifyRes = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: otp }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) {
+        setError(verifyData.error || "Invalid code. Please try again.");
+        return;
+      }
+
+      // Assign "user" role via complete-profile (appends, never overwrites other roles)
+      await fetch("/api/auth/complete-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token: verifyData.token, role: "user" }),
+      });
+
+      const result = await signIn("credentials", {
+        email,
+        token: verifyData.token,
+        rememberMe: "true",
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Sign in failed. Please try again.");
+        return;
+      }
+
       onAuthSuccess();
-    } catch (err) {
-      setError("Invalid OTP. Please try again.");
+    } catch {
+      setError("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -75,15 +93,15 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, onSaveBooking }: Aut
     if (onSaveBooking) {
       onSaveBooking();
     }
-    await signIn("google", { callbackUrl: "/book" });
+    // Route through client google-onboarding to ensure "user" role is assigned,
+    // then return to the booking page.
+    await signIn("google", { callbackUrl: "/auth/google-onboarding?next=/book" });
   };
-
-  const selectedCountry = countries.find(c => c.code === countryCode);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      
+
       <div className="relative w-full max-w-md bg-[#0a0a0a] rounded-2xl border border-white/10 p-6 shadow-2xl">
         <button
           onClick={onClose}
@@ -93,171 +111,17 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, onSaveBooking }: Aut
         </button>
 
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">
-            {mode === "signup" ? "Create your account" : "Welcome back"}
-          </h2>
-          <p className="text-white/60">
-            {mode === "signup" 
-              ? "Sign up to complete your booking" 
-              : "Sign in to continue with your booking"}
-          </p>
+          <h2 className="text-2xl font-bold text-white mb-2">Sign in to continue</h2>
+          <p className="text-white/60 text-sm">Log in or create a client account to complete your booking</p>
         </div>
 
-        {!otpSent ? (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            {mode === "signup" && (
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="text"
-                    value={email.split("@")[0]}
-                    onChange={(e) => setEmail(e.target.value + (email.includes("@") ? "@" + email.split("@")[1] : ""))}
-                    placeholder="John Doe"
-                    className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#D9FC67] transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {mode === "login" ? (
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Phone Number</label>
-                <div className="flex gap-2">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                      className="flex items-center gap-2 px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10"
-                    >
-                      <span>{selectedCountry?.flag}</span>
-                      <span className="text-sm">{countryCode}</span>
-                    </button>
-                    {showCountryDropdown && (
-                      <div className="absolute top-full mt-1 left-0 w-40 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden z-10">
-                        {countries.map((country) => (
-                          <button
-                            key={country.code}
-                            type="button"
-                            onClick={() => {
-                              setCountryCode(country.code);
-                              setShowCountryDropdown(false);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-white hover:bg-white/10 text-left"
-                          >
-                            <span>{country.flag}</span>
-                            <span className="text-sm">{country.code}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="9876543210"
-                    className="flex-1 pl-4 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#D9FC67] transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#D9FC67] transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <p className="text-red-400 text-sm text-center">{error}</p>
-            )}
-
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black"
-            >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Send OTP <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">Enter OTP</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="123456"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#D9FC67] transition-colors text-center text-2xl tracking-widest font-mono"
-                maxLength={6}
-                required
-              />
-              <p className="text-white/40 text-xs text-center mt-2">
-                OTP sent to {mode === "login" && phone ? `${countryCode} ${phone}` : email}
-              </p>
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-sm text-center">{error}</p>
-            )}
-
-            <Button
-              type="submit"
-              disabled={isLoading || otp.length < 4}
-              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black disabled:opacity-50"
-            >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                "Verify & Continue"
-              )}
-            </Button>
-
-            <button
-              type="button"
-              onClick={() => setOtpSent(false)}
-              className="w-full text-white/60 text-sm hover:text-white"
-            >
-              Change {mode === "login" && phone ? "phone number" : "email"}
-            </button>
-          </form>
-        )}
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/10" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-[#0a0a0a] text-white/40">or continue with</span>
-          </div>
-        </div>
-
+        {/* Google sign-in */}
         <Button
           type="button"
           onClick={handleGoogleSignIn}
           disabled={isLoading}
           variant="outline"
-          className="w-full py-6 text-base font-medium bg-white/5 border-white/20 text-white hover:bg-white/10"
+          className="w-full mb-5 py-6 text-base font-medium bg-white/5 border-white/20 text-white hover:bg-white/10"
         >
           <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -268,30 +132,82 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, onSaveBooking }: Aut
           Continue with Google
         </Button>
 
-        <p className="text-center text-white/60 text-sm mt-6">
-          {mode === "signup" ? (
-            <>
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => { setMode("login"); setOtpSent(false); }}
-                className="text-[#D9FC67] font-medium hover:underline"
-              >
-                Sign in
-              </button>
-            </>
-          ) : (
-            <>
-              Don&apos;t have an account?{" "}
-              <button
-                type="button"
-                onClick={() => { setMode("signup"); setOtpSent(false); }}
-                className="text-[#D9FC67] font-medium hover:underline"
-              >
-                Sign up
-              </button>
-            </>
-          )}
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/10" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-[#0a0a0a] text-white/40">or continue with email</span>
+          </div>
+        </div>
+
+        {error && (
+          <p className="mb-4 text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+            {error}
+          </p>
+        )}
+
+        {!otpSent ? (
+          <form onSubmit={handleSendOtp} className="space-y-4">
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#D9FC67] transition-colors"
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>Send verification code <ArrowRight className="w-4 h-4 ml-2" /></>
+              )}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <p className="text-white/60 text-sm text-center">
+              We sent a 6-digit code to <span className="text-[#D9FC67] font-medium">{email}</span>
+            </p>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="123456"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#D9FC67] transition-colors text-center text-2xl tracking-widest font-mono"
+              maxLength={6}
+              required
+              autoFocus
+            />
+            <Button
+              type="submit"
+              disabled={isLoading || otp.length < 6}
+              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Continue"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => { setOtpSent(false); setOtp(""); setError(""); }}
+              className="w-full text-white/60 text-sm hover:text-white text-center"
+            >
+              Use a different email
+            </button>
+          </form>
+        )}
+
+        <p className="text-center text-white/40 text-xs mt-6">
+          By continuing, you agree to our{" "}
+          <a href="/terms" className="underline hover:text-white/60">Terms</a> and{" "}
+          <a href="/privacy" className="underline hover:text-white/60">Privacy Policy</a>.
         </p>
       </div>
     </div>

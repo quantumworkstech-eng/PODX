@@ -121,11 +121,16 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
   };
 
   const isSlotBooked = (slotTime: string) => {
-    const [slotHour] = slotTime.split(":").map(Number);
-    const dur = booking.duration || 1;
-    for (let h = slotHour; h < slotHour + dur; h++) {
-      const hourStr = `${String(h).padStart(2, "0")}:00`;
-      if (bookedSlots.includes(hourStr)) return true;
+    // bookedSlots contains "HH:MM" labels for blocked 30-min windows.
+    // A slot is unavailable if any 30-min chunk it occupies falls in bookedSlots.
+    const [hStr, mStr = "00"] = slotTime.split(":");
+    const startMin = parseInt(hStr, 10) * 60 + parseInt(mStr, 10);
+    const durationMin = Math.round((booking.duration || 1) * 60);
+    for (let offset = 0; offset < durationMin; offset += 30) {
+      const totalMin = startMin + offset;
+      const hh = String(Math.floor(totalMin / 60)).padStart(2, "0");
+      const mm = String(totalMin % 60).padStart(2, "0");
+      if (bookedSlots.includes(`${hh}:${mm}`)) return true;
     }
     return false;
   };
@@ -203,8 +208,8 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
                       disabled
                         ? "text-white/20 cursor-not-allowed"
                         : selected
-                        ? "bg-[#D9FC67] text-black"
-                        : "text-white hover:bg-white/10"
+                          ? "bg-[#D9FC67] text-black"
+                          : "text-white hover:bg-white/10"
                     )}
                   >
                     {day}
@@ -238,8 +243,8 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
                         disabled
                           ? "bg-white/5 text-white/25 cursor-not-allowed opacity-60"
                           : selectedTime === slot.time
-                          ? "bg-[#D9FC67] text-black"
-                          : "bg-white/10 text-white hover:bg-white/20"
+                            ? "bg-[#D9FC67] text-black"
+                            : "bg-white/10 text-white hover:bg-white/20"
                       )}
                     >
                       {slot.time}

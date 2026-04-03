@@ -84,11 +84,18 @@ function PartnerDashboardInner({ children }: PartnerDashboardProps) {
 
   const isAuthPage = pathname === "/partner/login" || pathname === "/partner/signup";
 
+  const userRole = (session?.user as any)?.role as string | undefined;
+  const hasPartnerRole = userRole?.split(",").map((r) => r.trim()).includes("partner") ?? false;
+
   useEffect(() => {
     if (status === "unauthenticated" && !isAuthPage) {
       router.push("/partner/login");
+      return;
     }
-  }, [status, isAuthPage, router]);
+    if (status === "authenticated" && !isAuthPage && !hasPartnerRole) {
+      router.push("/partner/signup?wrongRole=1");
+    }
+  }, [status, hasPartnerRole, isAuthPage, router]);
 
   useEffect(() => {
     if (status !== "authenticated" || isAuthPage) return;
@@ -123,7 +130,7 @@ function PartnerDashboardInner({ children }: PartnerDashboardProps) {
     return featureMap[item.featureKey] !== false;
   });
 
-  if (status === "loading" && !isAuthPage) {
+  if ((status === "loading" || (status === "authenticated" && !isAuthPage && !hasPartnerRole)) && !isAuthPage) {
     return (
       <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#D9FC67] border-t-transparent rounded-full animate-spin" />

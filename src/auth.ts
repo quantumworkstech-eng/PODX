@@ -149,12 +149,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return token;
       }
 
-      // Look up the DB user to get our internal UUID and role.
-      // Runs on first sign-in (user/account populated) or when id is missing from token.
-      if (supabaseAdmin && (user || account || !token.id)) {
+      // Always re-fetch the user's role from DB so that role changes made after
+      // sign-in (e.g. via the google-onboarding page or complete-profile API)
+      // are immediately reflected in the session without requiring a sign-out.
+      if (supabaseAdmin) {
         const email = (user?.email ?? token.email) as string | undefined;
         if (email) {
-          // Try with role column first (added by studio_review_migration.sql)
           const { data: dbUser, error: roleQueryError } = await supabaseAdmin
             .from("users")
             .select("id, role")
@@ -166,20 +166,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.role = (dbUser as any).role ?? "user";
           } else {
             if (roleQueryError) {
-              // role column likely missing — fall back to id-only query
               console.warn("[auth] role column query failed, falling back:", roleQueryError.message);
             }
-            const { data: dbUserBasic } = await supabaseAdmin
-              .from("users")
-              .select("id")
-              .eq("email", email)
-              .maybeSingle();
+            if (!token.id) {
+              const { data: dbUserBasic } = await supabaseAdmin
+                .from("users")
+                .select("id")
+                .eq("email", email)
+                .maybeSingle();
 
-            if (dbUserBasic) {
-              token.id = dbUserBasic.id;
-              token.role = "user";
-            } else {
-              console.warn("[auth] No DB user found for email:", email);
+              if (dbUserBasic) {
+                token.id = dbUserBasic.id;
+                token.role = "user";
+              } else {
+                console.warn("[auth] No DB user found for email:", email);
+              }
             }
           }
         }

@@ -104,6 +104,9 @@ export default function DashboardContent() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const userRole = (session?.user as any)?.role as string | undefined;
+  const hasUserRole = userRole?.split(",").map((r) => r.trim()).includes("user") ?? false;
+
   useEffect(() => {
     if (status === "unauthenticated") {
       const timer = setTimeout(() => {
@@ -111,7 +114,10 @@ export default function DashboardContent() {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [status]);
+    if (status === "authenticated" && !hasUserRole) {
+      window.location.href = "/auth/signup?wrongRole=1";
+    }
+  }, [status, hasUserRole]);
 
   const refreshBookings = useCallback(async () => {
     try {
@@ -258,7 +264,7 @@ export default function DashboardContent() {
     setNewBooking(null);
   };
 
-  if (status === "loading") {
+  if (status === "loading" || (status === "authenticated" && !hasUserRole)) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

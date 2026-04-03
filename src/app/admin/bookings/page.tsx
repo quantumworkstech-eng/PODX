@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
-  Search, XCircle, RefreshCw, DollarSign, RotateCcw, Check, X,
+  Search, XCircle, RefreshCw, RotateCcw, Check, X,
   ChevronLeft, ChevronRight, Eye, Save, User, Building2, Clock,
   CreditCard, Package, Users, Calendar, FileText, Pencil, Plus,
+  Ban, AlertTriangle,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
@@ -99,6 +100,8 @@ export default function AdminBookingsPage() {
   const [editMode, setEditMode] = useState(false);
   const [editFields, setEditFields] = useState<Record<string, any>>({});
   const [bookingFlash, setBookingFlash] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ bookingId: string; action: "force_cancel" | "force_refund"; label: string; description: string } | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   // Reschedule state
   const [rescheduleRequests, setRescheduleRequests] = useState<RescheduleRequest[]>([]);
@@ -187,15 +190,43 @@ export default function AdminBookingsPage() {
       .catch(() => setStudioBookingInventory(null));
   }, [detailOpen, detailData?.booking?.studio_id]);
 
+  const requestBookingAction = (bookingId: string, action: "force_cancel" | "force_refund", bookingNumber: string) => {
+    if (action === "force_cancel") {
+      setConfirmAction({
+        bookingId,
+        action,
+        label: "Cancel Booking",
+        description: `Are you sure you want to force-cancel booking ${bookingNumber}? This will notify the customer and cannot be undone.`,
+      });
+    } else {
+      setConfirmAction({
+        bookingId,
+        action,
+        label: "Issue Refund & Cancel",
+        description: `Are you sure you want to refund and cancel booking ${bookingNumber}? A refund record will be created and the booking will be cancelled.`,
+      });
+    }
+  };
+
   const handleBookingAction = async (bookingId: string, action: string) => {
+    setConfirmAction(null);
     setActionLoading(`${bookingId}-${action}`);
-    await fetch(`/api/admin/bookings/${bookingId}`, {
+    const res = await fetch(`/api/admin/bookings/${bookingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    const data = await res.json().catch(() => ({}));
     setActionLoading(null);
+    if (!res.ok) {
+      setBookingFlash({ type: "error", message: (data as any).error || "Action failed" });
+    } else {
+      setBookingFlash({ type: "success", message: action === "force_cancel" ? "Booking cancelled" : "Refund initiated" });
+    }
     fetchBookings();
+    if (detailOpen && detailData?.booking?.id === bookingId) {
+      openDetail(bookingId);
+    }
   };
 
   const handleRescheduleAction = async (requestId: string, action: "approve" | "reject") => {
@@ -216,18 +247,30 @@ export default function AdminBookingsPage() {
     setDetailLoading(true);
     setDetailSection("overview");
     setEditMode(false);
-    const res = await fetch(`/api/admin/bookings/${bookingId}`);
-    const data: BookingDetail = await res.json();
-    setDetailData(data);
-    setEditFields({
-      status: data.booking.status || "",
-      start_time: data.booking.start_time || "",
-      end_time: data.booking.end_time || "",
-      booking_date: data.booking.booking_date || "",
-      notes: data.booking.notes || "",
-      total_price: data.booking.total_price || "",
-    });
-    setDetailLoading(false);
+    setDetailData(null);
+    setDetailError(null);
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}`);
+      const data = await res.json();
+      if (!res.ok || !data.booking) {
+        setDetailError(data.error || "Failed to load booking details.");
+        setDetailLoading(false);
+        return;
+      }
+      setDetailData(data as BookingDetail);
+      setEditFields({
+        status: data.booking.status || "",
+        start_time: data.booking.start_time || "",
+        end_time: data.booking.end_time || "",
+        booking_date: data.booking.booking_date || "",
+        notes: data.booking.notes || "",
+        total_price: data.booking.total_price || "",
+      });
+    } catch (err) {
+      setDetailError("Network error — could not load booking.");
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const saveBookingEdit = async () => {
@@ -378,7 +421,7 @@ export default function AdminBookingsPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1">
-                            {/* View / Edit */}
+                            {/* View */}
                             <button
                               onClick={() => openDetail(booking.id)}
                               className="p-1.5 rounded-lg hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors"
@@ -386,24 +429,32 @@ export default function AdminBookingsPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
+                            {/* Force Cancel */}
                             {booking.status !== "cancelled" && (
                               <button
-                                onClick={() => handleBookingAction(booking.id, "force_cancel")}
+                                onClick={() => requestBookingAction(booking.id, "force_cancel", booking.booking_number)}
                                 disabled={!!actionLoading}
                                 className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"
-                                title="Force Cancel"
+                                title="Cancel Booking"
                               >
-                                {actionLoading === `${booking.id}-force_cancel` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                {actionLoading === `${booking.id}-force_cancel`
+                                  ? <RefreshCw className="w-4 h-4 animate-spin" />
+                                  : <Ban className="w-4 h-4" />}
                               </button>
                             )}
-                            <button
-                              onClick={() => handleBookingAction(booking.id, "force_refund")}
-                              disabled={!!actionLoading}
-                              className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors"
-                              title="Force Refund"
-                            >
-                              {actionLoading === `${booking.id}-force_refund` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
-                            </button>
+                            {/* Force Refund */}
+                            {booking.status !== "cancelled" && (
+                              <button
+                                onClick={() => requestBookingAction(booking.id, "force_refund", booking.booking_number)}
+                                disabled={!!actionLoading}
+                                className="p-1.5 rounded-lg hover:bg-amber-500/10 text-white/40 hover:text-amber-400 transition-colors"
+                                title="Refund & Cancel"
+                              >
+                                {actionLoading === `${booking.id}-force_refund`
+                                  ? <RefreshCw className="w-4 h-4 animate-spin" />
+                                  : <RotateCcw className="w-4 h-4" />}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -525,14 +576,55 @@ export default function AdminBookingsPage() {
         </>
       )}
 
+      {/* ── CONFIRMATION DIALOG ── */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
+          <div className="relative bg-[#141414] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-white font-semibold text-lg">{confirmAction.label}</h3>
+            </div>
+            <p className="text-white/60 text-sm mb-6 leading-relaxed">{confirmAction.description}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-xl text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBookingAction(confirmAction.bookingId, confirmAction.action)}
+                disabled={!!actionLoading}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── BOOKING DETAIL DRAWER ── */}
       {detailOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={() => setDetailOpen(false)} />
           <div className="relative w-full max-w-2xl bg-[#0a0a0a] border-l border-white/5 overflow-y-auto">
             {detailLoading ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-64">
                 <div className="w-8 h-8 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : detailError ? (
+              <div className="flex flex-col items-center justify-center h-64 gap-4 px-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <p className="text-white/60 text-sm">{detailError}</p>
+                <button onClick={() => setDetailOpen(false)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl text-sm transition-colors">
+                  Close
+                </button>
               </div>
             ) : detailData && (
               <>

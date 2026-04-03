@@ -129,68 +129,61 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
 
       {/* Main content */}
       <div className="flex-1 min-h-screen flex flex-col overflow-auto">
-        {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-white/10 text-white">
-                <Menu className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-xl font-semibold text-white">{currentPage?.label || "Admin"}</h1>
-                <p className="text-white/40 text-sm">
-                  {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-                </p>
-              </div>
+        {/* Slim top bar — hamburger (mobile) + profile/notifications only */}
+        <header className="sticky top-0 z-20 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between lg:px-6">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-white/10 text-white">
+            <Menu className="w-5 h-5" />
+          </button>
+          {/* Page title — visible only on mobile where sidebar is hidden */}
+          <span className="text-sm font-semibold text-white lg:hidden">{currentPage?.label || "Admin"}</span>
+
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full">
+              <Shield className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-xs text-red-400 font-medium">Admin Panel</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full">
-                <Shield className="w-3.5 h-3.5 text-red-400" />
-                <span className="text-xs text-red-400 font-medium">Admin Panel</span>
-              </div>
 
-              <NotificationBell userEmail={email} />
+            <NotificationBell userEmail={email} />
 
-              <div ref={profileRef} className="relative pl-3 border-l border-white/10">
-                <button
-                  onClick={() => setProfileOpen((o) => !o)}
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
-                    <Shield className="w-4 h-4 text-white" />
+            <div ref={profileRef} className="relative pl-3 border-l border-white/10">
+              <button
+                onClick={() => setProfileOpen((o) => !o)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-white" />
+                </div>
+                <ChevronDown className={cn("w-4 h-4 text-white/40 hidden sm:block transition-transform", profileOpen && "rotate-180")} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-white/5">
+                    <p className="text-white text-sm font-medium truncate">{name || "Admin"}</p>
+                    <p className="text-white/40 text-xs truncate">{email}</p>
+                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-500/10 text-red-400 text-xs rounded-full">
+                      <Shield className="w-3 h-3" /> Admin
+                    </span>
                   </div>
-                  <ChevronDown className={cn("w-4 h-4 text-white/40 hidden sm:block transition-transform", profileOpen && "rotate-180")} />
-                </button>
-
-                {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
-                    <div className="px-4 py-3 border-b border-white/5">
-                      <p className="text-white text-sm font-medium truncate">{name || "Admin"}</p>
-                      <p className="text-white/40 text-xs truncate">{email}</p>
-                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-500/10 text-red-400 text-xs rounded-full">
-                        <Shield className="w-3 h-3" /> Admin
-                      </span>
-                    </div>
-                    <div className="p-1">
-                      <Link
-                        href="/admin/settings"
-                        onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </Link>
-                      <button
-                        onClick={() => { setProfileOpen(false); adminSignOut(); }}
-                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </button>
-                    </div>
+                  <div className="p-1">
+                    <Link
+                      href="/admin/settings"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </Link>
+                    <button
+                      onClick={() => { setProfileOpen(false); adminSignOut(); }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </header>

@@ -16,6 +16,7 @@ const NEXTAUTH_ERRORS: Record<string, string> = {
   OAuthCreateAccount: "Could not create your account. Please try again.",
   OAuthAccountNotLinked: "This email is already registered with a different sign-in method.",
   Callback: "Sign-in callback error. Please try again.",
+  WrongRole: "Your account doesn't have client access. Please sign up as a client first.",
   Default: "Sign-in failed. Please try again.",
 };
 
@@ -31,7 +32,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     const urlError = searchParams.get("error");
-    if (urlError) {
+    const wrongRole = searchParams.get("wrongRole");
+    if (wrongRole === "1") {
+      setError("Your account doesn't have client access. Please sign up as a client first.");
+    } else if (urlError) {
       setRawErrorCode(urlError);
       setError(NEXTAUTH_ERRORS[urlError] ?? NEXTAUTH_ERRORS.Default);
     }
@@ -41,7 +45,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setError("");
     setRawErrorCode("");
-    await signIn("google", { callbackUrl: "/dashboard" });
+    await signIn("google", { callbackUrl: "/auth/google-onboarding" });
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {

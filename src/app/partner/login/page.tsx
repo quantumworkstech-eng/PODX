@@ -16,6 +16,7 @@ const OAUTH_ERRORS: Record<string, string> = {
   OAuthCreateAccount: "Could not create your account. Please try again.",
   OAuthAccountNotLinked: "This email is already registered with a different sign-in method.",
   Callback: "Sign-in callback error. Please try again.",
+  WrongRole: "Your account doesn't have partner access. Please sign up as a partner first.",
   Default: "Sign-in failed. Please try again.",
 };
 
@@ -28,10 +29,13 @@ function PartnerLoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Display OAuth errors returned by NextAuth via ?error= query param
+  // Display OAuth errors or wrong-role redirects
   useEffect(() => {
     const urlError = searchParams.get("error");
-    if (urlError) {
+    const wrongRole = searchParams.get("wrongRole");
+    if (wrongRole === "1") {
+      setError("Your account doesn't have partner access. Please sign up as a partner first.");
+    } else if (urlError) {
       setError(OAUTH_ERRORS[urlError] ?? OAUTH_ERRORS.Default);
     }
   }, [searchParams]);
