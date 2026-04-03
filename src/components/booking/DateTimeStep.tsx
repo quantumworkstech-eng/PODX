@@ -69,12 +69,18 @@ export function DateTimeStep() {
         const current = timeSlotRef.current;
         const dur = durationRef.current;
         if (current) {
-          const [startH] = current.split(":").map(Number);
-          const blocked = Array.from({ length: dur }, (_, i) => {
-            const h = startH + i;
-            return `${String(h).padStart(2, "0")}:00`;
-          }).some((hStr) => slots.includes(hStr));
-          if (blocked) setTimeSlot(null);
+          const [hStr, mStr] = current.split(":");
+          const startH = parseInt(hStr, 10);
+          const startM = parseInt(mStr || "0", 10);
+          const totalStartMins = startH * 60 + startM;
+          const totalEndMins = totalStartMins + Math.round(dur * 60);
+          const blocked = [];
+          for (let m = totalStartMins; m < totalEndMins; m += 30) {
+            const h = Math.floor(m / 60);
+            const min = m % 60;
+            blocked.push(`${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`);
+          }
+          if (blocked.some((s) => slots.includes(s))) setTimeSlot(null);
         }
       } catch {
         if (!cancelled) setBookedSlots([]);
@@ -167,27 +173,32 @@ export function DateTimeStep() {
 
   // Returns true when a slot button should be disabled.
   // A slot is disabled if:
-  //  (a) any hour in [slotHour … slotHour+duration-1] is already booked in the DB
-  //      (including the partner's buffer window after a previous booking), or
+  //  (a) any 30-min interval in [slotStart … slotStart+duration) overlaps a booked slot, or
   //  (b) the slot is in the past when today is selected.
   const isSlotDisabled = (slotTime: string): boolean => {
     if (!date) return false;
 
-    const [slotHour] = slotTime.split(":").map(Number);
+    const [hStr, mStr] = slotTime.split(":");
+    const slotHour = parseInt(hStr, 10);
+    const slotMin = parseInt(mStr || "0", 10);
+    const totalStartMins = slotHour * 60 + slotMin;
+    const totalEndMins = totalStartMins + Math.round(duration * 60);
 
-    // (c) Past-time check for today
+    // Past-time check for today
     const isSelectedToday = date.toDateString() === now.toDateString();
     if (isSelectedToday) {
-      const endHour = slotHour + duration;
-      if (endHour <= now.getHours() || (slotHour <= now.getHours() && now.getMinutes() > 0)) {
+      const nowTotalMins = now.getHours() * 60 + now.getMinutes();
+      if (totalEndMins <= nowTotalMins || totalStartMins <= nowTotalMins) {
         return true;
       }
     }
 
-    // (b) Live DB check — block if ANY hour inside the booking window is taken
-    for (let h = slotHour; h < slotHour + duration; h++) {
-      const hourStr = `${String(h).padStart(2, "0")}:00`;
-      if (bookedSlots.includes(hourStr)) return true;
+    // Live DB check — block if ANY 30-min slot in the entire booking window is taken
+    for (let m = totalStartMins; m < totalEndMins; m += 30) {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      const slotStr = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+      if (bookedSlots.includes(slotStr)) return true;
     }
 
     return false;
@@ -197,19 +208,25 @@ export function DateTimeStep() {
   const getSlotLabel = (slotTime: string): string | null => {
     if (!date) return null;
 
-    const [slotHour] = slotTime.split(":").map(Number);
+    const [hStr, mStr] = slotTime.split(":");
+    const slotHour = parseInt(hStr, 10);
+    const slotMin = parseInt(mStr || "0", 10);
+    const totalStartMins = slotHour * 60 + slotMin;
+    const totalEndMins = totalStartMins + Math.round(duration * 60);
 
     const isSelectedToday = date.toDateString() === now.toDateString();
     if (isSelectedToday) {
-      const endHour = slotHour + duration;
-      if (endHour <= now.getHours() || (slotHour <= now.getHours() && now.getMinutes() > 0)) {
+      const nowTotalMins = now.getHours() * 60 + now.getMinutes();
+      if (totalEndMins <= nowTotalMins || totalStartMins <= nowTotalMins) {
         return "Past";
       }
     }
 
-    for (let h = slotHour; h < slotHour + duration; h++) {
-      const hourStr = `${String(h).padStart(2, "0")}:00`;
-      if (bookedSlots.includes(hourStr)) return "Booked";
+    for (let m = totalStartMins; m < totalEndMins; m += 30) {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      const slotStr = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+      if (bookedSlots.includes(slotStr)) return "Booked";
     }
 
     return null;

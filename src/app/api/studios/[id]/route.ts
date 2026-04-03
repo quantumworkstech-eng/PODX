@@ -18,7 +18,7 @@ export async function GET(
     .from('studios')
     .select(`
       id, name, slug, description, short_description, address, city, state, country,
-      featured_image_url, is_verified, phone, email, website, equipment,
+      featured_image_url, is_verified, phone, email, website, equipment, video_url,
       studio_images (id, image_url, caption, display_order),
       rooms (id, name, description, capacity, price_per_hour, min_booking_hours, max_booking_hours, is_active),
       studio_amenities (amenities (id, name, icon, category))
@@ -94,6 +94,7 @@ export async function GET(
     phone: (studio as any).phone,
     email: (studio as any).email,
     website: (studio as any).website,
+    video_url: (studio as any).video_url || null,
     equipment: equipmentMerged,
     images,
     rooms: ((studio as any).rooms ?? []).filter((r: any) => r.is_active !== false),

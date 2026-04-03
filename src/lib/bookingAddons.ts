@@ -10,6 +10,7 @@ export type PlatformAddonRow = {
   description: string | null;
   price: number | string;
   category?: string | null;
+  thumbnail_url?: string | null;
 };
 
 export function platformAddonToService(row: PlatformAddonRow): AddOnService {
@@ -18,7 +19,7 @@ export function platformAddonToService(row: PlatformAddonRow): AddOnService {
     name: row.name,
     description: row.description?.trim() || "",
     price: Number(row.price),
-    thumbnail: ADDON_PLACEHOLDER_IMAGE,
+    thumbnail: row.thumbnail_url || ADDON_PLACEHOLDER_IMAGE,
     category: row.category ?? undefined,
   };
 }

@@ -28,6 +28,10 @@ import {
   Mail,
   Globe,
   BadgeCheck,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -81,6 +85,7 @@ interface StudioDetails {
   phone?: string;
   email?: string;
   website?: string;
+  video_url?: string | null;
   equipment?: string[];
   images: StudioImage[];
   rooms: Room[];
@@ -165,6 +170,11 @@ export function StudioDetailModal({
   const [details, setDetails] = useState<StudioDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [slideIdx, setSlideIdx] = useState(0);
+  const [showVideo, setShowVideo] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch details when modal opens
@@ -210,6 +220,35 @@ export function StudioDetailModal({
     if (intervalRef.current) clearInterval(intervalRef.current);
     setSlideIdx((i) => (i + dir + slides.length) % slides.length);
     startAutoSlide();
+  };
+
+  const toggleVideo = () => {
+    if (!videoRef.current) return;
+    if (isVideoPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setIsVideoPlaying(!isVideoPlaying);
+  };
+
+  const toggleVideoMute = () => {
+    if (!videoRef.current) return;
+    videoRef.current.muted = !isVideoMuted;
+    setIsVideoMuted(!isVideoMuted);
+  };
+
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current && videoRef.current.duration) {
+      setVideoProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
+    }
+  };
+
+  const handleVideoSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !videoRef.current.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    videoRef.current.currentTime = pos * videoRef.current.duration;
   };
 
   // Lock body scroll while open
@@ -351,6 +390,83 @@ export function StudioDetailModal({
             </div>
           )}
         </div>
+
+        {/* ── Studio Video ─────────────────────────────────────── */}
+        {details?.video_url && (
+          <div className="border-b border-white/5">
+            {!showVideo ? (
+              <button
+                onClick={() => setShowVideo(true)}
+                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/[0.03] transition-colors"
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${primaryColor}20` }}
+                >
+                  <Play className="w-5 h-5 ml-0.5" style={{ color: primaryColor }} />
+                </div>
+                <div className="text-left">
+                  <p className="text-white font-medium text-sm">Watch Studio Tour</p>
+                  <p className="text-white/40 text-xs">See the studio in action</p>
+                </div>
+              </button>
+            ) : (
+              <div className="relative bg-black">
+                <video
+                  ref={videoRef}
+                  src={details.video_url}
+                  className="w-full max-h-64 object-contain"
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onEnded={() => setIsVideoPlaying(false)}
+                  playsInline
+                  autoPlay
+                  onPlay={() => setIsVideoPlaying(true)}
+                />
+                {!isVideoPlaying && (
+                  <button
+                    onClick={toggleVideo}
+                    className="absolute inset-0 flex items-center justify-center bg-black/30"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
+                      <Play className="w-8 h-8 text-white ml-1" />
+                    </div>
+                  </button>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="flex items-center gap-3">
+                    <button onClick={toggleVideo} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                      {isVideoPlaying
+                        ? <Pause className="w-4 h-4 text-white" />
+                        : <Play className="w-4 h-4 text-white" />
+                      }
+                    </button>
+                    <div
+                      className="flex-1 h-1 bg-white/30 rounded-full cursor-pointer"
+                      onClick={handleVideoSeek}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${videoProgress}%`, background: primaryColor }}
+                      />
+                    </div>
+                    <button onClick={toggleVideoMute} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                      {isVideoMuted
+                        ? <VolumeX className="w-4 h-4 text-white" />
+                        : <Volume2 className="w-4 h-4 text-white" />
+                      }
+                    </button>
+                    <button
+                      onClick={() => { setShowVideo(false); setIsVideoPlaying(false); setVideoProgress(0); }}
+                      className="p-1.5 rounded-full hover:bg-white/20 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Content ─────────────────────────────────────────── */}
         <div className="px-5 pt-5 pb-4 border-b border-white/5 bg-[#111111]">

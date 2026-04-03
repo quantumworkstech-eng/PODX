@@ -86,6 +86,16 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     partnerInventory = null;
   }
 
+  let packages: any[] = [];
+  try {
+    const { data: pkgRows } = await supabaseAdmin
+      .from('studio_packages')
+      .select('id, name, description, price_per_hour, features, is_popular, display_order')
+      .eq('studio_id', id)
+      .order('display_order');
+    packages = pkgRows ?? [];
+  } catch { /* table may not exist yet */ }
+
   return NextResponse.json({
     studio: {
       id: studio.id,
@@ -107,6 +117,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       equipment: studio.equipment || [],
       addon_ids: (studio.studio_addons || []).map((a: any) => a.addon_id),
       partner_inventory: partnerInventory,
+      packages,
       images,
       status: studio.is_active ? 'active' : 'inactive',
       review_status: studio.review_status || 'pending_review',
