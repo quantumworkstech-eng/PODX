@@ -5,7 +5,7 @@ import {
   Search, XCircle, RefreshCw, RotateCcw, Check, X,
   ChevronLeft, ChevronRight, Eye, Save, User, Building2, Clock,
   CreditCard, Package, Users, Calendar, FileText, Pencil, Plus,
-  Ban, AlertTriangle,
+  Ban, AlertTriangle, CalendarClock,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
@@ -61,10 +61,31 @@ interface BookingDetail {
 
 function fmt12h(t: string) {
   if (!t) return "—";
-  const [h, m] = t.split(":").map(Number);
+  // Handle ISO timestamp strings (e.g. from start_time/end_time)
+  if (t.includes("T") || t.includes("+") || t.endsWith("Z")) {
+    const d = new Date(t);
+    if (!isNaN(d.getTime())) {
+      const h = d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+      return h;
+    }
+  }
+  // Plain HH:MM
+  const parts = t.split(":");
+  const h = parseInt(parts[0] || "0", 10);
+  const m = parseInt(parts[1] || "0", 10);
   const ampm = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function fmtDateIST(iso: string) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function InfoRow({ label, value, mono = false }: { label: string; value: any; mono?: boolean }) {
@@ -102,6 +123,13 @@ export default function AdminBookingsPage() {
   const [bookingFlash, setBookingFlash] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ bookingId: string; action: "force_cancel" | "force_refund"; label: string; description: string } | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Admin reschedule state
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleLoading2, setRescheduleLoading2] = useState(false);
+  const [rescheduleError2, setRescheduleError2] = useState<string | null>(null);
 
   // Reschedule state
   const [rescheduleRequests, setRescheduleRequests] = useState<RescheduleRequest[]>([]);
@@ -296,6 +324,44 @@ export default function AdminBookingsPage() {
     }
   };
 
+  const openRescheduleModal = () => {
+    if (!detailData) return;
+    // Pre-fill with current booking date/time in IST
+    const start = new Date(detailData.booking.start_time);
+    const istDate = start.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
+    const istHour = start.toLocaleString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+    setRescheduleDate(istDate);
+    setRescheduleTime(istHour.padStart(5, "0"));
+    setRescheduleError2(null);
+    setRescheduleOpen(true);
+  };
+
+  const handleAdminReschedule = async () => {
+    if (!detailData || !rescheduleDate || !rescheduleTime) return;
+    setRescheduleLoading2(true);
+    setRescheduleError2(null);
+    try {
+      const res = await fetch(`/api/admin/bookings/${detailData.booking.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reschedule", newDate: rescheduleDate, newTimeSlot: rescheduleTime }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRescheduleError2((data as any).error || "Failed to reschedule");
+        return;
+      }
+      setRescheduleOpen(false);
+      setBookingFlash({ type: "success", message: "Booking rescheduled successfully" });
+      await openDetail(detailData.booking.id);
+      fetchBookings();
+    } catch {
+      setRescheduleError2("Network error. Please try again.");
+    } finally {
+      setRescheduleLoading2(false);
+    }
+  };
+
   const DETAIL_SECTIONS = [
     { id: "overview", label: "Overview", icon: FileText },
     { id: "customer", label: "Customer", icon: User },
@@ -340,11 +406,10 @@ export default function AdminBookingsPage() {
                 <button
                   key={f}
                   onClick={() => { setStatusFilter(f); setBookingPage(1); }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize ${
-                    statusFilter === f
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize ${statusFilter === f
                       ? "bg-red-500/20 text-red-400 border border-red-500/30"
                       : "bg-white/5 text-white/50 hover:text-white border border-transparent"
-                  }`}
+                    }`}
                 >
                   {f}
                 </button>
@@ -489,11 +554,10 @@ export default function AdminBookingsPage() {
                 <button
                   key={s}
                   onClick={() => { setRescheduleStatusFilter(s); setReschedulePage(1); }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize ${
-                    rescheduleStatusFilter === s
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize ${rescheduleStatusFilter === s
                       ? "bg-red-500/20 text-red-400 border border-red-500/30"
                       : "bg-white/5 text-white/50 hover:text-white border border-transparent"
-                  }`}
+                    }`}
                 >
                   {s}
                 </button>
@@ -630,11 +694,10 @@ export default function AdminBookingsPage() {
               <>
                 {bookingFlash && (
                   <div
-                    className={`mx-6 mt-4 px-4 py-2 rounded-xl text-sm border ${
-                      bookingFlash.type === "success"
+                    className={`mx-6 mt-4 px-4 py-2 rounded-xl text-sm border ${bookingFlash.type === "success"
                         ? "border-[#D9FC67]/30 bg-[#D9FC67]/10 text-[#D9FC67]"
                         : "border-red-500/30 bg-red-500/10 text-red-300"
-                    }`}
+                      }`}
                   >
                     {bookingFlash.message}
                   </div>
@@ -671,13 +734,24 @@ export default function AdminBookingsPage() {
                         </button>
                       </>
                     ) : (
-                      <button
-                        onClick={() => setEditMode(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm transition-colors"
-                      >
-                        <Pencil className="w-4 h-4" />
-                        Edit
-                      </button>
+                      <>
+                        {detailData.booking.status !== "cancelled" && (
+                          <button
+                            onClick={openRescheduleModal}
+                            className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-xl text-sm transition-colors"
+                          >
+                            <CalendarClock className="w-4 h-4" />
+                            Reschedule
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setEditMode(true)}
+                          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          Edit
+                        </button>
+                      </>
                     )}
                     <button onClick={() => setDetailOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white">
                       <X className="w-5 h-5" />
@@ -691,11 +765,10 @@ export default function AdminBookingsPage() {
                     <button
                       key={s.id}
                       onClick={() => setDetailSection(s.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                        detailSection === s.id
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${detailSection === s.id
                           ? "bg-white/10 text-white"
                           : "text-white/40 hover:text-white hover:bg-white/5"
-                      }`}
+                        }`}
                     >
                       <s.icon className="w-3.5 h-3.5" />
                       {s.label}
@@ -779,13 +852,11 @@ export default function AdminBookingsPage() {
                           </div>
                         ) : (
                           <>
-                            <InfoRow label="Date" value={detailData.booking.booking_date || new Date(detailData.booking.created_at).toLocaleDateString("en-IN")} />
+                            <InfoRow label="Date" value={fmtDateIST(detailData.booking.start_time || detailData.booking.created_at)} />
                             <InfoRow label="Time" value={`${fmt12h(detailData.booking.start_time)} – ${fmt12h(detailData.booking.end_time)}`} />
                             <InfoRow label="Duration" value={(() => {
                               if (!detailData.booking.start_time || !detailData.booking.end_time) return "—";
-                              const [sh, sm] = detailData.booking.start_time.split(":").map(Number);
-                              const [eh, em] = detailData.booking.end_time.split(":").map(Number);
-                              const hours = (eh * 60 + em - sh * 60 - sm) / 60;
+                              const hours = (new Date(detailData.booking.end_time).getTime() - new Date(detailData.booking.start_time).getTime()) / 3600000;
                               return `${hours} hour${hours !== 1 ? "s" : ""}`;
                             })()} />
                           </>
@@ -898,11 +969,10 @@ export default function AdminBookingsPage() {
                           <div key={payment.id} className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium">Payment</h4>
-                              <span className={`px-2 py-0.5 rounded-full text-xs border ${
-                                payment.status === "succeeded" ? "bg-green-500/10 text-green-400 border-green-500/20" :
-                                payment.status === "refunded" ? "bg-orange-500/10 text-orange-400 border-orange-500/20" :
-                                "bg-white/5 text-white/40 border-white/10"
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded-full text-xs border ${payment.status === "succeeded" ? "bg-green-500/10 text-green-400 border-green-500/20" :
+                                  payment.status === "refunded" ? "bg-orange-500/10 text-orange-400 border-orange-500/20" :
+                                    "bg-white/5 text-white/40 border-white/10"
+                                }`}>
                                 {payment.status}
                               </span>
                             </div>
@@ -987,6 +1057,74 @@ export default function AdminBookingsPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Admin Reschedule Modal ── */}
+      {rescheduleOpen && detailData && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setRescheduleOpen(false)} />
+          <div className="relative bg-[#141414] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                <CalendarClock className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Reschedule Booking</h3>
+                <p className="text-white/40 text-xs font-mono">{detailData.booking.booking_number}</p>
+              </div>
+            </div>
+
+            <div className="bg-white/[0.03] rounded-xl p-3 mb-4 text-sm">
+              <p className="text-white/40 text-xs mb-1">Current session</p>
+              <p className="text-white">{fmtDateIST(detailData.booking.start_time)}</p>
+              <p className="text-white/60">{fmt12h(detailData.booking.start_time)} – {fmt12h(detailData.booking.end_time)}</p>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">New Date</label>
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                />
+              </div>
+              <div>
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">New Start Time (IST)</label>
+                <input
+                  type="time"
+                  value={rescheduleTime}
+                  onChange={(e) => setRescheduleTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                />
+              </div>
+            </div>
+
+            {rescheduleError2 && (
+              <div className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm mb-4">
+                {rescheduleError2}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRescheduleOpen(false)}
+                className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-xl text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdminReschedule}
+                disabled={rescheduleLoading2 || !rescheduleDate || !rescheduleTime}
+                className="flex-1 px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {rescheduleLoading2 ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}
