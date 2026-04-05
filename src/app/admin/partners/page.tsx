@@ -36,24 +36,18 @@ export default function AdminPartnersPage() {
 
   const fetchPartners = () => {
     setLoading(true);
-    fetch("/api/admin/studios")
+    fetch("/api/admin/partners")
       .then((r) => r.json())
       .then((d) => {
-        const studios = d.studios || [];
-        const partnerMap: Record<string, any> = {};
-        studios.forEach((s: any) => {
-          const key = s.owner_email;
-          if (!partnerMap[key]) {
-            partnerMap[key] = {
-              owner_id: s.owner_id || null,
-              email: s.owner_email,
-              name: s.owner_name,
-              studios: [],
-            };
-          }
-          partnerMap[key].studios.push(s);
-        });
-        setPartners(Object.values(partnerMap));
+        const list = d.partners || [];
+        setPartners(
+          list.map((p: any) => ({
+            owner_id: p.id,
+            email: p.email,
+            name: p.name,
+            studios: p.studios || [],
+          }))
+        );
         setLoading(false);
       })
       .catch(() => setLoading(false));

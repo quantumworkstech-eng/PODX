@@ -95,5 +95,13 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const effectiveRole = role || 'user';
+  if (effectiveRole === 'partner') {
+    const { data: partnerRole } = await supabaseAdmin.from('roles').select('id').eq('name', 'partner').maybeSingle();
+    if (partnerRole?.id) {
+      await supabaseAdmin.from('user_roles').upsert({ user_id: user.id, role_id: partnerRole.id });
+    }
+  }
+
   return NextResponse.json({ user }, { status: 201 });
 }
