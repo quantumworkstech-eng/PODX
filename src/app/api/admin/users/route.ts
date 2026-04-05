@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { mergeAdminRoleSelection, parseRoleColumn } from '@/lib/user-role-column';
 
 export async function GET(request: NextRequest) {
   const adminEmail = await getAdminEmail();
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 
   const users = (data || []).map((u: any) => {
     const allRoles = new Set<string>();
-    if (u.role) allRoles.add(u.role);
+    parseRoleColumn(u.role).forEach((r) => allRoles.add(r));
     (u.user_roles || []).forEach((ur: any) => { if (ur.roles?.name) allRoles.add(ur.roles.name); });
     const studioCount = (u.studios || []).length;
     if (studioCount > 0 && !allRoles.has('admin')) allRoles.add('partner');
@@ -76,9 +77,14 @@ export async function POST(request: NextRequest) {
   const { data: existing } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
   if (existing) return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
 
+  const requested = (role || 'user') as 'user' | 'partner' | 'admin';
+  const storedRole = ['user', 'partner', 'admin'].includes(requested)
+    ? mergeAdminRoleSelection(null, requested)
+    : 'user';
+
   const { data: user, error: userErr } = await supabaseAdmin.from('users').insert({
     email,
-    role: role || 'user',
+    role: storedRole,
     auth_provider: 'email',
     email_verified: false,
   }).select('id, email').single();
@@ -95,8 +101,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const effectiveRole = role || 'user';
-  if (effectiveRole === 'partner') {
+  if (requested === 'partner') {
     const { data: partnerRole } = await supabaseAdmin.from('roles').select('id').eq('name', 'partner').maybeSingle();
     if (partnerRole?.id) {
       await supabaseAdmin.from('user_roles').upsert({ user_id: user.id, role_id: partnerRole.id });

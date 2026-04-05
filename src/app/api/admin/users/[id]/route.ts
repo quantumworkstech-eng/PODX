@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { mergeAdminRoleSelection, parseRoleColumn, roleColumnHas } from '@/lib/user-role-column';
 
 export async function PATCH(
   request: NextRequest,
@@ -28,7 +29,26 @@ export async function PATCH(
   if (action === 'change_role' && role) {
     const validRoles = ['user', 'partner', 'admin'];
     if (!validRoles.includes(role)) return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
-    await supabaseAdmin.from('users').update({ role }).eq('id', id);
+
+    const { data: row } = await supabaseAdmin.from('users').select('role').eq('id', id).maybeSingle();
+    const nextRole = mergeAdminRoleSelection((row as { role?: string } | null)?.role ?? null, role);
+
+    await supabaseAdmin.from('users').update({ role: nextRole }).eq('id', id);
+
+    if (role === 'partner' && roleColumnHas(nextRole, 'partner')) {
+      const { data: partnerRole } = await supabaseAdmin.from('roles').select('id').eq('name', 'partner').maybeSingle();
+      if (partnerRole?.id) {
+        await supabaseAdmin.from('user_roles').upsert({ user_id: id, role_id: partnerRole.id });
+      }
+    }
+
+    if (role === 'user') {
+      const { data: pr } = await supabaseAdmin.from('roles').select('id').eq('name', 'partner').maybeSingle();
+      if (pr?.id && !roleColumnHas(nextRole, 'partner')) {
+        await supabaseAdmin.from('user_roles').delete().eq('user_id', id).eq('role_id', pr.id);
+      }
+    }
+
     return NextResponse.json({ success: true, message: 'Role updated' });
   }
 
@@ -72,7 +92,7 @@ export async function GET(
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const allRoles = new Set<string>();
-  if (user.role) allRoles.add(user.role);
+  parseRoleColumn((user as { role?: string }).role).forEach((r) => allRoles.add(r));
   ((user as any).user_roles || []).forEach((ur: any) => { if (ur.roles?.name) allRoles.add(ur.roles.name); });
   const studioCount = ((user as any).studios || []).length;
   if (studioCount > 0 && !allRoles.has('admin')) allRoles.add('partner');

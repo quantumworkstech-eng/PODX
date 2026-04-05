@@ -105,7 +105,9 @@ export default function DashboardContent() {
   }, []);
 
   const userRole = (session?.user as any)?.role as string | undefined;
-  const hasUserRole = userRole?.split(",").map((r) => r.trim()).includes("user") ?? false;
+  const roleParts = userRole?.split(",").map((r) => r.trim()) ?? [];
+  const hasUserRole = roleParts.includes("user");
+  const hasPartnerRole = roleParts.includes("partner");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -115,9 +117,13 @@ export default function DashboardContent() {
       return () => clearTimeout(timer);
     }
     if (status === "authenticated" && !hasUserRole) {
-      window.location.href = "/auth/signup?wrongRole=1";
+      if (hasPartnerRole) {
+        window.location.href = "/partner/dashboard";
+      } else {
+        window.location.href = "/auth/signup?wrongRole=1";
+      }
     }
-  }, [status, hasUserRole]);
+  }, [status, hasUserRole, hasPartnerRole]);
 
   const refreshBookings = useCallback(async () => {
     try {

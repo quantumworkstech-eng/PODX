@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { mergeAdminRoleSelection } from '@/lib/user-role-column';
 import crypto from 'node:crypto';
 
 function hashPassword(password: string): string {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
         auth_provider: 'credentials',
         email_verified: false,
         password_hash: passwordHash,
-        role: 'partner',
+        role: mergeAdminRoleSelection(null, 'partner'),
       })
       .select()
       .single();

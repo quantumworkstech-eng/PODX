@@ -101,7 +101,12 @@ async function middlewareLogic(request: NextRequest & { auth: unknown }) {
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
-    if (!hasRole(sessionUser?.role, "user")) {
+    if (hasRole(sessionUser?.role, "user")) {
+      // ok
+    } else if (hasRole(sessionUser?.role, "partner")) {
+      // Partner-only sessions (e.g. legacy DB) belong on the partner app, not client signup.
+      return NextResponse.redirect(new URL("/partner/dashboard", request.url));
+    } else {
       const signupUrl = new URL("/auth/signup", request.url);
       signupUrl.searchParams.set("wrongRole", "1");
       return NextResponse.redirect(signupUrl);

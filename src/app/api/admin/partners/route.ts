@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { parseRoleColumn, ROLE_COLUMN_VALUES_WITH_PARTNER } from '@/lib/user-role-column';
 
 type PartnerRow = {
   id: string;
@@ -12,7 +13,7 @@ type PartnerRow = {
 /** Same rules as GET /api/admin/users role chips: partner from role, user_roles, or owning studios (unless admin-only). */
 function userShowsAsPartner(role: string | null | undefined, userRoles: unknown, studioCount: number): boolean {
   const allRoles = new Set<string>();
-  if (role) allRoles.add(role);
+  parseRoleColumn(role).forEach((r) => allRoles.add(r));
   ((userRoles as { roles?: { name?: string } }[]) || []).forEach((ur) => {
     if (ur.roles?.name) allRoles.add(ur.roles.name);
   });
@@ -50,7 +51,10 @@ export async function GET() {
 
   const candidateIds = new Set<string>(studiosByOwner.keys());
 
-  const { data: byRoleColumn } = await supabaseAdmin.from('users').select('id').eq('role', 'partner');
+  const { data: byRoleColumn } = await supabaseAdmin
+    .from('users')
+    .select('id, role')
+    .in('role', ROLE_COLUMN_VALUES_WITH_PARTNER);
   (byRoleColumn || []).forEach((u: { id: string }) => candidateIds.add(u.id));
 
   const { data: byUserRoles, error: urErr } = await supabaseAdmin

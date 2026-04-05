@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { ROLE_COLUMN_VALUES_WITH_PARTNER, roleColumnHas } from '@/lib/user-role-column';
 
 export async function GET() {
   const email = await getAdminEmail();
@@ -26,7 +27,7 @@ export async function GET() {
     { count: pendingRefunds },
   ] = await Promise.all([
     supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
-    supabaseAdmin.from('users').select('id').eq('role', 'partner'),
+    supabaseAdmin.from('users').select('id, role').in('role', ROLE_COLUMN_VALUES_WITH_PARTNER),
     supabaseAdmin.from('studios').select('owner_id').not('owner_id', 'is', null),
     supabaseAdmin.from('studios').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('bookings').select('*', { count: 'exact', head: true }),
@@ -39,7 +40,9 @@ export async function GET() {
 
   // Count unique partners: users with role='partner' + users who own studios
   const partnerIdSet = new Set<string>([
-    ...(partnerRoleUsers || []).map((u: any) => u.id),
+    ...(partnerRoleUsers || [])
+      .filter((u: { role?: string }) => roleColumnHas(u.role, 'partner'))
+      .map((u: { id: string }) => u.id),
     ...(studioOwners || []).map((s: any) => s.owner_id).filter(Boolean),
   ]);
   const totalPartners = partnerIdSet.size;
