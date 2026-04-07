@@ -7,14 +7,73 @@ export async function GET() {
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
-  const { data, error, count } = await supabaseAdmin
+  // 1) Fetch existing `admins` rows (source of truth for admin panel management)
+  const { data: adminRows, error: error, count } = await supabaseAdmin
     .from('admins')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: 'Failed to fetch admins' }, { status: 500 });
 
-  return NextResponse.json({ admins: data || [], total: count || 0 });
+  // 2) Also include any users who already have admin access but are missing from `admins`
+  // (e.g. role was granted via Users page / user_roles).
+  const existingEmails = new Set<string>((adminRows || []).map((a: any) => String(a.email || '').toLowerCase()).filter(Boolean));
+
+  const [{ data: byRoleColumn }, { data: byUserRoles }] = await Promise.all([
+    supabaseAdmin
+      .from('users')
+      .select('id, email, role, created_at')
+      .ilike('role', '%admin%'),
+    supabaseAdmin
+      .from('user_roles')
+      .select('user_id, roles!inner(name)')
+      .eq('roles.name', 'admin'),
+  ]);
+
+  const roleUserIds = new Set<string>();
+  (byUserRoles || []).forEach((r: any) => { if (r.user_id) roleUserIds.add(String(r.user_id)); });
+
+  // Pull user rows for user_roles(admin) as well (email lives on users).
+  let usersFromUserRoles: any[] = [];
+  const ids = Array.from(roleUserIds);
+  if (ids.length > 0) {
+    const { data } = await supabaseAdmin
+      .from('users')
+      .select('id, email, role, created_at')
+      .in('id', ids);
+    usersFromUserRoles = data || [];
+  }
+
+  const candidates = [...(byRoleColumn || []), ...usersFromUserRoles]
+    .filter((u: any) => u?.email)
+    .filter((u: any) => !existingEmails.has(String(u.email).toLowerCase()));
+
+  if (candidates.length > 0) {
+    // Sync them into `admins` so the admin panel is consistent.
+    const upserts = candidates.map((u: any) => ({
+      user_id: u.id || null,
+      email: u.email,
+      role: 'admin',
+      added_by_email: email,
+      is_active: true,
+    }));
+
+    // Ignore duplicate conflicts; we just want to ensure presence.
+    await supabaseAdmin.from('admins').upsert(upserts, { onConflict: 'email' });
+
+    await logAdminAction(email, 'sync_admins', 'admin', undefined, {
+      added: candidates.map((u: any) => u.email),
+    });
+  }
+
+  const { data: merged, error: mergedErr, count: mergedCount } = await supabaseAdmin
+    .from('admins')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  if (mergedErr) return NextResponse.json({ error: 'Failed to fetch admins' }, { status: 500 });
+
+  return NextResponse.json({ admins: merged || [], total: mergedCount || 0 });
 }
 
 export async function POST(request: NextRequest) {

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Outfit, DM_Sans } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { Chatbot } from "@/components/Chatbot";
+import { headers } from "next/headers";
+import { isMaintenanceMode } from "@/lib/platform-settings";
+import { MaintenanceScreen } from "@/components/MaintenanceScreen";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -51,14 +54,32 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Note: `x-pathname` is set by `src/middleware.ts`.
+  // This runs on the server so we can read platform settings safely.
+  const headersList = headers();
+  const pathname = headersList.get("x-pathname") || "";
+
   return (
     <html lang="en" data-theme="dark" className={`${outfit.variable} ${dmSans.variable} scroll-smooth`}>
       <body className="min-h-screen bg-background antialiased font-[family-name:var(--font-dm-sans)]">
         <Providers>
-          {children}
+          {/* Maintenance mode applies to non-admin UI only */}
+          {/* eslint-disable-next-line @next/next/no-async-client-component */}
+          {/* @ts-expect-error Server Component boundary */}
+          <MaintenanceGate pathname={pathname}>{children}</MaintenanceGate>
           <Chatbot />
         </Providers>
       </body>
     </html>
   );
+}
+
+async function MaintenanceGate({ pathname, children }: { pathname: string; children: React.ReactNode }) {
+  if (pathname.startsWith("/admin")) return children;
+  if (pathname.startsWith("/api")) return children;
+  if (pathname.startsWith("/_next")) return children;
+
+  const on = await isMaintenanceMode();
+  if (!on) return children;
+  return <MaintenanceScreen />;
 }
