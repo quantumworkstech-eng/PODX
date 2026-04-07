@@ -59,11 +59,47 @@ interface AdminStudioFormData {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const TIME_SLOTS = [
-  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
-  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
-  "20:00", "21:00", "22:00", "23:00",
+const TIME_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+
+const INDIA_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Chandigarh", "Delhi", "Jammu & Kashmir", "Ladakh", "Puducherry",
 ];
+
+const CITY_STATE_MAP: Record<string, string> = {
+  "Mumbai": "Maharashtra", "Pune": "Maharashtra", "Nashik": "Maharashtra",
+  "Nagpur": "Maharashtra", "Thane": "Maharashtra", "Navi Mumbai": "Maharashtra",
+  "Aurangabad": "Maharashtra", "Solapur": "Maharashtra",
+  "Delhi": "Delhi", "New Delhi": "Delhi", "Noida": "Uttar Pradesh",
+  "Gurgaon": "Haryana", "Gurugram": "Haryana", "Faridabad": "Haryana",
+  "Bengaluru": "Karnataka", "Bangalore": "Karnataka", "Mysuru": "Karnataka",
+  "Mysore": "Karnataka", "Hubli": "Karnataka", "Mangalore": "Karnataka",
+  "Chennai": "Tamil Nadu", "Coimbatore": "Tamil Nadu", "Madurai": "Tamil Nadu",
+  "Hyderabad": "Telangana", "Secunderabad": "Telangana", "Warangal": "Telangana",
+  "Kolkata": "West Bengal", "Howrah": "West Bengal", "Durgapur": "West Bengal",
+  "Ahmedabad": "Gujarat", "Surat": "Gujarat", "Vadodara": "Gujarat",
+  "Rajkot": "Gujarat", "Gandhinagar": "Gujarat",
+  "Jaipur": "Rajasthan", "Jodhpur": "Rajasthan", "Udaipur": "Rajasthan",
+  "Kota": "Rajasthan", "Ajmer": "Rajasthan",
+  "Lucknow": "Uttar Pradesh", "Kanpur": "Uttar Pradesh", "Agra": "Uttar Pradesh",
+  "Varanasi": "Uttar Pradesh", "Allahabad": "Uttar Pradesh",
+  "Patna": "Bihar", "Gaya": "Bihar",
+  "Bhopal": "Madhya Pradesh", "Indore": "Madhya Pradesh", "Gwalior": "Madhya Pradesh",
+  "Raipur": "Chhattisgarh", "Bhilai": "Chhattisgarh",
+  "Ranchi": "Jharkhand", "Jamshedpur": "Jharkhand",
+  "Bhubaneswar": "Odisha", "Cuttack": "Odisha",
+  "Visakhapatnam": "Andhra Pradesh", "Vijayawada": "Andhra Pradesh",
+  "Kochi": "Kerala", "Thiruvananthapuram": "Kerala", "Kozhikode": "Kerala",
+  "Chandigarh": "Chandigarh", "Amritsar": "Punjab", "Ludhiana": "Punjab",
+  "Dehradun": "Uttarakhand", "Haridwar": "Uttarakhand",
+  "Guwahati": "Assam", "Silchar": "Assam",
+  "Srinagar": "Jammu & Kashmir", "Jammu": "Jammu & Kashmir",
+  "Goa": "Goa", "Panaji": "Goa",
+};
 
 const STEPS = [
   { id: 1, name: "Partner & Info", short: "Info" },
@@ -549,7 +585,11 @@ function AdminEditStudioPageInner() {
             <label className="text-white/80 text-sm font-medium mb-2 block">City *</label>
             <select
               value={formData.city}
-              onChange={(e) => updateFormData({ city: e.target.value })}
+              onChange={(e) => {
+                const selectedCity = e.target.value;
+                const autoState = CITY_STATE_MAP[selectedCity] || "";
+                updateFormData({ city: selectedCity, ...(autoState ? { state: autoState } : {}) });
+              }}
               className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
             >
               <option value="" className="bg-[#141414]">Select city…</option>
@@ -558,10 +598,24 @@ function AdminEditStudioPageInner() {
             </select>
           </div>
           <div>
-            <label className="text-white/80 text-sm font-medium mb-2 block">State *</label>
-            <input type="text" value={formData.state} onChange={(e) => updateFormData({ state: e.target.value })}
-              placeholder="e.g., Maharashtra"
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors" />
+            <label className="text-white/80 text-sm font-medium mb-2 block">
+              State *
+              {formData.city && CITY_STATE_MAP[formData.city] && (
+                <span className="text-[#D9FC67] text-xs ml-2 font-normal">Auto-filled</span>
+              )}
+            </label>
+            <select
+              value={formData.state}
+              onChange={(e) => updateFormData({ state: e.target.value })}
+              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
+            >
+              <option value="" className="bg-[#141414]">Select state…</option>
+              {INDIA_STATES.map((s) => (
+                <option key={s} value={s} className="bg-[#141414] text-white">
+                  {s}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div>
@@ -607,7 +661,11 @@ function AdminEditStudioPageInner() {
               <select value={formData.workingHours.start}
                 onChange={(e) => updateFormData({ workingHours: { ...formData.workingHours, start: e.target.value } })}
                 className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:border-[#D9FC67] focus:outline-none">
-                {TIME_SLOTS.map((t) => <option key={t} value={t} className="bg-[#141414]">{t}</option>)}
+                {TIME_SLOTS.map((t) => (
+                  <option key={t} value={t} className="bg-[#141414] text-white">
+                    {t}
+                  </option>
+                ))}
               </select>
             </div>
             <span className="text-white/40 mt-5">to</span>
@@ -616,7 +674,11 @@ function AdminEditStudioPageInner() {
               <select value={formData.workingHours.end}
                 onChange={(e) => updateFormData({ workingHours: { ...formData.workingHours, end: e.target.value } })}
                 className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:border-[#D9FC67] focus:outline-none">
-                {TIME_SLOTS.map((t) => <option key={t} value={t} className="bg-[#141414]">{t}</option>)}
+                {TIME_SLOTS.map((t) => (
+                  <option key={t} value={t} className="bg-[#141414] text-white">
+                    {t}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -911,7 +973,13 @@ function AdminEditStudioPageInner() {
             Back to Studios
           </Link>
           <h1 className="text-lg font-bold text-white">Edit Studio (Admin)</h1>
-          <span className="w-24" />
+          <Button
+            onClick={handleSubmit}
+            disabled={isLoading || isDataLoading}
+            className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold disabled:opacity-50"
+          >
+            {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : <><CheckCircle className="w-4 h-4 mr-2" />Save</>}
+          </Button>
         </div>
       </header>
 

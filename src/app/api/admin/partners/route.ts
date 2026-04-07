@@ -51,10 +51,12 @@ export async function GET() {
 
   const candidateIds = new Set<string>(studiosByOwner.keys());
 
+  // Be permissive: role column is a comma-separated string and may contain partner in any order,
+  // potentially with other roles too (e.g. "user,partner" or "admin,user,partner").
   const { data: byRoleColumn } = await supabaseAdmin
     .from('users')
     .select('id, role')
-    .in('role', ROLE_COLUMN_VALUES_WITH_PARTNER);
+    .ilike('role', '%partner%');
   (byRoleColumn || []).forEach((u: { id: string }) => candidateIds.add(u.id));
 
   const { data: byUserRoles, error: urErr } = await supabaseAdmin

@@ -153,9 +153,10 @@ export default function AdminBookingsPage() {
   });
   const [studioList, setStudioList] = useState<any[]>([]);
   const [studioBookingInventory, setStudioBookingInventory] = useState<StudioBookingInventory | null>(null);
+  const [studioSearch, setStudioSearch] = useState("");
 
   const loadStudiosForDropdown = () => {
-    fetch("/api/admin/studios?page=1")
+    fetch("/api/admin/studios?page=1&limit=200")
       .then(r => r.json())
       .then(d => setStudioList(d.studios || []));
   };
@@ -1223,12 +1224,26 @@ export default function AdminBookingsPage() {
               </div>
               <div>
                 <label className="text-white/40 text-xs uppercase tracking-wider block mb-1">Studio *</label>
+                <input
+                  value={studioSearch}
+                  onChange={(e) => setStudioSearch(e.target.value)}
+                  placeholder="Search studio by name/city..."
+                  className="w-full mb-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20"
+                />
                 <select required value={addFields.studio_id} onChange={(e) => setAddFields(f => ({ ...f, studio_id: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20 appearance-none">
                   <option value="" className="bg-[#18181b]">Select a studio...</option>
-                  {studioList.map((s: any) => (
-                    <option key={s.id} value={s.id} className="bg-[#18181b]">{s.name} — {s.city}</option>
-                  ))}
+                  {studioList
+                    .filter((s: any) => {
+                      const q = studioSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return `${s.name || ""} ${s.city || ""}`.toLowerCase().includes(q);
+                    })
+                    .map((s: any) => (
+                      <option key={s.id} value={s.id} className="bg-[#18181b]">
+                        {s.name} — {s.city}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div>

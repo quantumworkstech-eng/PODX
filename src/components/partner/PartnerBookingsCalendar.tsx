@@ -61,9 +61,7 @@ const HOUR_ROWS = Array.from(
 );
 
 function formatHourLabel(h: number): string {
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hr = h % 12 || 12;
-  return `${hr} ${ampm}`;
+  return `${String(h).padStart(2, "0")}:00`;
 }
 
 function formatRangeIST(start: Date, end: Date): string {
@@ -71,6 +69,7 @@ function formatRangeIST(start: Date, end: Date): string {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "2-digit",
+    hour12: false,
   });
   return `${fmt.format(start)} – ${fmt.format(end)}`;
 }
@@ -126,6 +125,21 @@ function StatusIcon({ status }: { status: PartnerCalendarBooking["status"] }) {
       return <XCircle className="w-3.5 h-3.5 text-red-400" />;
     default:
       return <CheckCircle className="w-3.5 h-3.5 text-blue-400" />;
+  }
+}
+
+function statusLabel(status: PartnerCalendarBooking["status"]): string {
+  switch (status) {
+    case "confirmed":
+      return "Confirmed";
+    case "pending":
+      return "Pending";
+    case "cancelled":
+      return "Cancelled";
+    case "completed":
+      return "Completed";
+    default:
+      return "Confirmed";
   }
 }
 
@@ -323,9 +337,11 @@ export function PartnerBookingsCalendar({
                 onChange={(e) => setStudioFilter(e.target.value)}
                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white min-w-[140px]"
               >
-                <option value="all">All studios</option>
+                <option value="all" className="bg-[#141414] text-white">
+                  All studios
+                </option>
                 {studioOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.id} value={s.id} className="bg-[#141414] text-white">
                     {s.name}
                   </option>
                 ))}
@@ -338,11 +354,21 @@ export function PartnerBookingsCalendar({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white lg:ml-auto"
           >
-            <option value="all">All statuses</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="all" className="bg-[#141414] text-white">
+              All statuses
+            </option>
+            <option value="confirmed" className="bg-[#141414] text-white">
+              Confirmed
+            </option>
+            <option value="pending" className="bg-[#141414] text-white">
+              Pending
+            </option>
+            <option value="completed" className="bg-[#141414] text-white">
+              Completed
+            </option>
+            <option value="cancelled" className="bg-[#141414] text-white">
+              Cancelled
+            </option>
           </select>
         </div>
 
@@ -452,7 +478,20 @@ export function PartnerBookingsCalendar({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <StatusIcon status={detail?.status ?? "confirmed"} />
-              Booking {detail?.id}
+              <span className="truncate">Booking {detail?.id}</span>
+              {detail?.status && (
+                <span
+                  className={cn(
+                    "ml-auto inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                    detail.status === "confirmed" && "bg-green-500/10 border-green-500/20 text-green-300",
+                    detail.status === "pending" && "bg-amber-500/10 border-amber-500/20 text-amber-300",
+                    detail.status === "cancelled" && "bg-red-500/10 border-red-500/20 text-red-300",
+                    detail.status === "completed" && "bg-blue-500/10 border-blue-500/20 text-blue-300"
+                  )}
+                >
+                  {statusLabel(detail.status)}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           {detail && (

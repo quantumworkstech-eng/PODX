@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
     .range(offset, offset + limit - 1);
 
   if (status) query = query.eq('status', status);
-  if (search) query = query.ilike('booking_number', `%${search}%`);
+  if (search) {
+    // Search across booking number, customer email, and studio name.
+    // Note: PostgREST supports filtering on embedded relations in `or()`.
+    const s = `%${search}%`;
+    query = query.or(`booking_number.ilike.${s},users.email.ilike.${s},studios.name.ilike.${s}`);
+  }
 
   const { data, error, count } = await query;
 

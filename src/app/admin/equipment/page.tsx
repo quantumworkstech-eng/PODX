@@ -148,9 +148,9 @@ export default function AdminEquipmentPage() {
               onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value as Category }))}
               className="h-10 px-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-[#D9FC67] focus:outline-none"
             >
-              <option value="equipment">Equipment</option>
-              <option value="service">Service</option>
-              <option value="amenity">Amenity</option>
+              <option value="equipment" className="bg-[#141414] text-white">Equipment</option>
+              <option value="service" className="bg-[#141414] text-white">Service</option>
+              <option value="amenity" className="bg-[#141414] text-white">Amenity</option>
             </select>
             <input
               type="text"

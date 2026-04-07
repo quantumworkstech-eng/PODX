@@ -32,11 +32,7 @@ import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartner
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const TIME_SLOTS = [
-  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
-  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
-  "20:00", "21:00", "22:00", "23:00",
-];
+const TIME_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
 const DRAFT_KEY = "podx_draft_studio";
 
@@ -1176,7 +1172,9 @@ function CreateStudioPageInner() {
                 className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
               >
                 {TIME_SLOTS.map((time) => (
-                  <option key={time} value={time} className="bg-[#141414]">{time}</option>
+                  <option key={time} value={time} className="bg-[#141414] text-white">
+                    {time}
+                  </option>
                 ))}
               </select>
             </div>
@@ -1189,7 +1187,9 @@ function CreateStudioPageInner() {
                 className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:border-[#D9FC67] focus:outline-none transition-colors"
               >
                 {TIME_SLOTS.map((time) => (
-                  <option key={time} value={time} className="bg-[#141414]">{time}</option>
+                  <option key={time} value={time} className="bg-[#141414] text-white">
+                    {time}
+                  </option>
                 ))}
               </select>
             </div>

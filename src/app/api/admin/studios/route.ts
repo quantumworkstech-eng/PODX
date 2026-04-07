@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search');
   const owner_id = searchParams.get('owner_id');
   const page = parseInt(searchParams.get('page') || '1');
-  const limit = owner_id ? 100 : 20;
+  const rawLimit = parseInt(searchParams.get('limit') || '');
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(rawLimit, 1), 200)
+    : (owner_id ? 100 : 20);
   const offset = (page - 1) * limit;
 
   let query = supabaseAdmin

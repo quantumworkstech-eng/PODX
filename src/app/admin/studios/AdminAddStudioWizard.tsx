@@ -18,11 +18,7 @@ const STEPS = [
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const TIME_SLOTS = [
-  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
-  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
-  "20:00", "21:00", "22:00", "23:00",
-];
+const TIME_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
 interface CancellationRule {
   id: string;
@@ -49,6 +45,7 @@ interface WizardData {
   closeTime: string;
   amenityIds: string[];
   imageUrls: string[];
+  addonIds: string[];
   useCustomPolicies: boolean;
   cancellationRules: CancellationRule[];
 }
@@ -70,6 +67,7 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
     workingDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
     openTime: "09:00", closeTime: "21:00",
     amenityIds: [], imageUrls: [],
+    addonIds: [],
     useCustomPolicies: false,
     cancellationRules: [
       { id: crypto.randomUUID(), type: "hours", value: 48, refundPercent: 100 },
@@ -84,7 +82,8 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
   const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [newImageUrl, setNewImageUrl] = useState("");
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (step === 4) {
@@ -130,6 +129,9 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
     if (s === 1) {
       if (!data.name.trim()) return "Studio name is required";
       if (!data.owner_email.trim()) return "Owner email is required";
+      if (!data.short_description.trim() || data.short_description.trim().length < 20) {
+        return "Short description must be at least 20 characters";
+      }
     }
     if (s === 2) {
       if (!data.city.trim()) return "City is required";
@@ -137,6 +139,9 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
     if (s === 3) {
       if (!data.price_per_hour || Number(data.price_per_hour) <= 0) return "Valid price per hour is required";
       if (data.workingDays.length === 0) return "Select at least one working day";
+    }
+    if (s === 6) {
+      if (!data.imageUrls || data.imageUrls.length < 2) return "Upload at least 2 photos";
     }
     return null;
   };
@@ -203,13 +208,12 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
           longitude: data.longitude ? Number(data.longitude) : null,
         },
         amenityIds: data.amenityIds,
+        addonIds: data.addonIds,
         hoursData,
         policyUpdates,
       };
 
-      if (data.imageUrls.length > 0) {
-        patchBody.imageUrls = data.imageUrls;
-      }
+      patchBody.imageUrls = data.imageUrls || [];
 
       await fetch(`/api/admin/studios/${studioId}`, {
         method: "PATCH",
@@ -234,14 +238,50 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
       ? data.amenityIds.filter((a) => a !== id)
       : [...data.amenityIds, id]);
 
-  const addImageUrl = () => {
-    if (!newImageUrl.trim()) return;
-    set("imageUrls", [...data.imageUrls, newImageUrl.trim()]);
-    setNewImageUrl("");
-  };
-
   const removeImageUrl = (idx: number) =>
     set("imageUrls", data.imageUrls.filter((_, i) => i !== idx));
+
+  const setHeroImage = (idx: number) => {
+    if (idx <= 0 || idx >= data.imageUrls.length) return;
+    const next = [...data.imageUrls];
+    const [picked] = next.splice(idx, 1);
+    set("imageUrls", [picked, ...next]);
+  };
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files) return;
+    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    const incoming = Array.from(files).filter((f) => allowed.includes(f.type));
+    if (incoming.length === 0) {
+      setError("Only JPG, PNG, and WebP images are allowed");
+      return;
+    }
+    setUploadingImages(true);
+    setError(null);
+
+    const uploadedUrls: string[] = [];
+    for (const file of incoming) {
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+        const out = await res.json();
+        if (!res.ok) {
+          setError(out?.error || "Failed to upload image");
+          setUploadingImages(false);
+          return;
+        }
+        if (out?.url) uploadedUrls.push(out.url);
+      } catch {
+        setError("Network error uploading image");
+        setUploadingImages(false);
+        return;
+      }
+    }
+
+    set("imageUrls", [...(data.imageUrls || []), ...uploadedUrls]);
+    setUploadingImages(false);
+  };
 
   const updateRule = (idx: number, patch: Partial<CancellationRule>) => {
     const rules = [...data.cancellationRules];
@@ -483,7 +523,11 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
                       onChange={(e) => set("openTime", e.target.value)}
                       className={inputCls}
                     >
-                      {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {TIME_SLOTS.map((t) => (
+                        <option key={t} value={t} className="bg-[#141414] text-white">
+                          {t}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -493,7 +537,11 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
                       onChange={(e) => set("closeTime", e.target.value)}
                       className={inputCls}
                     >
-                      {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {TIME_SLOTS.map((t) => (
+                        <option key={t} value={t} className="bg-[#141414] text-white">
+                          {t}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -561,8 +609,10 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
           {step === 5 && (
             <div className="space-y-4">
               <div>
-                <p className="text-white/60 text-sm font-medium">Platform Booking Add-ons</p>
-                <p className="text-white/30 text-xs mt-1">These add-ons are available platform-wide — customers can select them during checkout for any studio booking.</p>
+                <p className="text-white/60 text-sm font-medium">Platform Add-ons for this Studio</p>
+                <p className="text-white/30 text-xs mt-1">
+                  Select which platform add-ons customers can choose for this studio.
+                </p>
               </div>
 
               {addonsLoading ? (
@@ -575,29 +625,58 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
                   <p className="text-white/20 text-xs mt-1">Add platform add-ons from the Add-ons management page</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {addons.map((addon: any) => (
-                    <div
-                      key={addon.id}
-                      className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-white/5 rounded-xl"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium">{addon.name}</p>
-                        {addon.description && (
-                          <p className="text-white/40 text-xs mt-0.5">{addon.description}</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {addons.map((addon: any) => {
+                    const selected = data.addonIds.includes(addon.id);
+                    return (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() =>
+                          set(
+                            "addonIds",
+                            selected ? data.addonIds.filter((id) => id !== addon.id) : [...data.addonIds, addon.id]
+                          )
+                        }
+                        className={cn(
+                          "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
+                          selected
+                            ? "bg-[#D9FC67]/10 border-[#D9FC67]/30"
+                            : "bg-white/[0.03] border-white/5 hover:border-white/10"
                         )}
-                        {addon.category && (
-                          <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white/5 text-white/30 text-[10px] capitalize">
-                            {addon.category}
-                          </span>
-                        )}
-                      </div>
-                      <div className="ml-4 text-right flex-shrink-0">
-                        <p className="text-[#D9FC67] font-semibold text-sm">₹{Number(addon.price).toLocaleString()}</p>
-                        <p className="text-white/30 text-[10px]">flat fee</p>
-                      </div>
-                    </div>
-                  ))}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div
+                            className={cn(
+                              "w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 mt-0.5",
+                              selected ? "bg-[#D9FC67] border-[#D9FC67]" : "border-white/20"
+                            )}
+                          >
+                            {selected && <Check className="w-3 h-3 text-black" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={cn("text-sm font-medium truncate", selected ? "text-[#D9FC67]" : "text-white/70")}>
+                              {addon.name}
+                            </p>
+                            {addon.description && (
+                              <p className="text-white/35 text-xs mt-0.5 line-clamp-2">{addon.description}</p>
+                            )}
+                            {addon.category && (
+                              <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white/5 text-white/30 text-[10px] capitalize">
+                                {addon.category}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="ml-4 text-right flex-shrink-0">
+                          <p className={cn("font-semibold text-sm", selected ? "text-[#D9FC67]" : "text-white/60")}>
+                            ₹{Number(addon.price).toLocaleString()}
+                          </p>
+                          <p className="text-white/25 text-[10px]">flat fee</p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -606,53 +685,85 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
           {/* ── Step 6: Photos ── */}
           {step === 6 && (
             <div className="space-y-4">
-              <p className="text-white/40 text-sm">Add image URLs for this studio. The first image will be the featured image.</p>
-              <div className="flex gap-2">
+              <p className="text-white/40 text-sm">
+                Upload studio photos. The first photo is the <span className="text-white/60">hero image</span>.
+              </p>
+
+              <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center bg-white/[0.02]">
                 <input
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addImageUrl(); } }}
-                  placeholder="https://example.com/studio-image.jpg"
-                  className={cn(inputCls, "flex-1")}
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  disabled={uploadingImages}
+                  onChange={(e) => void uploadFiles(e.target.files)}
+                  className="hidden"
+                  id="admin-studio-photo-upload"
                 />
-                <button
-                  type="button"
-                  onClick={addImageUrl}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                <label
+                  htmlFor="admin-studio-photo-upload"
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors",
+                    uploadingImages
+                      ? "bg-white/5 text-white/30 cursor-not-allowed"
+                      : "bg-[#D9FC67] text-black hover:bg-[#E8FF8A] cursor-pointer"
+                  )}
                 >
-                  <Plus className="w-4 h-4" /> Add
-                </button>
+                  {uploadingImages ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {uploadingImages ? "Uploading..." : "Upload photos"}
+                </label>
+                <p className="text-white/30 text-xs mt-3">JPG, PNG, WebP · up to 10MB each · upload at least 2 photos</p>
               </div>
 
               {data.imageUrls.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {data.imageUrls.map((url, idx) => (
-                    <div key={idx} className="relative rounded-xl overflow-hidden border border-white/5 group">
-                      <img
-                        src={url}
-                        alt={`Image ${idx + 1}`}
-                        className="w-full h-36 object-cover bg-white/5"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => removeImageUrl(idx)}
-                          className="p-2 bg-red-500/90 rounded-lg text-white hover:bg-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {data.imageUrls.map((url, idx) => {
+                    const isBroken = !!imageLoadErrors[url];
+                    return (
+                      <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-white/5 group bg-white/[0.03]">
+                        {!isBroken ? (
+                          <img
+                            src={url}
+                            alt={`Studio image ${idx + 1}`}
+                            className="w-full h-32 object-cover bg-white/5"
+                            onError={() => setImageLoadErrors((m) => ({ ...m, [url]: true }))}
+                          />
+                        ) : (
+                          <div className="w-full h-32 flex items-center justify-center text-white/35 text-xs px-3 text-center">
+                            Failed to load image. You can remove it and upload again.
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          {idx !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setHeroImage(idx)}
+                              className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-medium border border-white/10"
+                            >
+                              Set hero
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeImageUrl(idx)}
+                            className="p-2 bg-red-500/90 rounded-lg text-white hover:bg-red-500 transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                          <p className="text-white text-xs truncate">{idx === 0 ? "Hero photo" : `Photo ${idx + 1}`}</p>
+                        </div>
                       </div>
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                        <p className="text-white text-xs truncate">{idx === 0 ? "Featured Image" : `Image ${idx + 1}`}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="py-16 text-center border border-dashed border-white/10 rounded-xl">
-                  <p className="text-white/30 text-sm">No images added yet</p>
-                  <p className="text-white/20 text-xs mt-1">Optional — images can be added later via the edit drawer</p>
+                <div className="py-14 text-center border border-dashed border-white/10 rounded-xl">
+                  <p className="text-white/30 text-sm">No photos uploaded yet</p>
+                  <p className="text-white/20 text-xs mt-1">Upload at least 2 photos to proceed</p>
                 </div>
               )}
             </div>
