@@ -233,25 +233,13 @@ export default function DashboardContent() {
     bookingId: string,
     newDate: Date,
     newTime: string
-  ) => {
-    const sessionStartIso = parseISTDateTime(
-      formatCalendarDateLocal(newDate),
-      newTime
-    ).toISOString();
-    // Optimistic UI update (date mirrors API: session start instant)
-    const updated = bookings.map((b) =>
-      b.id === bookingId ? { ...b, date: sessionStartIso, timeSlot: newTime } : b
-    );
-    setBookings(updated);
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
-
+  ): Promise<boolean> => {
     // Use the real UUID (dbId) for the API call
     const booking = bookings.find((b) => b.id === bookingId);
     const apiId = booking?.dbId || bookingId;
 
-    // Persist to Supabase
     try {
-      await fetch(`/api/bookings/${apiId}`, {
+      const res = await fetch(`/api/bookings/${apiId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -260,8 +248,25 @@ export default function DashboardContent() {
           newTimeSlot: newTime,
         }),
       });
+
+      let json: { error?: string } = {};
+      try {
+        json = await res.json();
+      } catch {
+        /* non-JSON body */
+      }
+
+      if (!res.ok) {
+        alert(json.error || "Failed to reschedule booking. Please try again.");
+        return false;
+      }
+
+      // Refresh from DB so partner/admin dashboards also reflect the change
+      await refreshBookings();
+      return true;
     } catch {
-      /* Already updated locally — ignore API failure */
+      alert("Network error. Please check your connection and try again.");
+      return false;
     }
   };
 

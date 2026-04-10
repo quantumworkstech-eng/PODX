@@ -49,7 +49,7 @@ export interface BookingData {
 interface UpcomingBookingsProps {
   bookings: BookingData[];
   onCancel: (bookingId: string) => void;
-  onReschedule: (bookingId: string, newDate: Date, newTime: string) => void;
+  onReschedule: (bookingId: string, newDate: Date, newTime: string) => boolean | Promise<boolean>;
   /** Reload bookings from API after add-on purchase */
   onRefreshBookings?: () => Promise<BookingData[] | undefined>;
 }
@@ -455,12 +455,10 @@ export function UpcomingBookings({
             setShowRescheduleModal(false);
             setSelectedBooking(null);
           }}
-          onConfirm={(newDate: Date, newTime: string) => {
-            if (selectedBooking) {
-              onReschedule(selectedBooking.id, newDate, newTime);
-            }
-            setShowRescheduleModal(false);
-            setSelectedBooking(null);
+          onConfirm={async (newDate: Date, newTime: string) => {
+            const b = selectedBooking;
+            if (!b) return false;
+            return await Promise.resolve(onReschedule(b.id, newDate, newTime));
           }}
         />
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Calendar, Clock, CheckCircle, XCircle, AlertCircle, CalendarPlus,
   Building2, User, Phone, Mail, MapPin, Package, ShoppingBag,
@@ -101,13 +101,22 @@ export default function PartnerBookingsPage() {
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
   const [studioInventory, setStudioInventory] = useState<StudioBookingInventory | null>(null);
 
-  useEffect(() => {
-    fetch("/api/partner/bookings")
-      .then((r) => r.json())
-      .then((d) => setBookings(d.bookings || []))
-      .catch(console.error)
-      .finally(() => setIsFetching(false));
+  const loadBookingsFromApi = useCallback(async (): Promise<Booking[] | undefined> => {
+    try {
+      const r = await fetch("/api/partner/bookings");
+      if (!r.ok) return undefined;
+      const d = await r.json();
+      const list = (d.bookings || []) as Booking[];
+      setBookings(list);
+      return list;
+    } catch {
+      return undefined;
+    }
   }, []);
+
+  useEffect(() => {
+    loadBookingsFromApi().catch(console.error).finally(() => setIsFetching(false));
+  }, [loadBookingsFromApi]);
 
   useEffect(() => {
     const sid = selectedBooking?.studio?.id || selectedBooking?.studioId;
@@ -162,7 +171,12 @@ export default function PartnerBookingsPage() {
     setIsRescheduling(true);
     setRescheduleError(null);
 
+    const localBookingId = selectedBooking.id;
+    const localDbId = selectedBooking.dbId;
     const apiId = selectedBooking.dbId || selectedBooking.id;
+    const [th, tm = "00"] = newTime.split(":");
+    const newTimeSlot = `${String(parseInt(th, 10)).padStart(2, "0")}:${String(parseInt(tm, 10)).padStart(2, "0")}`;
+
     try {
       const res = await fetch(`/api/partner/bookings/${apiId}`, {
         method: "PATCH",
@@ -170,7 +184,7 @@ export default function PartnerBookingsPage() {
         body: JSON.stringify({
           action: "reschedule",
           newDate,
-          newTimeSlot: newTime,
+          newTimeSlot,
         }),
       });
       const json = await res.json();
@@ -178,14 +192,11 @@ export default function PartnerBookingsPage() {
         setRescheduleError(json.error || "Failed to reschedule. Please try again.");
         return;
       }
-      // Update UI optimistically after confirmed API success
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === selectedBooking.id
-            ? { ...b, date: new Date(newDate).toISOString(), timeSlot: newTime }
-            : b
-        )
-      );
+      const list = await loadBookingsFromApi();
+      if (list) {
+        const fresh = list.find((b) => b.id === localBookingId || b.dbId === localDbId);
+        if (fresh) setSelectedBooking(fresh);
+      }
       setShowRescheduleModal(false);
       setNewDate("");
       setNewTime("");

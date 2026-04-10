@@ -10,7 +10,8 @@ import { TIME_SLOTS } from "@/lib/booking-types";
 interface RescheduleModalProps {
   booking: BookingData;
   onClose: () => void;
-  onConfirm: (newDate: Date, newTime: string) => void;
+  /** Return true when reschedule persisted so the modal can close and reset UI. */
+  onConfirm: (newDate: Date, newTime: string) => boolean | Promise<boolean>;
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -102,12 +103,14 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
     );
   };
 
-  const handleConfirm = () => {
-    if (selectedDate && selectedTime) {
-      setIsSubmitting(true);
-      setTimeout(() => {
-        onConfirm(selectedDate, selectedTime);
-      }, 500);
+  const handleConfirm = async () => {
+    if (!selectedDate || !selectedTime) return;
+    setIsSubmitting(true);
+    try {
+      const ok = await Promise.resolve(onConfirm(selectedDate, selectedTime));
+      if (ok) onClose();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

@@ -48,15 +48,19 @@ export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalPro
 
   const formatTime = () => {
     if (!booking.timeSlot) return "";
-    const [hours] = booking.timeSlot.split(":");
-    const hour = parseInt(hours);
-    const endTime = hour + booking.duration;
-    const fmt = (h: number) => {
-      if (h === 12) return "12 PM";
-      if (h > 12) return `${h - 12} PM`;
-      return `${h} AM`;
+    const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
+    const hour = parseInt(hoursStr, 10);
+    const minute = parseInt(minutesStr, 10);
+    const totalStartMinutes = hour * 60 + minute;
+    const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
+    const formatMinutes = (total: number) => {
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      const ampm = h >= 12 ? "PM" : "AM";
+      const displayH = h % 12 || 12;
+      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
     };
-    return `${fmt(hour)} – ${fmt(endTime)}`;
+    return `${formatMinutes(totalStartMinutes)} – ${formatMinutes(totalEndMinutes)}`;
   };
 
   return (
