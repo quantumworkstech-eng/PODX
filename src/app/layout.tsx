@@ -49,14 +49,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   // Note: `x-pathname` is set by `src/middleware.ts`.
-  // This runs on the server so we can read platform settings safely.
-  const headersList = headers();
+  // headers() is async in Next.js 15 and must be awaited.
+  const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
 
   return (
@@ -64,8 +64,6 @@ export default function RootLayout({
       <body className="min-h-screen bg-background antialiased font-[family-name:var(--font-dm-sans)]">
         <Providers>
           {/* Maintenance mode applies to non-admin UI only */}
-          {/* eslint-disable-next-line @next/next/no-async-client-component */}
-          {/* @ts-expect-error Server Component boundary */}
           <MaintenanceGate pathname={pathname}>{children}</MaintenanceGate>
           <Chatbot />
         </Providers>
