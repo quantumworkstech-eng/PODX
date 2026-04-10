@@ -3,10 +3,9 @@ import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
   calendarDateInIST,
-  getHourInIST,
-  getMinuteInIST,
   startEndFromCalendarAndSlot,
 } from "@/lib/bookingTime";
+import { isoToISTSlot } from "@/lib/bookingDisplay";
 
 // ── GET /api/bookings ─────────────────────────────────────────────────────────
 // Returns the authenticated user's bookings from Supabase.
@@ -62,14 +61,17 @@ export async function GET() {
       const endTime = new Date(b.end_time);
       const duration =
         (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-      const hour = getHourInIST(startTime);
-      const minute = getMinuteInIST(startTime);
-      const timeSlot = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+      // timeSlot is a convenience "HH:MM" IST label derived from start_time
+      const timeSlot = isoToISTSlot(b.start_time);
 
       return {
         id: b.booking_number || b.id,
         dbId: b.id,
         studioId: b.studio_id as string,
+        // Raw UTC ISO strings — use these for all date/time display
+        start_time: b.start_time as string,
+        end_time: b.end_time as string,
+        // Legacy aliases kept for backward-compat
         date: b.start_time,
         endDate: b.end_time,
         timeSlot,

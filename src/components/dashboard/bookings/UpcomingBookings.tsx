@@ -19,16 +19,19 @@ import { BookingDetailModal } from "../modals/BookingDetailModal";
 import { CancelBookingModal } from "../modals/CancelBookingModal";
 import { RescheduleModal } from "../modals/RescheduleModal";
 import { AddBookingAddonsModal } from "../modals/AddBookingAddonsModal";
-import {
-  formatSessionDateWithWeekdayIST,
-  formatSessionTimeRangeIST,
-} from "@/lib/bookingTime";
+import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
+
 
 export interface BookingData {
   id: string;
   dbId?: string;   // actual UUID in DB (id may be booking_number)
+  /** Raw UTC ISO string for session start — use formatBookingDate/Time from bookingDisplay.ts */
+  start_time?: string;
+  /** Raw UTC ISO string for session end */
+  end_time?: string;
+  /** @deprecated use start_time */
   date: string;
-  /** ISO end time from API — preferred for displaying time range in IST */
+  /** @deprecated use end_time */
   endDate?: string;
   timeSlot: string;
   duration: number;
@@ -227,25 +230,26 @@ export function UpcomingBookings({
     });
   }, [bookings, showDetailModal, showRescheduleModal]);
 
-  const formatDate = (dateStr: string) => formatSessionDateWithWeekdayIST(dateStr);
+  // Use centralized IST-aware formatters — single source of truth
+  const formatDate = (b: BookingData) =>
+    formatBookingDate(b.start_time || b.date);
 
   const formatTimeRange = (b: BookingData) => {
-    if (b.endDate) {
-      return formatSessionTimeRangeIST(b.date, b.endDate);
+    if (b.start_time && b.end_time) {
+      return formatBookingTimeRange(b.start_time, b.end_time);
     }
+    // Fallback: derive from timeSlot + duration (minute-accurate)
     const [hoursStr, minutesStr = "00"] = b.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
     const totalEndMinutes = totalStartMinutes + Math.round(b.duration * 60);
-    const formatMinutes = (total: number) => {
+    const fmt = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
-      const ampm = h >= 12 ? "PM" : "AM";
-      const displayH = h % 12 || 12;
-      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
     };
-    return `${formatMinutes(totalStartMinutes)} - ${formatMinutes(totalEndMinutes)}`;
+    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
   };
 
   const handleViewDetails = (booking: BookingData) => {
@@ -318,7 +322,7 @@ export function UpcomingBookings({
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm text-white/60 mb-4">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-white/40" />
-                          <span>{formatDate(booking.date)}</span>
+                          <span>{formatDate(booking)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-white/40" />

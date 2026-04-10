@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getHourInIST, getMinuteInIST } from '@/lib/bookingTime';
+import { isoToISTSlot } from '@/lib/bookingDisplay';
 
 async function getUserAndStudios(email: string) {
   const { data: user } = await supabaseAdmin!
@@ -51,8 +51,9 @@ export async function GET() {
     const startTime = new Date(b.start_time);
     const endTime = new Date(b.end_time);
     const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-    const fmt = (d: Date) =>
-      `${getHourInIST(d).toString().padStart(2, '0')}:${getMinuteInIST(d).toString().padStart(2, '0')}`;
+    // Derive 24-hr "HH:MM" slot labels in IST using the centralized utility
+    const timeSlotLabel = isoToISTSlot(b.start_time);
+    const endTimeLabel  = isoToISTSlot(b.end_time);
 
     const customerName = notes.customerName || b.users?.email?.split('@')[0] || 'Customer';
 
@@ -81,10 +82,14 @@ export async function GET() {
         email: b.users?.email || '',
         phone: notes.customerPhone || '',
       },
+      // Raw UTC ISO strings — use formatBookingDate/Time from bookingDisplay.ts
+      start_time: b.start_time as string,
+      end_time: b.end_time as string,
+      // Legacy aliases
       date: b.start_time,
       endDate: b.end_time,
-      timeSlot: fmt(startTime),
-      endTime: fmt(endTime),
+      timeSlot: timeSlotLabel,
+      endTime: endTimeLabel,
       duration,
       participants: notes.participants || null,
       package: pkg ? { name: pkg.name, pricePerHour: pkg.price_per_hour || 0 } : null,

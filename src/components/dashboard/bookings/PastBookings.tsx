@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { BookingDetailModal } from "../modals/BookingDetailModal";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { BookingData } from "./UpcomingBookings";
+import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
 
 interface PastBookingsProps {
   bookings: BookingData[];
@@ -19,30 +20,26 @@ export function PastBookings({ bookings, reviewedBookingIds = new Set(), onRevie
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [reviewBooking, setReviewBooking] = useState<BookingData | null>(null);
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  // Use centralized IST-aware formatters — single source of truth
+  const formatDate = (b: BookingData) =>
+    formatBookingDate(b.start_time || b.date);
 
-  const formatTime = (timeSlot: string, duration: number) => {
-    const [hoursStr, minutesStr = "00"] = timeSlot.split(":");
+  const formatTime = (b: BookingData) => {
+    if (b.start_time && b.end_time) {
+      return formatBookingTimeRange(b.start_time, b.end_time);
+    }
+    // Fallback from timeSlot + duration
+    const [hoursStr, minutesStr = "00"] = b.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
-    const totalEndMinutes = totalStartMinutes + Math.round(duration * 60);
-    const formatMinutes = (total: number) => {
+    const totalEndMinutes = totalStartMinutes + Math.round(b.duration * 60);
+    const fmt = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
-      const ampm = h >= 12 ? "PM" : "AM";
-      const displayH = h % 12 || 12;
-      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
     };
-    return `${formatMinutes(totalStartMinutes)} - ${formatMinutes(totalEndMinutes)}`;
+    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
   };
 
   const isReviewed = (booking: BookingData) =>
@@ -99,8 +96,8 @@ export function PastBookings({ bookings, reviewedBookingIds = new Set(), onRevie
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-white text-sm">{formatDate(booking.date)}</p>
-                      <p className="text-white/40 text-xs">{formatTime(booking.timeSlot, booking.duration)}</p>
+                      <p className="text-white text-sm">{formatDate(booking)}</p>
+                      <p className="text-white/40 text-xs">{formatTime(booking)}</p>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-white text-sm">{booking.duration} hour{booking.duration > 1 ? "s" : ""}</p>

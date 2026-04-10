@@ -3,10 +3,14 @@
 import { X, Check, Calendar, Clock, MapPin, Users, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { formatBookingDateLong, formatBookingTimeRange } from "@/lib/bookingDisplay";
 
 interface BookingData {
   id: string;
-  date: string;
+  /** Raw UTC ISO — use for all date/time display */
+  start_time?: string;
+  end_time?: string;
+  date: string;        // legacy alias for start_time
   timeSlot: string;
   duration: number;
   participants: number;
@@ -36,31 +40,30 @@ interface BookingSuccessModalProps {
 }
 
 export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalProps) {
+  // Single source of truth: use UTC ISO strings with explicit IST timezone
   const formatDate = () => {
-    if (!booking.date) return "";
-    return new Date(booking.date).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    const src = booking.start_time || booking.date;
+    if (!src) return "";
+    return formatBookingDateLong(src);
   };
 
   const formatTime = () => {
+    if (booking.start_time && booking.end_time) {
+      return formatBookingTimeRange(booking.start_time, booking.end_time);
+    }
+    // Fallback from timeSlot + duration
     if (!booking.timeSlot) return "";
     const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
     const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
-    const formatMinutes = (total: number) => {
+    const fmt = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
-      const ampm = h >= 12 ? "PM" : "AM";
-      const displayH = h % 12 || 12;
-      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
     };
-    return `${formatMinutes(totalStartMinutes)} – ${formatMinutes(totalEndMinutes)}`;
+    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
   };
 
   return (

@@ -16,6 +16,7 @@ import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingI
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
 import { FeatureGate } from "@/components/partner/FeatureGate";
+import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
 import {
   formatSessionClock12hIST,
   formatSessionDateCalendarIST,
@@ -35,8 +36,12 @@ interface Booking {
   studioId?: string;
   studio: { id: string; name: string; city: string; address: string };
   customer: { name: string; email: string; phone: string };
+  /** Raw UTC ISO — preferred for display */
+  start_time?: string;
+  end_time?: string;
+  /** Legacy aliases */
   date: string;
-  endDate: string;
+  endDate?: string;
   timeSlot: string;
   endTime: string;
   duration: number;
@@ -347,7 +352,7 @@ export default function PartnerBookingsPage() {
                       <td className="p-4">
                         <p className="text-white text-sm">{fmtDate(booking.date)}</p>
                         <p className="text-white/50 text-xs">
-                          {formatSessionTimeRangeIST(booking.date, booking.endDate)}
+                          {formatSessionTimeRangeIST(booking.start_time || booking.date, booking.end_time || booking.endDate || booking.date)}
                         </p>
                         <p className="text-white/30 text-xs">{booking.duration}h session</p>
                       </td>
@@ -525,8 +530,8 @@ export default function PartnerBookingsPage() {
                       <h3 className="text-white font-semibold text-sm">Session Details</h3>
                     </div>
                     <InfoRow label="Date" value={fmtDate(selectedBooking.date)} />
-                    <InfoRow label="Start Time" value={formatSessionClock12hIST(selectedBooking.date)} />
-                    <InfoRow label="End Time" value={formatSessionClock12hIST(selectedBooking.endDate)} />
+                    <InfoRow label="Start Time" value={formatSessionClock12hIST(selectedBooking.start_time || selectedBooking.date)} />
+                    <InfoRow label="End Time" value={formatSessionClock12hIST(selectedBooking.end_time || selectedBooking.endDate || selectedBooking.date)} />
                     <InfoRow label="Duration" value={`${selectedBooking.duration} hour${selectedBooking.duration !== 1 ? "s" : ""}`} />
                     {selectedBooking.participants && (
                       <InfoRow label="Participants" value={`${selectedBooking.participants} people`} />
@@ -656,7 +661,7 @@ export default function PartnerBookingsPage() {
                   <InfoRow label="Studio" value={selectedBooking.studio.name} />
                   <InfoRow
                     label="Session"
-                    value={`${fmtDate(selectedBooking.date)} · ${formatSessionTimeRangeIST(selectedBooking.date, selectedBooking.endDate)}`}
+                    value={`${fmtDate(selectedBooking.date)} · ${formatSessionTimeRangeIST(selectedBooking.start_time || selectedBooking.date, selectedBooking.end_time || selectedBooking.endDate || selectedBooking.date)}`}
                   />
                   <InfoRow label="Amount" value={`₹${selectedBooking.totalPrice.toLocaleString("en-IN")}`} />
                 </div>
@@ -686,7 +691,7 @@ export default function PartnerBookingsPage() {
                   <InfoRow label="Current Date" value={fmtDate(selectedBooking.date)} />
                   <InfoRow
                     label="Current Time"
-                    value={formatSessionTimeRangeIST(selectedBooking.date, selectedBooking.endDate)}
+                    value={formatSessionTimeRangeIST(selectedBooking.start_time || selectedBooking.date, selectedBooking.end_time || selectedBooking.endDate || selectedBooking.date)}
                   />
                   <InfoRow label="Duration" value={`${selectedBooking.duration}h`} />
                 </div>

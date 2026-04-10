@@ -8,13 +8,17 @@ import {
   PartnerBookingsCalendar,
   type PartnerCalendarBooking,
 } from "@/components/partner/PartnerBookingsCalendar";
+import { formatBookingDate, formatBookingTime } from "@/lib/bookingDisplay";
 
 export interface BookingData {
   id: string;
   dbId?: string;
   studioId?: string;
+  /** Raw UTC ISO \u2014 use with formatBookingDate/Time from bookingDisplay.ts */
+  start_time?: string;
+  end_time?: string;
   date: string;
-  /** ISO end time from API (for calendar) */
+  /** @deprecated use end_time */
   endDate?: string;
   timeSlot: string;
   duration: number;
@@ -169,11 +173,8 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, 
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-medium truncate">{booking.studio.name}</p>
                     <p className="text-white/40 text-sm">
-                      {new Date(booking.date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      • {booking.timeSlot}
+                       {formatBookingDate(booking.start_time || booking.date)}{" "}
+                       • {booking.start_time ? formatBookingTime(booking.start_time) : booking.timeSlot}
                     </p>
                   </div>
                   <span
@@ -208,7 +209,7 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, 
                   <div>
                     <p className="text-white text-sm">Booking confirmed</p>
                     <p className="text-white/40 text-xs mt-1">
-                      {b.studio.name} • {new Date(b.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      {b.studio.name} • {formatBookingDate(b.start_time || b.date)}
                     </p>
                   </div>
                 </div>

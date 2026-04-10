@@ -5,6 +5,7 @@ import { Calendar, Clock, MapPin, Users, ChevronRight, Plus } from "lucide-react
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
 
 interface BookingData {
   id: string;
@@ -36,31 +37,29 @@ interface BookingCardProps {
 
 export function BookingCard({ booking }: BookingCardProps) {
   const formatDate = () => {
-    if (!booking.date) return "";
-    const d = new Date(booking.date);
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    };
-    return d.toLocaleDateString("en-US", options);
+    const src = (booking as any).start_time || booking.date;
+    if (!src) return "";
+    return formatBookingDate(src);
   };
 
   const formatTime = () => {
+    // Prefer raw UTC ISO strings for accuracy
+    const start = (booking as any).start_time;
+    const end   = (booking as any).end_time;
+    if (start && end) return formatBookingTimeRange(start, end);
+    // Fallback from timeSlot + duration
     if (!booking.timeSlot) return "";
     const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
     const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
-    const formatMinutes = (total: number) => {
+    const fmt = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
-      const ampm = h >= 12 ? "PM" : "AM";
-      const displayH = h % 12 || 12;
-      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
     };
-    return `${formatMinutes(totalStartMinutes)} - ${formatMinutes(totalEndMinutes)}`;
+    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
   };
 
   const getStatusColor = () => {

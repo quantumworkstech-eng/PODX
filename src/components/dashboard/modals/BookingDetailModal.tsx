@@ -8,10 +8,8 @@ import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
-import {
-  formatSessionDateLongIST,
-  formatSessionTimeRangeIST,
-} from "@/lib/bookingTime";
+import { formatBookingDateLong, formatBookingTimeRange } from "@/lib/bookingDisplay";
+
 
 interface BookingDetailModalProps {
   booking: BookingData;
@@ -55,23 +53,29 @@ export function BookingDetailModal({
       })
       .catch(() => {});
   }, [booking.studio?.id]);
-  const formatTimeRange = () => {
-    if (booking.endDate) {
-      return formatSessionTimeRangeIST(booking.date, booking.endDate);
+  // Use centralized IST-aware formatters — never browser-local timezone
+  const formatDate = (dateStr: string) => {
+    // Use start_time if available on the booking for accurate IST date
+    const src = booking.start_time || dateStr;
+    return formatBookingDateLong(src);
+  };
+
+  const formatTime = (booking: BookingData) => {
+    if (booking.start_time && booking.end_time) {
+      return formatBookingTimeRange(booking.start_time, booking.end_time);
     }
+    // Fallback from timeSlot + duration
     const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
     const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
-    const formatMinutes = (total: number) => {
+    const fmt = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
-      const ampm = h >= 12 ? "PM" : "AM";
-      const displayH = h % 12 || 12;
-      return m === 0 ? `${displayH} ${ampm}` : `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
     };
-    return `${formatMinutes(totalStartMinutes)} - ${formatMinutes(totalEndMinutes)}`;
+    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
   };
 
   return (
@@ -116,7 +120,7 @@ export function BookingDetailModal({
               </div>
               <div>
                 <p className="text-white/50 text-sm">Date</p>
-                <p className="text-white font-medium">{formatSessionDateLongIST(booking.date)}</p>
+                <p className="text-white font-medium">{formatDate(booking.date)}</p>
               </div>
             </div>
 
@@ -126,7 +130,7 @@ export function BookingDetailModal({
               </div>
               <div>
                 <p className="text-white/50 text-sm">Time</p>
-                <p className="text-white font-medium">{formatTimeRange()}</p>
+                <p className="text-white font-medium">{formatTime(booking)}</p>
               </div>
             </div>
 
