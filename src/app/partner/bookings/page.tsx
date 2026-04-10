@@ -16,6 +16,13 @@ import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingI
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
 import { FeatureGate } from "@/components/partner/FeatureGate";
+import {
+  formatSessionClock12hIST,
+  formatSessionDateCalendarIST,
+  formatSessionDateShortIST,
+  formatSessionDateTimeShortIST,
+  formatSessionTimeRangeIST,
+} from "@/lib/bookingTime";
 
 interface AddOn {
   name: string;
@@ -130,6 +137,28 @@ export default function PartnerBookingsPage() {
       .catch(() => setStudioInventory(null));
   }, [showDetailModal, selectedBooking?.studio?.id, selectedBooking?.studioId]);
 
+  // Keep detail modal aligned with the table after refetch / reschedule (avoid stale object).
+  useEffect(() => {
+    if (!showDetailModal) return;
+    setSelectedBooking((prev) => {
+      if (!prev) return prev;
+      const fresh = bookings.find(
+        (b) => b.id === prev.id || (!!prev.dbId && b.dbId === prev.dbId)
+      );
+      if (!fresh) return prev;
+      if (
+        fresh.date === prev.date &&
+        fresh.timeSlot === prev.timeSlot &&
+        fresh.endTime === prev.endTime &&
+        fresh.duration === prev.duration &&
+        fresh.status === prev.status
+      ) {
+        return prev;
+      }
+      return fresh;
+    });
+  }, [bookings, showDetailModal]);
+
   const updateBookingStatus = async (dbId: string | undefined, status: Booking["status"], localId: string) => {
     if (dbId) {
       await fetch("/api/partner/bookings", {
@@ -211,21 +240,14 @@ export default function PartnerBookingsPage() {
   const openCancel = (b: Booking) => { setSelectedBooking(b); setShowCancelModal(true); };
   const openReschedule = (b: Booking) => {
     setSelectedBooking(b);
-    setNewDate(new Date(b.date).toISOString().split("T")[0]);
+    setNewDate(formatSessionDateCalendarIST(b.date));
     setNewTime(b.timeSlot);
     setRescheduleError(null);
     setShowRescheduleModal(true);
   };
 
-  const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  const fmtTime = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    return `${((h % 12) || 12).toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} ${ampm}`;
-  };
-  const fmtDateTime = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const fmtDate = (iso: string) => formatSessionDateShortIST(iso);
+  const fmtDateTime = (iso: string) => formatSessionDateTimeShortIST(iso);
 
   return (
     <FeatureGate featureKey="booking_management">
@@ -324,7 +346,9 @@ export default function PartnerBookingsPage() {
                       </td>
                       <td className="p-4">
                         <p className="text-white text-sm">{fmtDate(booking.date)}</p>
-                        <p className="text-white/50 text-xs">{fmtTime(booking.timeSlot)} → {fmtTime(booking.endTime)}</p>
+                        <p className="text-white/50 text-xs">
+                          {formatSessionTimeRangeIST(booking.date, booking.endDate)}
+                        </p>
                         <p className="text-white/30 text-xs">{booking.duration}h session</p>
                       </td>
                       <td className="p-4">
@@ -501,8 +525,8 @@ export default function PartnerBookingsPage() {
                       <h3 className="text-white font-semibold text-sm">Session Details</h3>
                     </div>
                     <InfoRow label="Date" value={fmtDate(selectedBooking.date)} />
-                    <InfoRow label="Start Time" value={fmtTime(selectedBooking.timeSlot)} />
-                    <InfoRow label="End Time" value={fmtTime(selectedBooking.endTime)} />
+                    <InfoRow label="Start Time" value={formatSessionClock12hIST(selectedBooking.date)} />
+                    <InfoRow label="End Time" value={formatSessionClock12hIST(selectedBooking.endDate)} />
                     <InfoRow label="Duration" value={`${selectedBooking.duration} hour${selectedBooking.duration !== 1 ? "s" : ""}`} />
                     {selectedBooking.participants && (
                       <InfoRow label="Participants" value={`${selectedBooking.participants} people`} />
@@ -630,7 +654,10 @@ export default function PartnerBookingsPage() {
                   <InfoRow label="Booking ID" value={selectedBooking.id} mono />
                   <InfoRow label="Customer" value={selectedBooking.customer.name} />
                   <InfoRow label="Studio" value={selectedBooking.studio.name} />
-                  <InfoRow label="Session" value={`${fmtDate(selectedBooking.date)} at ${fmtTime(selectedBooking.timeSlot)}`} />
+                  <InfoRow
+                    label="Session"
+                    value={`${fmtDate(selectedBooking.date)} · ${formatSessionTimeRangeIST(selectedBooking.date, selectedBooking.endDate)}`}
+                  />
                   <InfoRow label="Amount" value={`₹${selectedBooking.totalPrice.toLocaleString("en-IN")}`} />
                 </div>
                 <div className="p-3 bg-yellow-400/10 border border-yellow-400/20 rounded-xl">
@@ -657,7 +684,10 @@ export default function PartnerBookingsPage() {
                   <InfoRow label="Booking" value={selectedBooking.id} mono />
                   <InfoRow label="Customer" value={selectedBooking.customer.name} />
                   <InfoRow label="Current Date" value={fmtDate(selectedBooking.date)} />
-                  <InfoRow label="Current Time" value={`${fmtTime(selectedBooking.timeSlot)} → ${fmtTime(selectedBooking.endTime)}`} />
+                  <InfoRow
+                    label="Current Time"
+                    value={formatSessionTimeRangeIST(selectedBooking.date, selectedBooking.endDate)}
+                  />
                   <InfoRow label="Duration" value={`${selectedBooking.duration}h`} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">

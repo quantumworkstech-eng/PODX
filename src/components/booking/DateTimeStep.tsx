@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useBooking } from "@/context/BookingContext";
 import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus, Loader2 } from "lucide-react";
 import { PARTICIPANT_OPTIONS, TIME_SLOTS } from "@/lib/booking-types";
@@ -13,6 +14,9 @@ const MONTHS = [
 ];
 
 export function DateTimeStep() {
+  const searchParams = useSearchParams();
+  const excludeBookingIdFromUrl = searchParams.get("excludeBookingId");
+
   const {
     date,
     timeSlot,
@@ -60,7 +64,13 @@ export function DateTimeStep() {
       setIsLoadingSlots(true);
       try {
         const dateParam = formatDateParam(date);
-        const r = await fetch(`/api/studios/${studioId}/slots?date=${dateParam}`);
+        const exclude =
+          excludeBookingIdFromUrl != null && excludeBookingIdFromUrl !== ""
+            ? `&excludeBookingId=${encodeURIComponent(excludeBookingIdFromUrl)}`
+            : "";
+        const r = await fetch(
+          `/api/studios/${studioId}/slots?date=${dateParam}${exclude}`
+        );
         const data: { bookedSlots?: string[] } = await r.json();
         if (cancelled) return;
         const slots = data.bookedSlots ?? [];
@@ -105,7 +115,14 @@ export function DateTimeStep() {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [date, selectedStudio?.id, formatDateParam, duration, setTimeSlot]);
+  }, [
+    date,
+    selectedStudio?.id,
+    formatDateParam,
+    duration,
+    setTimeSlot,
+    excludeBookingIdFromUrl,
+  ]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

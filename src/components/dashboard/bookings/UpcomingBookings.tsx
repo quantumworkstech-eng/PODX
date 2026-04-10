@@ -19,11 +19,17 @@ import { BookingDetailModal } from "../modals/BookingDetailModal";
 import { CancelBookingModal } from "../modals/CancelBookingModal";
 import { RescheduleModal } from "../modals/RescheduleModal";
 import { AddBookingAddonsModal } from "../modals/AddBookingAddonsModal";
+import {
+  formatSessionDateWithWeekdayIST,
+  formatSessionTimeRangeIST,
+} from "@/lib/bookingTime";
 
 export interface BookingData {
   id: string;
   dbId?: string;   // actual UUID in DB (id may be booking_number)
   date: string;
+  /** ISO end time from API — preferred for displaying time range in IST */
+  endDate?: string;
   timeSlot: string;
   duration: number;
   participants: number;
@@ -201,22 +207,37 @@ export function UpcomingBookings({
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const anchorRefs = useRef<Record<string, HTMLButtonElement>>({});
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+  useEffect(() => {
+    if (!showDetailModal && !showRescheduleModal) return;
+    setSelectedBooking((prev) => {
+      if (!prev) return prev;
+      const fresh = bookings.find(
+        (b) => b.id === prev.id || (!!prev.dbId && b.dbId === prev.dbId)
+      );
+      if (!fresh) return prev;
+      if (
+        fresh.date === prev.date &&
+        fresh.timeSlot === prev.timeSlot &&
+        fresh.status === prev.status &&
+        (fresh.endDate || "") === (prev.endDate || "")
+      ) {
+        return prev;
+      }
+      return fresh;
     });
-  };
+  }, [bookings, showDetailModal, showRescheduleModal]);
 
-  const formatTime = (timeSlot: string, duration: number) => {
-    const [hoursStr, minutesStr = "00"] = timeSlot.split(":");
+  const formatDate = (dateStr: string) => formatSessionDateWithWeekdayIST(dateStr);
+
+  const formatTimeRange = (b: BookingData) => {
+    if (b.endDate) {
+      return formatSessionTimeRangeIST(b.date, b.endDate);
+    }
+    const [hoursStr, minutesStr = "00"] = b.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
-    const totalEndMinutes = totalStartMinutes + Math.round(duration * 60);
+    const totalEndMinutes = totalStartMinutes + Math.round(b.duration * 60);
     const formatMinutes = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
@@ -301,7 +322,7 @@ export function UpcomingBookings({
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-white/40" />
-                          <span>{formatTime(booking.timeSlot, booking.duration)}</span>
+                          <span>{formatTimeRange(booking)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-white/40" />

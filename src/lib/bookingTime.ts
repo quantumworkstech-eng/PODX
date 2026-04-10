@@ -142,3 +142,73 @@ export function computeBookedHourLabels(
     hourMax * 60
   );
 }
+
+// ── Display: always use Asia/Kolkata for session wall times (avoid browser-TZ drift) ──
+
+/** e.g. "12 Apr 2026" in IST */
+export function formatSessionDateShortIST(iso: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: BOOKING_TIMEZONE,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
+/** e.g. "Sunday, 12 April 2026" in IST */
+export function formatSessionDateLongIST(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: BOOKING_TIMEZONE,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(iso));
+}
+
+/** e.g. "Sun, Apr 12, 2026" in IST */
+export function formatSessionDateWithWeekdayIST(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: BOOKING_TIMEZONE,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
+/** YYYY-MM-DD in IST for `<input type="date">` and APIs */
+export function formatSessionDateCalendarIST(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BOOKING_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/** e.g. "9:30 AM" in IST */
+export function formatSessionClock12hIST(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: BOOKING_TIMEZONE,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(iso));
+}
+
+export function formatSessionTimeRangeIST(startIso: string, endIso: string): string {
+  return `${formatSessionClock12hIST(startIso)} – ${formatSessionClock12hIST(endIso)}`;
+}
+
+/** Date + time in IST (list rows, tooltips) */
+export function formatSessionDateTimeShortIST(iso: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: BOOKING_TIMEZONE,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}

@@ -169,6 +169,15 @@ export default function DashboardContent() {
       .catch(() => {});
   }, [refreshBookings]);
 
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") void refreshBookings();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [status, refreshBookings]);
+
   // Handle ?booking=success from payment redirect
   useEffect(() => {
     if (searchParams.get("booking") === "success") {

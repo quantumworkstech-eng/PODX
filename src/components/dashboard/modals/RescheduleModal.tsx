@@ -42,7 +42,10 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
     }
     let cancelled = false;
     const dateParam = formatDateParam(selectedDate);
-    const exclude = booking.dbId ? `&excludeBookingId=${encodeURIComponent(booking.dbId)}` : "";
+    const excludeRef = booking.dbId || booking.id;
+    const exclude = excludeRef
+      ? `&excludeBookingId=${encodeURIComponent(excludeRef)}`
+      : "";
     setLoadingSlots(true);
     fetch(`/api/studios/${booking.studio.id}/slots?date=${dateParam}${exclude}`)
       .then((r) => r.json())

@@ -38,7 +38,7 @@ export async function GET(
     const [{ data: bookingRows, error }, { data: studio }] = await Promise.all([
       supabaseAdmin
         .from("bookings")
-        .select("id, start_time, end_time")
+        .select("id, booking_number, start_time, end_time")
         .eq("studio_id", studioId)
         .neq("status", "cancelled")
         .lt("start_time", dayEnd.toISOString())
@@ -59,11 +59,17 @@ export async function GET(
 
     let bookings = (bookingRows || []) as {
       id: string;
+      booking_number: string | null;
       start_time: string;
       end_time: string;
     }[];
+    // Client may send UUID (db id) or human-readable booking_number — exclude that row only.
     if (excludeBookingId) {
-      bookings = bookings.filter((b) => b.id !== excludeBookingId);
+      bookings = bookings.filter(
+        (b) =>
+          b.id !== excludeBookingId &&
+          (b.booking_number == null || b.booking_number !== excludeBookingId)
+      );
     }
 
     const bookedSlots = computeBookedSlotLabels(

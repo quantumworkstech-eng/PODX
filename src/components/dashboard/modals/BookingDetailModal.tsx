@@ -8,6 +8,10 @@ import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
+import {
+  formatSessionDateLongIST,
+  formatSessionTimeRangeIST,
+} from "@/lib/bookingTime";
 
 interface BookingDetailModalProps {
   booking: BookingData;
@@ -51,22 +55,15 @@ export function BookingDetailModal({
       })
       .catch(() => {});
   }, [booking.studio?.id]);
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (timeSlot: string, duration: number) => {
-    const [hoursStr, minutesStr = "00"] = timeSlot.split(":");
+  const formatTimeRange = () => {
+    if (booking.endDate) {
+      return formatSessionTimeRangeIST(booking.date, booking.endDate);
+    }
+    const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
     const hour = parseInt(hoursStr, 10);
     const minute = parseInt(minutesStr, 10);
     const totalStartMinutes = hour * 60 + minute;
-    const totalEndMinutes = totalStartMinutes + Math.round(duration * 60);
+    const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
     const formatMinutes = (total: number) => {
       const h = Math.floor(total / 60);
       const m = total % 60;
@@ -119,7 +116,7 @@ export function BookingDetailModal({
               </div>
               <div>
                 <p className="text-white/50 text-sm">Date</p>
-                <p className="text-white font-medium">{formatDate(booking.date)}</p>
+                <p className="text-white font-medium">{formatSessionDateLongIST(booking.date)}</p>
               </div>
             </div>
 
@@ -129,7 +126,7 @@ export function BookingDetailModal({
               </div>
               <div>
                 <p className="text-white/50 text-sm">Time</p>
-                <p className="text-white font-medium">{formatTime(booking.timeSlot, booking.duration)}</p>
+                <p className="text-white font-medium">{formatTimeRange()}</p>
               </div>
             </div>
 
