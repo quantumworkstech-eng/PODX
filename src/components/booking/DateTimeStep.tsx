@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useBooking } from "@/context/BookingContext";
 import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus, Loader2 } from "lucide-react";
-import { PARTICIPANT_OPTIONS, TIME_SLOTS } from "@/lib/booking-types";
+import { PARTICIPANT_OPTIONS, TIME_SLOTS, formatDuration } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -342,18 +342,17 @@ export function DateTimeStep() {
 
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setDuration(Math.max(1, duration - 1))}
-                disabled={duration <= 1}
+                onClick={() => setDuration(Math.max(0.5, duration - 0.5))}
+                disabled={duration <= 0.5}
                 className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Minus className="w-5 h-5 text-white" />
               </button>
               <div className="flex-1 text-center">
-                <span className="text-4xl font-bold text-white">{duration}</span>
-                <span className="text-white/60 ml-2">hour{duration > 1 ? "s" : ""}</span>
+                <span className="text-4xl font-bold text-white">{formatDuration(duration)}</span>
               </div>
               <button
-                onClick={() => setDuration(Math.min(8, duration + 1))}
+                onClick={() => setDuration(Math.min(8, duration + 0.5))}
                 disabled={duration >= 8}
                 className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >

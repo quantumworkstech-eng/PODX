@@ -1,7 +1,7 @@
 "use client";
 
 import { useBooking } from "@/context/BookingContext";
-import { SERVICE_PACKAGES } from "@/lib/booking-types";
+import { SERVICE_PACKAGES, formatDuration } from "@/lib/booking-types";
 import type { ServicePackage } from "@/lib/booking-types";
 import { Button } from "@/components/ui/button";
 import { Check, X, Sparkles, ArrowRight, Loader2 } from "lucide-react";
@@ -113,7 +113,7 @@ export function PackageStep() {
                     </div>
                     {pkg.price_per_hour > 0 && (
                       <p className="text-white/40 text-sm mt-1">
-                        +₹{totalPrice.toLocaleString()} for {duration} hr{duration > 1 ? "s" : ""}
+                        +₹{totalPrice.toLocaleString()} for {formatDuration(duration)}
                       </p>
                     )}
                   </div>

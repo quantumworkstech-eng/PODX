@@ -19,6 +19,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { formatCalendarDateLocal, parseISTDateTime } from "@/lib/bookingTime";
+import { formatDuration } from "@/lib/booking-types";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 
 declare global {
@@ -316,7 +317,7 @@ export function PaymentStep() {
         currency: "INR",
         order_id: orderData?.orderId,
         name: rzpName,
-        description: `${selectedStudio.name} · ${duration} hr${duration > 1 ? "s" : ""}`,
+        description: `${selectedStudio.name} · ${formatDuration(duration)}`,
         image: partnerBranding?.logo_url || "/logo.png",
         prefill: {
           name: session?.user?.name || "",
@@ -371,7 +372,7 @@ export function PaymentStep() {
                 {
                   icon: Clock,
                   label: "Duration",
-                  value: `${duration} hr${duration > 1 ? "s" : ""}`,
+                  value: formatDuration(duration),
                 },
                 { icon: Users, label: "Participants", value: `${participants} people` },
               ].map(({ icon: Icon, label, value }) => (
@@ -465,7 +466,7 @@ export function PaymentStep() {
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">
-                  Studio × {duration} hr{duration > 1 ? "s" : ""}
+                  Studio × {formatDuration(duration)}
                 </span>
                 <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
               </div>

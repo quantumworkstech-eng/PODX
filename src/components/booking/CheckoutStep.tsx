@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
+import { formatDuration } from "@/lib/booking-types";
 import {
   Calendar,
   Clock,
@@ -207,7 +208,7 @@ export function CheckoutStep() {
                 <div>
                   <p className="text-white/40 text-xs uppercase tracking-wider mb-0.5">Duration</p>
                   <p className="text-white font-medium text-sm">
-                    {duration} hr{duration > 1 ? "s" : ""}
+                    {formatDuration(duration)}
                   </p>
                 </div>
               </div>
@@ -363,7 +364,7 @@ export function CheckoutStep() {
             <div className="space-y-3 mb-5">
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">
-                  Studio × {duration} hr{duration > 1 ? "s" : ""}
+                  Studio × {formatDuration(duration)}
                 </span>
                 <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
               </div>

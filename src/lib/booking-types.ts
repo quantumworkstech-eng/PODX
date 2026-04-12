@@ -158,3 +158,12 @@ export const TIME_SLOTS: TimeSlot[] = [
 
 export const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4];
 export const PARTICIPANT_OPTIONS = [1, 2, 3, 4, 5];
+
+/** Formats a duration (in hours) to a human-readable string, e.g. 0.5 → "30 mins", 1.5 → "1 hr 30 mins" */
+export function formatDuration(duration: number): string {
+  const hrs = Math.floor(duration);
+  const hasHalf = duration % 1 !== 0;
+  if (hrs === 0) return "30 mins";
+  if (!hasHalf) return `${hrs} hr${hrs > 1 ? "s" : ""}`;
+  return `${hrs} hr${hrs > 1 ? "s" : ""} 30 mins`;
+}
