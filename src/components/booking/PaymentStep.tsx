@@ -433,13 +433,9 @@ export function PaymentStep() {
                   <p className="text-white/40 text-sm mt-0.5">{selectedPackage.description}</p>
                 </div>
                 <div className="text-right ml-4 shrink-0">
-                  {selectedPackage.price_per_hour > 0 ? (
-                    <span className="text-white font-semibold">
-                      +₹{getPackagePrice().toLocaleString()}
-                    </span>
-                  ) : (
-                    <span className="text-[#D9FC67] text-sm font-medium">Included</span>
-                  )}
+                  <span className="text-white font-semibold">
+                    ₹{(getStudioPrice() + getPackagePrice()).toLocaleString()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -464,17 +460,21 @@ export function PaymentStep() {
             </h3>
 
             <div className="space-y-3 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-white/60">
-                  Studio × {formatDuration(duration)}
-                </span>
-                <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
-              </div>
-
-              {selectedPackage && selectedPackage.price_per_hour > 0 && (
+              {selectedPackage ? (
                 <div className="flex justify-between text-sm">
-                  <span className="text-white/60">{selectedPackage.name}</span>
-                  <span className="text-white">₹{getPackagePrice().toLocaleString()}</span>
+                  <span className="text-white/60">
+                    {selectedPackage.name} × {formatDuration(duration)}
+                  </span>
+                  <span className="text-white">
+                    ₹{(getStudioPrice() + getPackagePrice()).toLocaleString()}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">
+                    Studio × {formatDuration(duration)}
+                  </span>
+                  <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
                 </div>
               )}
 

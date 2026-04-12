@@ -69,7 +69,9 @@ export function PackageStep() {
       <div className="grid md:grid-cols-3 gap-6">
         {packages.map((pkg) => {
           const isSelected = selectedPackage?.id === pkg.id;
-          const totalPrice = pkg.price_per_hour * duration;
+          const studioHourlyRate = selectedStudio?.price_per_hour ?? 0;
+          const totalPerHour = studioHourlyRate + pkg.price_per_hour;
+          const totalPrice = totalPerHour * duration;
 
           return (
             <div
@@ -105,17 +107,13 @@ export function PackageStep() {
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold text-white">
-                        {pkg.price_per_hour === 0 ? "Included" : `+₹${pkg.price_per_hour}`}
+                        ₹{totalPerHour.toLocaleString()}
                       </span>
-                      {pkg.price_per_hour > 0 && (
-                        <span className="text-white/40 text-sm">/hr</span>
-                      )}
+                      <span className="text-white/40 text-sm">/hr</span>
                     </div>
-                    {pkg.price_per_hour > 0 && (
-                      <p className="text-white/40 text-sm mt-1">
-                        +₹{totalPrice.toLocaleString()} for {formatDuration(duration)}
-                      </p>
-                    )}
+                    <p className="text-white/40 text-sm mt-1">
+                      ₹{totalPrice.toLocaleString()} for {formatDuration(duration)}
+                    </p>
                   </div>
 
                   <div className="space-y-2.5 mb-8">
