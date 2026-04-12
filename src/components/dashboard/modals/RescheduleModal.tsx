@@ -5,7 +5,7 @@ import { X, Calendar, Clock, ChevronLeft, ChevronRight, Check, Loader2 } from "l
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { cn } from "@/lib/utils";
-import { TIME_SLOTS } from "@/lib/booking-types";
+import { TIME_SLOTS, formatDuration } from "@/lib/booking-types";
 
 interface RescheduleModalProps {
   booking: BookingData;
@@ -254,7 +254,7 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
                       )}
                     >
                       {slot.time}
-                      {disabled && (
+                      {disabled && bookedSlots.includes(slot.time) && (
                         <span className="block text-[10px] text-white/30 leading-tight">Booked</span>
                       )}
                       {selectedTime === slot.time && !disabled && (
@@ -271,7 +271,7 @@ export function RescheduleModal({ booking, onClose, onConfirm }: RescheduleModal
             <div className="bg-[#D9FC67]/10 border border-[#D9FC67]/20 rounded-xl p-4">
               <p className="text-white text-sm mb-1">New Schedule</p>
               <p className="text-[#D9FC67] font-semibold">{formatSelectedDate()}</p>
-              <p className="text-white/70 text-sm">at {selectedTime} • {booking.duration} hour{booking.duration > 1 ? "s" : ""}</p>
+              <p className="text-white/70 text-sm">at {selectedTime} • {formatDuration(booking.duration)}</p>
             </div>
           )}
         </div>

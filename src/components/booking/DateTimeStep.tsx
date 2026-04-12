@@ -239,12 +239,10 @@ export function DateTimeStep() {
       }
     }
 
-    for (let m = totalStartMins; m < totalEndMins; m += 30) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const slotStr = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-      if (bookedSlots.includes(slotStr)) return "Booked";
-    }
+    // Show "Booked" only when this slot's own 30-min window is directly occupied.
+    // Slots disabled solely because their duration extends into a booked window
+    // are just grayed — no label — to avoid showing "Booked" on an actually free slot.
+    if (bookedSlots.includes(slotTime)) return "Booked";
 
     return null;
   };

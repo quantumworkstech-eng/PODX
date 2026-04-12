@@ -50,7 +50,7 @@ export interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number }[];
   totalPrice: number;
-  status: "confirmed" | "pending" | "completed" | "cancelled";
+  status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
 }
@@ -312,7 +312,9 @@ export function UpcomingBookings({
                             "px-3 py-1 rounded-full text-xs font-semibold capitalize",
                             booking.status === "confirmed"
                               ? "bg-green-500/20 text-green-400 ring-1 ring-green-500/30"
-                              : "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30"
+                              : booking.status === "rescheduled"
+                                ? "bg-cyan-500/20 text-cyan-400 ring-1 ring-cyan-500/30"
+                                : "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30"
                           )}
                         >
                           {booking.status}

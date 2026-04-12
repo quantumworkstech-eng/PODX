@@ -57,7 +57,7 @@ interface Booking {
     total: number;
   };
   totalPrice: number;
-  status: "confirmed" | "pending" | "cancelled" | "completed";
+  status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
   createdAt: string;
 }
 
@@ -394,7 +394,7 @@ export default function PartnerBookingsPage() {
                               </button>
                             </>
                           )}
-                          {booking.status === "confirmed" && (
+                          {(booking.status === "confirmed" || booking.status === "pending" || booking.status === "rescheduled") && (
                             <>
                               <button
                                 onClick={() => openReschedule(booking)}
@@ -623,7 +623,7 @@ export default function PartnerBookingsPage() {
                 </div>
 
                 {/* Action footer */}
-                {(selectedBooking.status === "confirmed") && (
+                {(selectedBooking.status === "confirmed" || selectedBooking.status === "pending" || selectedBooking.status === "rescheduled") && (
                   <div className="flex gap-3 px-6 pb-6">
                     <Button
                       onClick={() => { setShowDetailModal(false); openReschedule(selectedBooking); }}

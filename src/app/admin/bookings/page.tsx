@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
+import { isoToISTSlot } from "@/lib/bookingDisplay";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "cancelled", "completed", "rescheduled", "no_show"];
 
@@ -327,12 +328,13 @@ export default function AdminBookingsPage() {
 
   const openRescheduleModal = () => {
     if (!detailData) return;
-    // Pre-fill with current booking date/time in IST
-    const start = new Date(detailData.booking.start_time);
-    const istDate = start.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
-    const istHour = start.toLocaleString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+    // Pre-fill with current booking date/time in IST.
+    // Use formatSessionDateCalendarIST + isoToISTSlot (formatToParts-based) to avoid
+    // the toLocaleString hour12:false bug that can produce "09:30 AM" or "24:00".
+    const istDate = formatSessionDateCalendarIST(detailData.booking.start_time);
+    const istTime = isoToISTSlot(detailData.booking.start_time); // always "HH:MM" (24h)
     setRescheduleDate(istDate);
-    setRescheduleTime(istHour.padStart(5, "0"));
+    setRescheduleTime(istTime);
     setRescheduleError2(null);
     setRescheduleOpen(true);
   };

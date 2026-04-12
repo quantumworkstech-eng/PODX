@@ -61,7 +61,7 @@ interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number }[];
   totalPrice: number;
-  status: "confirmed" | "pending" | "completed" | "cancelled";
+  status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
 }
@@ -201,7 +201,7 @@ export default function DashboardContent() {
       // A booking is upcoming until its END time passes (start + duration hours)
       const startTime = new Date(b.date);
       const endTime = new Date(startTime.getTime() + (b.duration || 1) * 60 * 60 * 1000);
-      return endTime >= new Date() && (b.status === "confirmed" || b.status === "pending");
+      return endTime >= new Date() && (b.status === "confirmed" || b.status === "pending" || b.status === "rescheduled");
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // nearest first
 
