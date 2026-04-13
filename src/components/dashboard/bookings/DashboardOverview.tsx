@@ -37,7 +37,7 @@ export interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number }[];
   totalPrice: number;
-  status: "confirmed" | "pending" | "completed" | "cancelled";
+  status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
 }
@@ -73,7 +73,9 @@ function toCalendarBooking(b: BookingData): PartnerCalendarBooking {
 
 export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, unreviewedCount = 0 }: DashboardOverviewProps) {
   const totalSpent = pastBookings.reduce((sum, b) => sum + b.totalPrice, 0);
-  const confirmedBookings = upcomingBookings.filter((b) => b.status === "confirmed").length;
+  const confirmedBookings = upcomingBookings.filter(
+    (b) => b.status === "confirmed" || b.status === "rescheduled"
+  ).length;
 
   const calendarBookings = useMemo(() => {
     const map = new Map<string, BookingData>();
@@ -181,7 +183,9 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, 
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
                       booking.status === "confirmed"
                         ? "bg-green-500/20 text-green-400"
-                        : "bg-yellow-500/20 text-yellow-400"
+                        : booking.status === "rescheduled"
+                          ? "bg-cyan-500/20 text-cyan-400"
+                          : "bg-yellow-500/20 text-yellow-400"
                     }`}
                   >
                     {booking.status}

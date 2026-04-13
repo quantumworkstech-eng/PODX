@@ -67,6 +67,7 @@ function StatusBadge({ status }: { status: Booking["status"] }) {
     pending: { icon: AlertCircle, label: "Pending", cls: "text-yellow-400 bg-yellow-400/10" },
     cancelled: { icon: XCircle, label: "Cancelled", cls: "text-red-400 bg-red-400/10" },
     completed: { icon: CheckCircle, label: "Completed", cls: "text-blue-400 bg-blue-400/10" },
+    rescheduled: { icon: CalendarPlus, label: "Rescheduled", cls: "text-cyan-400 bg-cyan-400/10" },
   };
   const { icon: Icon, label, cls } = map[status];
   return (

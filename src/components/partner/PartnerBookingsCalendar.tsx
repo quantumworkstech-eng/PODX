@@ -48,7 +48,7 @@ export type PartnerCalendarBooking = {
   /** Studio owner (partner) — admin calendar */
   partnerName?: string;
   partnerEmail?: string;
-  status: "confirmed" | "pending" | "cancelled" | "completed";
+  status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
   package: { name: string } | null;
   totalPrice?: number;
 };
@@ -106,6 +106,12 @@ function statusStyle(status: PartnerCalendarBooking["status"]): {
         border: "border-blue-400/35",
         text: "text-blue-300",
       };
+    case "rescheduled":
+      return {
+        bg: "bg-cyan-500/15",
+        border: "border-cyan-400/35",
+        text: "text-cyan-300",
+      };
     default:
       return {
         bg: "bg-white/10",
@@ -123,6 +129,8 @@ function StatusIcon({ status }: { status: PartnerCalendarBooking["status"] }) {
       return <AlertCircle className="w-3.5 h-3.5 text-amber-400" />;
     case "cancelled":
       return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    case "rescheduled":
+      return <CalendarDays className="w-3.5 h-3.5 text-cyan-400" />;
     default:
       return <CheckCircle className="w-3.5 h-3.5 text-blue-400" />;
   }
@@ -138,6 +146,8 @@ function statusLabel(status: PartnerCalendarBooking["status"]): string {
       return "Cancelled";
     case "completed":
       return "Completed";
+    case "rescheduled":
+      return "Rescheduled";
     default:
       return "Confirmed";
   }
@@ -369,6 +379,9 @@ export function PartnerBookingsCalendar({
             <option value="cancelled" className="bg-[#141414] text-white">
               Cancelled
             </option>
+            <option value="rescheduled" className="bg-[#141414] text-white">
+              Rescheduled
+            </option>
           </select>
         </div>
 
@@ -486,7 +499,8 @@ export function PartnerBookingsCalendar({
                     detail.status === "confirmed" && "bg-green-500/10 border-green-500/20 text-green-300",
                     detail.status === "pending" && "bg-amber-500/10 border-amber-500/20 text-amber-300",
                     detail.status === "cancelled" && "bg-red-500/10 border-red-500/20 text-red-300",
-                    detail.status === "completed" && "bg-blue-500/10 border-blue-500/20 text-blue-300"
+                    detail.status === "completed" && "bg-blue-500/10 border-blue-500/20 text-blue-300",
+                    detail.status === "rescheduled" && "bg-cyan-500/10 border-cyan-500/20 text-cyan-300"
                   )}
                 >
                   {statusLabel(detail.status)}
