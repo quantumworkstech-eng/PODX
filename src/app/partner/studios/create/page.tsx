@@ -1061,7 +1061,7 @@ function CreateStudioPageInner() {
           placeholder="YouTube, Vimeo, or Google Drive link (e.g., https://youtube.com/watch?v=...)"
           className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors"
         />
-        <p className="text-white/30 text-xs mt-1">YouTube, Vimeo, or Google Drive links are supported. A walkthrough video helps clients visualise the space before booking.</p>
+        <p className="text-white/30 text-xs mt-1">YouTube, Vimeo, Google Drive, or direct MP4/WebM links are supported. Hover over the studio card to see the video play.</p>
       </div>
     </div>
   );

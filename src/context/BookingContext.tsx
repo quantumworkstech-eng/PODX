@@ -277,6 +277,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleAddOn = useCallback((addOn: AddOnService) => {
+    // Block adding out-of-stock addons
+    if (addOn.maxQty != null && addOn.maxQty <= 0) return;
     setState((prev) => {
       const exists = prev.selectedAddOns.some((a) => a.id === addOn.id);
       if (exists) {
@@ -296,7 +298,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       }
       return {
         ...prev,
-        selectedAddOns: prev.selectedAddOns.map((a) => a.id === addOnId ? { ...a, qty } : a),
+        selectedAddOns: prev.selectedAddOns.map((a) => {
+          if (a.id !== addOnId) return a;
+          const clampedQty = a.maxQty != null ? Math.min(qty, a.maxQty) : qty;
+          return { ...a, qty: clampedQty };
+        }),
       };
     });
   }, []);

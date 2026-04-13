@@ -66,41 +66,54 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
   const googleFontParam = GOOGLE_FONTS[fontFamily] || GOOGLE_FONTS["Inter"];
 
   return (
-    <html lang="en">
-      <head>
-        {/* Google Font */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href={`https://fonts.googleapis.com/css2?family=${googleFontParam}&display=swap`}
-          rel="stylesheet"
-        />
-        {/* Partner CSS custom properties */}
-        <style>{`
-          :root {
-            --wl-primary: ${primary};
-            --wl-secondary: ${secondary};
-            --wl-bg: ${bg};
-            --wl-text: ${textColor};
-            --wl-btn-text: ${btnText};
-            --wl-accent: ${accent};
-            --wl-font: '${fontFamily}', sans-serif;
-          }
-          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
-            background: var(--wl-bg);
-            color: var(--wl-text);
-            font-family: var(--wl-font);
-            -webkit-font-smoothing: antialiased;
-          }
-          a { color: inherit; text-decoration: none; }
-          ::selection { background: var(--wl-primary); color: var(--wl-btn-text); }
-          ::-webkit-scrollbar { width: 6px; }
-          ::-webkit-scrollbar-track { background: var(--wl-secondary); }
-          ::-webkit-scrollbar-thumb { background: var(--wl-primary); border-radius: 3px; }
-        `}</style>
-      </head>
-      <body>
+    <>
+      {/*
+       * Next.js App Router hoists <link> and <style> tags from Server Components
+       * into <head> automatically — no wrapping <html>/<head>/<body> needed here.
+       */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        href={`https://fonts.googleapis.com/css2?family=${googleFontParam}&display=swap`}
+        rel="stylesheet"
+      />
+      {/* Partner CSS custom properties */}
+      <style>{`
+        .wl-root {
+          --wl-primary: ${primary};
+          --wl-secondary: ${secondary};
+          --wl-bg: ${bg};
+          --wl-text: ${textColor};
+          --wl-btn-text: ${btnText};
+          --wl-accent: ${accent};
+          --wl-font: '${fontFamily}', sans-serif;
+        }
+        .wl-root ::selection {
+          background: var(--wl-primary);
+          color: var(--wl-btn-text);
+        }
+        .wl-root ::-webkit-scrollbar { width: 6px; }
+        .wl-root ::-webkit-scrollbar-track { background: var(--wl-secondary); }
+        .wl-root ::-webkit-scrollbar-thumb { background: var(--wl-primary); border-radius: 3px; }
+        .wl-nav-link { opacity: 0.6; transition: opacity 0.2s; }
+        .wl-nav-link:hover { opacity: 1; }
+        .wl-social-link { opacity: 0.5; transition: opacity 0.2s; }
+        .wl-social-link:hover { opacity: 0.9; }
+      `}</style>
+
+      {/* Wrapper div replaces <body> — applies brand colors + font as the page root */}
+      <div
+        className="wl-root"
+        style={{
+          background: bg,
+          color: textColor,
+          fontFamily: `'${fontFamily}', sans-serif`,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          WebkitFontSmoothing: "antialiased",
+        }}
+      >
         {/* ── White-label header ─────────────────────────────────────── */}
         <header
           style={{
@@ -130,10 +143,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
               {branding.contact_phone && (
                 <a
                   href={`tel:${branding.contact_phone}`}
-                  className="text-sm transition-opacity hidden sm:block"
-                  style={{ color: textColor, opacity: 0.6 }}
-                  onMouseOver={(e) => ((e.target as HTMLElement).style.opacity = "1")}
-                  onMouseOut={(e) => ((e.target as HTMLElement).style.opacity = "0.6")}
+                  className="wl-nav-link text-sm hidden sm:block"
+                  style={{ color: textColor }}
                 >
                   {branding.contact_phone}
                 </a>
@@ -141,8 +152,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
               {branding.contact_email && (
                 <a
                   href={`mailto:${branding.contact_email}`}
-                  className="text-sm transition-opacity hidden md:block"
-                  style={{ color: textColor, opacity: 0.6 }}
+                  className="wl-nav-link text-sm hidden md:block"
+                  style={{ color: textColor }}
                 >
                   {branding.contact_email}
                 </a>
@@ -151,7 +162,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
           </div>
         </header>
 
-        <main>{children}</main>
+        {/* Page content */}
+        <main className="flex-1">{children}</main>
 
         {/* ── White-label footer ─────────────────────────────────────── */}
         <footer
@@ -172,10 +184,7 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                     className="h-7 w-auto object-contain mb-3 opacity-80"
                   />
                 ) : (
-                  <p
-                    className="font-bold text-lg mb-3"
-                    style={{ color: primary }}
-                  >
+                  <p className="font-bold text-lg mb-3" style={{ color: primary }}>
                     {branding.brand_name}
                   </p>
                 )}
@@ -189,7 +198,10 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
               {/* Contact column */}
               {(branding.contact_email || branding.contact_phone || branding.contact_address) && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary, opacity: 0.7 }}>
+                  <p
+                    className="text-xs font-semibold uppercase tracking-widest mb-3"
+                    style={{ color: primary, opacity: 0.7 }}
+                  >
                     Contact
                   </p>
                   <div className="space-y-1.5 text-sm" style={{ color: textColor, opacity: 0.5 }}>
@@ -201,9 +213,16 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
               )}
 
               {/* Social links column */}
-              {(branding.website_url || branding.instagram_url || branding.twitter_url || branding.linkedin_url || branding.youtube_url) && (
+              {(branding.website_url ||
+                branding.instagram_url ||
+                branding.twitter_url ||
+                branding.linkedin_url ||
+                branding.youtube_url) && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary, opacity: 0.7 }}>
+                  <p
+                    className="text-xs font-semibold uppercase tracking-widest mb-3"
+                    style={{ color: primary, opacity: 0.7 }}
+                  >
                     Follow Us
                   </p>
                   <div className="flex flex-wrap gap-3">
@@ -212,8 +231,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                         href={branding.website_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm transition-opacity"
-                        style={{ color: textColor, opacity: 0.5 }}
+                        className="wl-social-link text-sm"
+                        style={{ color: textColor }}
                       >
                         Website
                       </a>
@@ -223,8 +242,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                         href={branding.instagram_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm transition-opacity"
-                        style={{ color: textColor, opacity: 0.5 }}
+                        className="wl-social-link text-sm"
+                        style={{ color: textColor }}
                       >
                         Instagram
                       </a>
@@ -234,8 +253,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                         href={branding.twitter_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm transition-opacity"
-                        style={{ color: textColor, opacity: 0.5 }}
+                        className="wl-social-link text-sm"
+                        style={{ color: textColor }}
                       >
                         Twitter
                       </a>
@@ -245,8 +264,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                         href={branding.linkedin_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm transition-opacity"
-                        style={{ color: textColor, opacity: 0.5 }}
+                        className="wl-social-link text-sm"
+                        style={{ color: textColor }}
                       >
                         LinkedIn
                       </a>
@@ -256,8 +275,8 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                         href={branding.youtube_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm transition-opacity"
-                        style={{ color: textColor, opacity: 0.5 }}
+                        className="wl-social-link text-sm"
+                        style={{ color: textColor }}
                       >
                         YouTube
                       </a>
@@ -281,7 +300,7 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
             </div>
           </div>
         </footer>
-      </body>
-    </html>
+      </div>
+    </>
   );
 }

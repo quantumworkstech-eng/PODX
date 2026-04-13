@@ -467,7 +467,7 @@ export function UpcomingBookings({
           }}
           onConfirm={() => {
             if (selectedBooking) {
-              onCancel(selectedBooking.id);
+              onCancel(selectedBooking.dbId || selectedBooking.id);
             }
             setShowCancelModal(false);
             setSelectedBooking(null);
@@ -485,7 +485,7 @@ export function UpcomingBookings({
           onConfirm={async (newDate: Date, newTime: string) => {
             const b = selectedBooking;
             if (!b) return false;
-            return await Promise.resolve(onReschedule(b.id, newDate, newTime));
+            return await Promise.resolve(onReschedule(b.dbId || b.id, newDate, newTime));
           }}
         />
       )}

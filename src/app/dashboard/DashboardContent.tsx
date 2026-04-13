@@ -243,8 +243,8 @@ export default function DashboardContent() {
     newDate: Date,
     newTime: string
   ): Promise<boolean> => {
-    // Use the real UUID (dbId) for the API call
-    const booking = bookings.find((b) => b.id === bookingId);
+    // Use the real UUID (dbId) for the API call — match by dbId or id
+    const booking = bookings.find((b) => b.dbId === bookingId || b.id === bookingId);
     const apiId = booking?.dbId || bookingId;
 
     try {

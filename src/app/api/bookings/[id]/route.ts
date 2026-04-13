@@ -6,6 +6,9 @@ import {
   startEndFromCalendarAndSlot,
 } from "@/lib/bookingTime";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (v: string) => UUID_RE.test(v);
+
 // ── PATCH /api/bookings/[id] ──────────────────────────────────────────────────
 // Supports: action=cancel | action=reschedule
 export async function PATCH(
@@ -42,14 +45,14 @@ export async function PATCH(
     }
 
     // Verify booking belongs to this user — support both UUID and booking_number
-    const { data: booking } = await supabaseAdmin
+    const bookingQuery = supabaseAdmin
       .from("bookings")
-      .select(
-        "id, booking_number, start_time, end_time, status, studio_id, total_price"
-      )
-      .eq("user_id", user.id)
-      .or(`id.eq.${id},booking_number.eq.${id}`)
-      .maybeSingle();
+      .select("id, booking_number, start_time, end_time, status, studio_id, total_price")
+      .eq("user_id", user.id);
+    const { data: booking } = await (isUUID(id)
+      ? bookingQuery.eq("id", id)
+      : bookingQuery.eq("booking_number", id)
+    ).maybeSingle();
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });

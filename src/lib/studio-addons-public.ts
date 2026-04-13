@@ -17,6 +17,8 @@ export async function fetchMergedStudioAddons(
     category?: string | null;
     thumbnail_url?: string | null;
     is_active?: boolean;
+    /** Max bookable quantity; null = unlimited */
+    quantity?: number | null;
   }[]
 > {
   // 1. Fetch ALL active platform add-ons (admin-created, auto-applied to all studios)
@@ -27,7 +29,7 @@ export async function fetchMergedStudioAddons(
     .order("category")
     .order("name");
 
-  const platform = (platformRows ?? []) as {
+  const platform = (platformRows ?? []).map((r: any) => ({ ...r, quantity: null })) as {
     id: string;
     name: string;
     description: string | null;
@@ -35,6 +37,7 @@ export async function fetchMergedStudioAddons(
     category?: string | null;
     thumbnail_url?: string | null;
     is_active?: boolean;
+    quantity: null;
   }[];
 
   // 2. Fetch partner add-ons linked to this specific studio
@@ -58,7 +61,7 @@ export async function fetchMergedStudioAddons(
     if (ids.length > 0) {
       const { data: items } = await supabase
         .from("partner_addon_items")
-        .select("id, name, description, price, is_active, addon_kind, thumbnail_url")
+        .select("id, name, description, price, is_active, addon_kind, thumbnail_url, quantity")
         .in("id", ids);
 
       const byId = new Map((items || []).map((it: any) => [it.id, it]));
@@ -79,6 +82,7 @@ export async function fetchMergedStudioAddons(
             category: it.addon_kind,
             thumbnail_url: it.thumbnail_url ?? null,
             is_active: true,
+            quantity: it.quantity != null ? Number(it.quantity) : null,
           };
         })
         .filter(Boolean) as typeof partner;

@@ -20,6 +20,8 @@ export interface AddOnService {
   category?: string;
   /** Selected quantity (default 1 when in cart) */
   qty?: number;
+  /** Maximum bookable quantity (undefined = unlimited) */
+  maxQty?: number;
 }
 
 export interface TimeSlot {

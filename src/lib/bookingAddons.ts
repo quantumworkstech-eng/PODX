@@ -11,9 +11,14 @@ export type PlatformAddonRow = {
   price: number | string;
   category?: string | null;
   thumbnail_url?: string | null;
+  /** Maximum bookable quantity (null / undefined = unlimited) */
+  quantity?: number | null;
 };
 
 export function platformAddonToService(row: PlatformAddonRow): AddOnService {
+  const maxQty = row.quantity != null && Number(row.quantity) > 0
+    ? Number(row.quantity)
+    : undefined;
   return {
     id: row.id,
     name: row.name,
@@ -21,6 +26,7 @@ export function platformAddonToService(row: PlatformAddonRow): AddOnService {
     price: Number(row.price),
     thumbnail: row.thumbnail_url || ADDON_PLACEHOLDER_IMAGE,
     category: row.category ?? undefined,
+    maxQty,
   };
 }
 

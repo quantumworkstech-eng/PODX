@@ -1,13 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Clock, MapPin, Users, Package, IndianRupee, AlertCircle, RefreshCw, Navigation, Star, CheckCircle2 } from "lucide-react";
+import { X, Calendar, Clock, MapPin, Users, Package, AlertCircle, RefreshCw, Navigation, Star, CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
-import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
-import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
-import type { AddOnService } from "@/lib/booking-types";
 import { formatBookingDateLong, formatBookingTimeRange } from "@/lib/bookingDisplay";
 
 
@@ -33,15 +30,6 @@ export function BookingDetailModal({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [policyRules, setPolicyRules] = useState<{ hours_before: number; refund_percentage: number }[] | null>(null);
   const [rescheduleCutoff, setRescheduleCutoff] = useState<number | null>(null);
-  const [studioInventory, setStudioInventory] = useState<StudioBookingInventory | null>(null);
-
-  useEffect(() => {
-    if (!booking.studio?.id) return;
-    fetch(`/api/studios/${booking.studio.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setStudioInventory(data?.booking_inventory ?? null))
-      .catch(() => setStudioInventory(null));
-  }, [booking.studio?.id]);
 
   useEffect(() => {
     if (!booking.studio?.id) return;
@@ -187,30 +175,14 @@ export function BookingDetailModal({
             </div>
           </div>
 
-          <StudioBookingInventoryPanel
-            className="mb-6"
-            inventory={studioInventory}
-            selectedAddOns={
-              booking.addOns.map(
-                (a): AddOnService => ({
-                  id: a.id,
-                  name: a.name,
-                  price: a.price,
-                  description: "",
-                })
-              )
-            }
-            title="Equipment, services & add-ons"
-          />
-
           <div className="bg-white/5 rounded-xl p-6 mb-6">
             <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-white/50" />
               Services
             </h4>
-            <div className="space-y-3">
+            <div className="space-y-1">
               {booking.package && (
-                <div className="flex justify-between items-center py-2">
+                <div className="flex justify-between items-center py-2 border-b border-white/5">
                   <span className="text-white/70">{booking.package.name}</span>
                   <span className="text-white">
                     {booking.package.price_per_hour > 0
@@ -219,13 +191,21 @@ export function BookingDetailModal({
                   </span>
                 </div>
               )}
-              {booking.addOns.map((addon) => (
-                <div key={addon.id} className="flex justify-between items-center py-2">
-                  <span className="text-white/70">{addon.name}</span>
-                  <span className="text-white">₹{addon.price.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="border-t border-white/10 pt-3 mt-3 flex justify-between items-center">
+              {booking.addOns.length > 0 && (
+                <>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#D9FC67]/70 pt-3 pb-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Add-ons
+                  </p>
+                  {booking.addOns.map((addon) => (
+                    <div key={addon.id} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                      <span className="text-white/70">{addon.name}</span>
+                      <span className="text-white">₹{addon.price.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              <div className="border-t border-white/10 pt-3 mt-2 flex justify-between items-center">
                 <span className="text-white font-semibold">Total</span>
                 <span className="text-2xl font-bold text-[#D9FC67]">
                   ₹{booking.totalPrice.toLocaleString()}

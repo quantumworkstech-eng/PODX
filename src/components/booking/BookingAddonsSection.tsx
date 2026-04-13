@@ -11,7 +11,7 @@ import {
 import type { AddOnService } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { Loader2, Sparkles, Check, Plus, Minus, Trash2, Search } from "lucide-react";
+import { Loader2, Sparkles, Check, Plus, Minus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Variant = "checkout" | "step";
@@ -190,31 +190,48 @@ export function BookingAddonsSection({
         const selected = isSelected(addon.id);
         const qty = getQty(addon.id);
         const thumb = addon.thumbnail || ADDON_PLACEHOLDER_IMAGE;
+        const maxQty = addon.maxQty;
+        const atMax = maxQty != null && qty >= maxQty;
+        const outOfStock = maxQty != null && maxQty <= 0;
         return (
           <div
             key={addon.id}
             className={cn(
               "group rounded-2xl border overflow-hidden transition-all duration-300",
-              selected
+              outOfStock
+                ? "border-white/5 opacity-60"
+                : selected
                 ? "border-[#D9FC67] ring-2 ring-[#D9FC67]/30"
                 : "border-white/10 hover:border-white/30"
             )}
           >
-            <div className="relative h-32 overflow-hidden">
+            {/* Square image */}
+            <div className="relative aspect-square overflow-hidden">
               <Image src={thumb} alt={addon.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               {isRecommendedAddon(addon) && (
                 <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-[#D9FC67]/20 text-[#D9FC67] border border-[#D9FC67]/30">
                   Recommended
                 </span>
               )}
-              {selected && (
+              {/* Stock badge */}
+              {maxQty != null && !outOfStock && (
+                <span className="absolute top-3 right-3 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/70 border border-white/10">
+                  {maxQty} avail.
+                </span>
+              )}
+              {outOfStock && (
+                <span className="absolute top-3 right-3 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                  Out of stock
+                </span>
+              )}
+              {selected && !outOfStock && (
                 <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[#D9FC67] flex items-center justify-center">
                   <Check className="w-4 h-4 text-black" />
                 </div>
               )}
               <div className="absolute bottom-3 left-3 pr-3">
-                <h3 className="text-lg font-semibold text-white drop-shadow-sm">{addon.name}</h3>
+                <h3 className="text-base font-semibold text-white drop-shadow-sm leading-tight">{addon.name}</h3>
               </div>
             </div>
             <div className="p-4 bg-[#0a0a0a]">
@@ -231,7 +248,9 @@ export function BookingAddonsSection({
                     </span>
                   )}
                 </div>
-                {selected ? (
+                {outOfStock ? (
+                  <span className="text-xs text-red-400/70 font-medium">Unavailable</span>
+                ) : selected ? (
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -243,8 +262,14 @@ export function BookingAddonsSection({
                     <span className="w-8 text-center text-white font-bold text-base tabular-nums">{qty}</span>
                     <button
                       type="button"
-                      onClick={() => updateAddOnQty(addon.id, qty + 1)}
-                      className="w-8 h-8 rounded-full border border-[#D9FC67]/50 bg-[#D9FC67]/10 hover:bg-[#D9FC67]/20 text-[#D9FC67] flex items-center justify-center transition-colors"
+                      onClick={() => !atMax && updateAddOnQty(addon.id, qty + 1)}
+                      disabled={atMax}
+                      className={cn(
+                        "w-8 h-8 rounded-full border flex items-center justify-center transition-colors",
+                        atMax
+                          ? "border-white/10 bg-white/5 text-white/20 cursor-not-allowed"
+                          : "border-[#D9FC67]/50 bg-[#D9FC67]/10 hover:bg-[#D9FC67]/20 text-[#D9FC67]"
+                      )}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -261,6 +286,12 @@ export function BookingAddonsSection({
                   </Button>
                 )}
               </div>
+              {/* Max qty reached hint */}
+              {atMax && selected && (
+                <p className="text-[10px] text-amber-400/70 mt-2">
+                  Max {maxQty} available
+                </p>
+              )}
             </div>
           </div>
         );

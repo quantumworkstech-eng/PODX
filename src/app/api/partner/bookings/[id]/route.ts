@@ -3,6 +3,9 @@ import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calendarDateInIST, startEndFromCalendarAndSlot } from '@/lib/bookingTime';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (v: string) => UUID_RE.test(v);
+
 // ── PATCH /api/partner/bookings/[id] ─────────────────────────────────────────
 // Allows a partner (studio owner) to reschedule one of their bookings.
 // Body: { action: "reschedule", newDate: "YYYY-MM-DD", newTimeSlot: "HH:MM" }
@@ -52,11 +55,13 @@ export async function PATCH(
     }
 
     // Fetch the booking — support UUID or booking_number
-    const { data: booking } = await supabaseAdmin
+    const bookingQuery = supabaseAdmin
         .from('bookings')
-        .select('id, studio_id, start_time, end_time, status')
-        .or(`id.eq.${bookingId},booking_number.eq.${bookingId}`)
-        .maybeSingle();
+        .select('id, studio_id, start_time, end_time, status');
+    const { data: booking } = await (isUUID(bookingId)
+        ? bookingQuery.eq('id', bookingId)
+        : bookingQuery.eq('booking_number', bookingId)
+    ).maybeSingle();
 
     if (!booking) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 });

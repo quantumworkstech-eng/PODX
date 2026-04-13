@@ -3,6 +3,9 @@ import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calendarDateInIST, startEndFromCalendarAndSlot } from '@/lib/bookingTime';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (v: string) => UUID_RE.test(v);
+
 // GET full booking details for admin
 export async function GET(
   _request: NextRequest,
@@ -15,11 +18,11 @@ export async function GET(
   const { id } = await params;
 
   // Fetch the booking — support both UUID and booking_number
-  const { data: booking, error: bookingErr } = await supabaseAdmin
-    .from('bookings')
-    .select('*')
-    .or(`id.eq.${id},booking_number.eq.${id}`)
-    .maybeSingle();
+  const getQuery = supabaseAdmin.from('bookings').select('*');
+  const { data: booking, error: bookingErr } = await (isUUID(id)
+    ? getQuery.eq('id', id)
+    : getQuery.eq('booking_number', id)
+  ).maybeSingle();
 
   if (bookingErr || !booking) {
     console.error('Booking fetch error:', bookingErr, 'id:', id);
@@ -124,16 +127,21 @@ export async function PATCH(
   const { action, status, bookingFields, newDate, newTimeSlot } = body;
 
   if (action === 'force_cancel') {
+    // Resolve real UUID first if a booking_number was passed
+    const cancelLookup = supabaseAdmin.from('bookings').select('id, user_id, booking_number');
+    const { data: bookingToCancel } = await (isUUID(id)
+      ? cancelLookup.eq('id', id)
+      : cancelLookup.eq('booking_number', id)
+    ).maybeSingle();
+
+    if (!bookingToCancel) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+
     await supabaseAdmin
       .from('bookings')
       .update({ status: 'cancelled', cancellation_reason: 'Cancelled by admin', cancelled_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', bookingToCancel.id);
 
-    const { data: booking } = await supabaseAdmin
-      .from('bookings')
-      .select('user_id, booking_number')
-      .eq('id', id)
-      .maybeSingle();
+    const booking = bookingToCancel;
 
     if (booking?.user_id) {
       await supabaseAdmin.from('notifications').insert({
@@ -150,10 +158,18 @@ export async function PATCH(
   }
 
   if (action === 'force_refund') {
+    // Resolve real UUID first if a booking_number was passed
+    const refundLookup = supabaseAdmin.from('bookings').select('id');
+    const { data: refundBooking } = await (isUUID(id)
+      ? refundLookup.eq('id', id)
+      : refundLookup.eq('booking_number', id)
+    ).maybeSingle();
+    const realId = refundBooking?.id ?? id;
+
     const { data: payment } = await supabaseAdmin
       .from('payments')
       .select('id, amount, provider_payment_id')
-      .eq('booking_id', id)
+      .eq('booking_id', realId)
       .eq('status', 'succeeded')
       .maybeSingle();
 
@@ -161,14 +177,14 @@ export async function PATCH(
 
     await supabaseAdmin.from('refunds').insert({
       payment_id: payment.id,
-      booking_id: id,
+      booking_id: realId,
       amount: payment.amount,
       reason: 'Admin force refund',
       status: 'pending',
     });
 
     await supabaseAdmin.from('payments').update({ status: 'refunded' }).eq('id', payment.id);
-    await supabaseAdmin.from('bookings').update({ status: 'cancelled' }).eq('id', id);
+    await supabaseAdmin.from('bookings').update({ status: 'cancelled' }).eq('id', realId);
 
     await logAdminAction(email, 'booking_force_refund', 'booking', id);
     return NextResponse.json({ success: true, message: 'Refund initiated' });
@@ -180,12 +196,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'newDate and newTimeSlot are required' }, { status: 400 });
     }
 
-    // Fetch current booking
-    const { data: booking } = await supabaseAdmin
+    // Fetch current booking — support both UUID and booking_number
+    const rescheduleQuery = supabaseAdmin
       .from('bookings')
-      .select('id, studio_id, start_time, end_time, status, user_id, booking_number')
-      .eq('id', id)
-      .maybeSingle();
+      .select('id, studio_id, start_time, end_time, status, user_id, booking_number');
+    const { data: booking } = await (isUUID(id)
+      ? rescheduleQuery.eq('id', id)
+      : rescheduleQuery.eq('booking_number', id)
+    ).maybeSingle();
 
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     if (booking.status === 'cancelled') {
@@ -234,7 +252,7 @@ export async function PATCH(
         status: 'rescheduled',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', booking.id);
 
     if (updateErr) {
       console.error('Admin reschedule error:', updateErr);
