@@ -12,6 +12,7 @@ import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingI
 import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
 import { isoToISTSlot } from "@/lib/bookingDisplay";
+import { formatSessionDateCalendarIST } from "@/lib/bookingTime";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "cancelled", "completed", "rescheduled", "no_show"];
 
