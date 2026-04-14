@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { BookingAddonsSection } from "@/components/booking/BookingAddonsSection";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 
 const CANCELLATION_POLICY = {
@@ -259,13 +258,6 @@ export function CheckoutStep() {
                 </div>
               </div>
             </div>
-          )}
-
-          {selectedStudio && (
-            <StudioBookingInventoryPanel
-              inventory={selectedStudio.booking_inventory}
-              selectedAddOns={selectedAddOns}
-            />
           )}
 
           {/* Package */}
