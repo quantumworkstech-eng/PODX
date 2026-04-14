@@ -295,9 +295,32 @@ export function CheckoutStep() {
             </div>
           )}
 
-          {/* Add-ons (optional services for this studio) */}
+          {/* Add-ons */}
           {selectedStudio && (
-            <BookingAddonsSection key={selectedStudio.id} variant="checkout" />
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+              <h3 className="text-base font-semibold text-white mb-3 flex items-center justify-between">
+                <span>Add-ons</span>
+                <button
+                  onClick={() => goToStep(4)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              </h3>
+              {selectedAddOns.length === 0 ? (
+                <p className="text-white/30 text-sm">No add-ons selected</p>
+              ) : (
+                <div className="space-y-2">
+                  {selectedAddOns.map((addon) => (
+                    <div key={addon.id} className="flex items-center justify-between text-sm">
+                      <span className="text-white/70">{addon.name}</span>
+                      <span className="text-white font-medium">₹{addon.price.toLocaleString("en-IN")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Cancellation policy */}
