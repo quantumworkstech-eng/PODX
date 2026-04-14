@@ -77,7 +77,6 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
           <div className={`grid ${colsClass} gap-6`}>
             {studios.map((studio) => {
               const activeRooms = studio.rooms?.filter((r) => r.is_active) || [];
-              const minPrice = activeRooms.length > 0 ? Math.min(...activeRooms.map((r) => r.price_per_hour)) : null;
               const maxCap = activeRooms.length > 0 ? Math.max(...activeRooms.map((r) => r.capacity)) : null;
 
               return (
@@ -145,46 +144,10 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
                       </p>
                     )}
 
-                    {activeRooms.length > 0 && (
-                      <div className="space-y-1.5 mb-4">
-                        {activeRooms.slice(0, 2).map((room) => (
-                          <div
-                            key={room.id}
-                            className="flex items-center justify-between text-sm px-3 py-2 rounded-xl"
-                            style={{ background: "rgba(255,255,255,0.04)" }}
-                          >
-                            <div className="flex items-center gap-2" style={{ opacity: 0.7 }}>
-                              <Users className="w-3.5 h-3.5" style={{ opacity: 0.5 }} />
-                              <span>{room.name}</span>
-                            </div>
-                            {content.show_price !== false && (
-                              <span className="font-semibold text-sm" style={{ color: primary }}>
-                                ₹{room.price_per_hour.toLocaleString()}/hr
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                        {activeRooms.length > 2 && (
-                          <p className="text-xs pl-1" style={{ opacity: 0.35 }}>
-                            +{activeRooms.length - 2} more room{activeRooms.length - 2 !== 1 ? "s" : ""}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
                     <div className="flex items-center justify-between">
                       <div>
-                        {content.show_price !== false && minPrice !== null && (
-                          <>
-                            <p className="text-xs" style={{ opacity: 0.35 }}>Starting from</p>
-                            <p className="font-bold text-lg" style={{ color: primary }}>
-                              ₹{minPrice.toLocaleString()}
-                              <span className="text-sm font-normal" style={{ opacity: 0.6 }}>/hr</span>
-                            </p>
-                          </>
-                        )}
                         {content.show_capacity !== false && maxCap !== null && maxCap > 0 && (
-                          <p className="text-xs mt-0.5" style={{ opacity: 0.35 }}>Up to {maxCap} people</p>
+                          <p className="text-xs" style={{ opacity: 0.35 }}>Up to {maxCap} people</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2">

@@ -219,7 +219,6 @@ function AdminCreateStudioPageInner() {
         if (!formData.state) return "Please enter a state.";
         return "";
       case 3:
-        if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
         if (formData.availableDays.length === 0) return "Please select at least one available day.";
         return "";
       case 4:
@@ -307,7 +306,6 @@ function AdminCreateStudioPageInner() {
           state: formData.state,
           country: formData.country || "India",
           owner_email: formData.ownerEmail,
-          price_per_hour: formData.pricePerHour,
           capacity: formData.capacity,
           images: formData.images,
           video_url: formData.videoUrl || null,
@@ -522,16 +520,6 @@ function AdminCreateStudioPageInner() {
       </div>
       <div className="space-y-4">
         <div>
-          <label className="text-white/80 text-sm font-medium mb-2 block">Price per Hour (₹) *</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 text-lg font-medium">₹</span>
-            <input type="number" value={formData.pricePerHour}
-              onChange={(e) => updateFormData({ pricePerHour: parseInt(e.target.value) || 0 })}
-              min="0"
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-10 pr-5 text-white focus:border-[#D9FC67] focus:outline-none transition-colors text-lg" />
-          </div>
-        </div>
-        <div>
           <label className="text-white/80 text-sm font-medium mb-3 block">Working Hours</label>
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -622,7 +610,7 @@ function AdminCreateStudioPageInner() {
                         className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-white placeholder:text-white/25 focus:border-[#D9FC67] focus:outline-none text-sm" />
                     </div>
                     <div>
-                      <label className="text-white/60 text-xs mb-1.5 block">Additional Price/hr (₹)</label>
+                      <label className="text-white/60 text-xs mb-1.5 block">Price/hr (₹)</label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">₹</span>
                         <input type="number" min="0" value={pkg.price_per_hour}
@@ -785,7 +773,6 @@ function AdminCreateStudioPageInner() {
         </div>
         <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-2 text-sm">
           <p className="text-white font-semibold mb-3">Pricing</p>
-          <p><span className="text-white/40">Price:</span><span className="text-white ml-2">₹{formData.pricePerHour.toLocaleString("en-IN")}/hour</span></p>
           <p><span className="text-white/40">Hours:</span><span className="text-white ml-2">{formData.workingHours.start} – {formData.workingHours.end}</span></p>
           <p><span className="text-white/40">Days:</span><span className="text-white ml-2">{formData.availableDays.join(", ")}</span></p>
         </div>
@@ -798,7 +785,7 @@ function AdminCreateStudioPageInner() {
               {formData.packages.filter((p) => p.name.trim()).map((pkg, i) => (
                 <div key={i} className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg">
                   <span className="text-white text-xs font-medium">{pkg.name}</span>
-                  <span className="text-white/50 text-xs">{pkg.price_per_hour === 0 ? "Included" : `+₹${pkg.price_per_hour}/hr`}</span>
+                  <span className="text-white/50 text-xs">{pkg.price_per_hour === 0 ? "—" : `₹${pkg.price_per_hour}/hr`}</span>
                 </div>
               ))}
             </div>

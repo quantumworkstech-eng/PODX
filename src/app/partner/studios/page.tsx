@@ -287,7 +287,7 @@ export default function PartnerStudiosPage() {
             description: formData.description,
             address: formData.address,
             city: formData.city,
-            pricePerHour: formData.price_per_hour,
+
             capacity: formData.capacity,
             buffer_minutes: formData.buffer_minutes ?? 0,
             reschedule_cutoff_hours: formData.reschedule_cutoff_hours ?? 48,
@@ -319,7 +319,7 @@ export default function PartnerStudiosPage() {
             description: formData.description,
             address: formData.address,
             city: formData.city,
-            pricePerHour: formData.price_per_hour,
+
             capacity: formData.capacity,
             images: formData.images,
             equipment: formData.equipment || [],
@@ -530,10 +530,6 @@ export default function PartnerStudiosPage() {
                     <Users className="w-4 h-4" />
                     {studio.capacity}
                   </div>
-                  <div className="flex items-center gap-1 text-[#D9FC67] font-semibold">
-                    <span className="text-sm">₹</span>
-                    {studio.price_per_hour.toLocaleString("en-IN")}/hr
-                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -608,10 +604,6 @@ export default function PartnerStudiosPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-white/60 text-sm mb-2 block">Price per Hour (₹) *</label>
-                  <Input type="number" value={formData.price_per_hour} onChange={(e) => setFormData({ ...formData, price_per_hour: parseInt(e.target.value) || 0 })} placeholder="1500" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
-                </div>
                 <div>
                   <label className="text-white/60 text-sm mb-2 block">Capacity *</label>
                   <Input type="number" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 2 })} placeholder="4" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />

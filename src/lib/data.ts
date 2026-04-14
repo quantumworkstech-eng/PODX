@@ -51,8 +51,9 @@ export async function getAllStudios(): Promise<Studio[]> {
     .from('studios')
     .select(`
       id, name, slug, description, short_description, address, city, featured_image_url, video_url, created_at,
-      rooms (id, price_per_hour, capacity, is_active),
-      studio_images (image_url, display_order)
+      rooms (id, capacity, is_active),
+      studio_images (image_url, display_order),
+      studio_packages (price_per_hour, display_order)
     `)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
@@ -68,12 +69,13 @@ export async function getAllStudios(): Promise<Studio[]> {
   return studios.map((studio: any) => {
     const rooms: any[] = studio.rooms || [];
     const activeRooms = rooms.filter((r: any) => r.is_active !== false);
-    const minPrice = activeRooms.length > 0
-      ? Math.min(...activeRooms.map((r: any) => r.price_per_hour ?? 0))
-      : 0;
     const maxCapacity = activeRooms.length > 0
       ? Math.max(...activeRooms.map((r: any) => r.capacity ?? 0))
       : 2;
+    const packages: any[] = studio.studio_packages || [];
+    const minPrice = packages.length > 0
+      ? Math.min(...packages.map((p: any) => Number(p.price_per_hour) || 0))
+      : 0;
     const sortedImages = (studio.studio_images || []).sort(
       (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
     );

@@ -386,7 +386,7 @@ function CreateStudioPageInner() {
               city: formData.city,
               state: formData.state,
               country: formData.country || "India",
-              pricePerHour: formData.pricePerHour,
+
               capacity: formData.capacity,
               equipment: allEquipment,
               images: formData.images.filter((u) => u.startsWith("http")),
@@ -413,7 +413,7 @@ function CreateStudioPageInner() {
               city: formData.city,
               state: formData.state,
               country: formData.country || "India",
-              pricePerHour: formData.pricePerHour,
+
               capacity: formData.capacity,
               equipment: formData.equipment,
               images: formData.images.filter((u) => u.startsWith("http")),
@@ -473,7 +473,6 @@ function CreateStudioPageInner() {
       case 4:
         return "";
       case 5:
-        if (!formData.pricePerHour || formData.pricePerHour <= 0) return "Please enter a valid price per hour.";
         if (formData.availableDays.length === 0) return "Please select at least one available day.";
         return "";
       case 6:
@@ -1123,31 +1122,6 @@ function CreateStudioPageInner() {
 
       <div className="space-y-4">
         <div>
-          <label className="text-white/80 text-sm font-medium mb-2 block">Price per Hour (₹) *</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40 text-lg font-medium">₹</span>
-            <input
-              type="number"
-              value={formData.pricePerHour}
-              onChange={(e) => updateFormData({ pricePerHour: parseInt(e.target.value) || 0 })}
-              placeholder="1500"
-              min="0"
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-10 pr-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors text-lg"
-            />
-          </div>
-          {formData.pricePerHour > 0 && (
-            <p className="text-[#D9FC67] text-xs mt-1.5 font-medium">
-              ₹{formData.pricePerHour.toLocaleString("en-IN")}/hour
-              {formData.discountPercent > 0 && (
-                <span className="text-white/40 ml-2 line-through">
-                  → ₹{Math.round(formData.pricePerHour * (1 - formData.discountPercent / 100)).toLocaleString("en-IN")}/hour after discount
-                </span>
-              )}
-            </p>
-          )}
-        </div>
-
-        <div>
           <label className="text-white/80 text-sm font-medium mb-2 block">Discount (%)</label>
           <input
             type="number"
@@ -1331,7 +1305,7 @@ function CreateStudioPageInner() {
                     </div>
                     <div>
                       <label className="text-white/60 text-xs mb-1.5 block">
-                        Additional Price/hr
+                        Price/hr
                         <span className="text-white/30 ml-1 font-normal">(₹, leave 0 if included in studio rate)</span>
                       </label>
                       <div className="relative">
@@ -1801,7 +1775,6 @@ function CreateStudioPageInner() {
               <button onClick={() => setCurrentStep(5)} className="text-[#D9FC67] text-xs hover:underline">Edit</button>
             </div>
             <div className="space-y-1.5 text-sm">
-              <p><span className="text-white/40">Price:</span> <span className="text-white ml-2">₹{formData.pricePerHour.toLocaleString("en-IN")}/hour</span></p>
               {formData.discountPercent > 0 && (
                 <p><span className="text-white/40">Discount:</span> <span className="text-white ml-2">{formData.discountPercent}%</span></p>
               )}
@@ -1826,7 +1799,7 @@ function CreateStudioPageInner() {
                     <div className="flex items-center gap-2">
                       {pkg.is_popular && <span className="text-[10px] text-[#D9FC67] font-bold">BEST DEAL</span>}
                       <span className="text-white/50 text-xs">
-                        {pkg.price_per_hour === 0 ? "Included" : `+₹${pkg.price_per_hour}/hr`}
+                        {pkg.price_per_hour === 0 ? "—" : `₹${pkg.price_per_hour}/hr`}
                       </span>
                     </div>
                   </div>

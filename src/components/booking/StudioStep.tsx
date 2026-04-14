@@ -10,9 +10,12 @@ async function enrichStudioForBooking(studio: Studio): Promise<Studio> {
     const r = await fetch(`/api/studios/${studio.id}`);
     if (!r.ok) return studio;
     const data = await r.json();
+    const packages: any[] = data.packages ?? [];
+    const firstPkg = packages[0];
     return {
       ...studio,
       booking_inventory: data.booking_inventory ?? null,
+      price_per_hour: firstPkg ? Number(firstPkg.price_per_hour) : studio.price_per_hour,
     };
   } catch {
     return studio;
@@ -365,9 +368,9 @@ export function StudioStep() {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-xl font-bold text-white">
-                            ₹{studio.price_per_hour.toLocaleString()}
+                            {studio.price_per_hour > 0 ? `from ₹${studio.price_per_hour.toLocaleString()}` : "See packages"}
                           </span>
-                          <span className="text-white/40 text-sm">/hr</span>
+                          {studio.price_per_hour > 0 && <span className="text-white/40 text-sm">/hr</span>}
                         </div>
                         <div className="flex items-center gap-2">
                           <button

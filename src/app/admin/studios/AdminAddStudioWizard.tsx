@@ -137,7 +137,6 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
       if (!data.city.trim()) return "City is required";
     }
     if (s === 3) {
-      if (!data.price_per_hour || Number(data.price_per_hour) <= 0) return "Valid price per hour is required";
       if (data.workingDays.length === 0) return "Select at least one working day";
     }
     if (s === 6) {
@@ -173,7 +172,6 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
           city: data.city,
           state: data.state || null,
           country: data.country || "India",
-          price_per_hour: Number(data.price_per_hour) || 1000,
         }),
       });
       const result = await res.json();
@@ -478,19 +476,6 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
           {/* ── Step 3: Pricing & Hours ── */}
           {step === 3 && (
             <div className="space-y-6">
-              <div>
-                <label className={labelCls}>Price per Hour (₹) *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={data.price_per_hour}
-                    onChange={(e) => set("price_per_hour", e.target.value)}
-                    className={cn(inputCls, "pl-7")}
-                  />
-                </div>
-              </div>
 
               <div>
                 <label className={labelCls}>Available Days *</label>
@@ -874,7 +859,6 @@ export function AdminAddStudioWizard({ onClose, onSuccess }: Props) {
                     { label: "Owner", value: data.owner_email },
                     { label: "Location", value: [data.city, data.state].filter(Boolean).join(", ") || "—" },
                     { label: "Address", value: data.address || "—" },
-                    { label: "Price", value: `₹${Number(data.price_per_hour).toLocaleString()}/hr` },
                     { label: "Capacity", value: `${data.capacity} persons` },
                     { label: "Working Days", value: data.workingDays.join(", ") || "—" },
                     { label: "Hours", value: `${data.openTime} – ${data.closeTime}` },

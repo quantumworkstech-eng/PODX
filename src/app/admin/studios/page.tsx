@@ -421,7 +421,6 @@ function AdminStudiosPageInner() {
           country: editFields.country,
           latitude: editFields.latitude ? Number(editFields.latitude) : null,
           longitude: editFields.longitude ? Number(editFields.longitude) : null,
-          price_per_hour: Number(editFields.price_per_hour) || 0,
           capacity: Number(editFields.capacity) || 0,
         },
         amenityIds: selectedAmenities,
@@ -572,7 +571,7 @@ function AdminStudiosPageInner() {
                         <p className="text-white/30 text-xs">{studio.owner_email}</p>
                       </td>
                       <td className="px-6 py-4"><span className="text-white/50 text-sm">{studio.city}</span></td>
-                      <td className="px-6 py-4"><span className="text-white font-medium text-sm">₹{studio.price_per_hour}/hr</span></td>
+                      <td className="px-6 py-4"><span className="text-white/40 text-sm">—</span></td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs border ${cfg.color}`}>{cfg.label}</span>
                       </td>
@@ -807,8 +806,6 @@ function AdminStudiosPageInner() {
                   {/* ── PRICING & AVAILABILITY ── */}
                   {activeSection === "pricing" && (
                     <>
-                      <InputField label="Price per Hour (₹)" value={editFields.price_per_hour} onChange={(v) => setField("price_per_hour", v)} type="number" />
-
                       <div className="border-t border-white/5 pt-4 mt-4">
                         <label className="text-white/40 text-xs uppercase tracking-wider block mb-3">Working Hours</label>
                         <div className="grid grid-cols-2 gap-4">

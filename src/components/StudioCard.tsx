@@ -95,11 +95,13 @@ export function StudioCard({ studio }: StudioCardProps) {
       </div>
 
       {/* Price Badge - Bottom Right */}
-      <div className="absolute bottom-8 right-6 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full z-10">
-        <span className="text-white font-semibold">
-          {studio.currency}{studio.price_per_hour.toLocaleString()}/hr
-        </span>
-      </div>
+      {studio.price_per_hour > 0 && (
+        <div className="absolute bottom-8 right-6 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full z-10">
+          <span className="text-white font-semibold">
+            from {studio.currency}{studio.price_per_hour.toLocaleString()}/hr
+          </span>
+        </div>
+      )}
     </section>
   );
 }

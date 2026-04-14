@@ -143,9 +143,11 @@ export default function StudiosPage() {
                   >
                     <Info className="w-5 h-5" />
                   </button>
-                  <span className="text-white font-bold text-xl">
-                    ₹{featured.price_per_hour?.toLocaleString("en-IN")}<span className="text-white/50 text-sm font-normal">/hr</span>
-                  </span>
+                  {(featured.price_per_hour ?? 0) > 0 && (
+                    <span className="text-white font-bold text-xl">
+                      from ₹{featured.price_per_hour?.toLocaleString("en-IN")}<span className="text-white/50 text-sm font-normal">/hr</span>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -341,10 +343,14 @@ export default function StudiosPage() {
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">
-                        <span className="text-[#D9FC67] font-bold text-lg">
-                          ₹{studio.price_per_hour?.toLocaleString("en-IN")}
-                        </span>
-                        <span className="text-white/40 text-xs">/hr</span>
+                        {(studio.price_per_hour ?? 0) > 0 && (
+                          <>
+                            <span className="text-[#D9FC67] font-bold text-lg">
+                              from ₹{studio.price_per_hour?.toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-white/40 text-xs">/hr</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
