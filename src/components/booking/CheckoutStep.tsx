@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 
 const CANCELLATION_POLICY = {
   title: "Standard Cancellation Policy",
