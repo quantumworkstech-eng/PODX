@@ -151,8 +151,6 @@ export function PackageStep() {
                       "w-full py-5 text-base font-semibold transition-all rounded-xl gap-2",
                       isSelected
                         ? "bg-[#D9FC67] text-black hover:bg-[#c8eb5a]"
-                        : pkg.is_popular
-                        ? "bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black"
                         : "bg-white/10 text-white hover:bg-white/20"
                     )}
                   >

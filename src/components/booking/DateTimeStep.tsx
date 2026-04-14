@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useBooking } from "@/context/BookingContext";
-import { ChevronLeft, ChevronRight, Clock, Users, Plus, Minus, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Users, Loader2 } from "lucide-react";
 import { PARTICIPANT_OPTIONS, TIME_SLOTS, formatDuration } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 
@@ -338,24 +338,42 @@ export function DateTimeStep() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setDuration(Math.max(0.5, duration - 0.5))}
-                disabled={duration <= 0.5}
-                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Minus className="w-5 h-5 text-white" />
-              </button>
-              <div className="flex-1 text-center">
-                <span className="text-4xl font-bold text-white">{formatDuration(duration)}</span>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex flex-col gap-1">
+                <label className="text-white/40 text-xs">Hours</label>
+                <select
+                  value={Math.floor(duration)}
+                  onChange={(e) => {
+                    const hrs = parseInt(e.target.value);
+                    const mins = duration % 1 >= 0.5 ? 0.5 : 0;
+                    setDuration(hrs + mins);
+                  }}
+                  className="w-full h-14 bg-white/10 border border-white/10 rounded-xl px-4 text-white text-2xl font-bold focus:border-[#D9FC67] focus:outline-none appearance-none cursor-pointer"
+                >
+                  {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                    <option key={h} value={h} className="bg-[#141414] text-white text-base font-normal">
+                      {h} hr
+                    </option>
+                  ))}
+                </select>
               </div>
-              <button
-                onClick={() => setDuration(Math.min(8, duration + 0.5))}
-                disabled={duration >= 8}
-                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-5 h-5 text-white" />
-              </button>
+
+              <div className="text-white/30 text-2xl font-bold mt-5">:</div>
+
+              <div className="flex-1 flex flex-col gap-1">
+                <label className="text-white/40 text-xs">Minutes</label>
+                <select
+                  value={duration % 1 >= 0.5 ? 30 : 0}
+                  onChange={(e) => {
+                    const mins = parseInt(e.target.value) === 30 ? 0.5 : 0;
+                    setDuration(Math.floor(duration) + mins);
+                  }}
+                  className="w-full h-14 bg-white/10 border border-white/10 rounded-xl px-4 text-white text-2xl font-bold focus:border-[#D9FC67] focus:outline-none appearance-none cursor-pointer"
+                >
+                  <option value={0} className="bg-[#141414] text-white text-base font-normal">00 min</option>
+                  <option value={30} className="bg-[#141414] text-white text-base font-normal">30 min</option>
+                </select>
+              </div>
             </div>
           </div>
 
