@@ -18,7 +18,6 @@ export function AddOnsStep() {
     getSubtotal,
     getTax,
     getTotalPrice,
-    getStudioPrice,
     getPackagePrice,
     duration,
     date,
@@ -107,13 +106,9 @@ export function AddOnsStep() {
             </div>
 
             <div className="border-t border-white/10 pt-4 mb-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-white/60">Studio</span>
-                <span className="text-white">₹{getStudioPrice().toLocaleString("en-IN")}</span>
-              </div>
-              {selectedPackage && selectedPackage.price_per_hour > 0 && (
+              {selectedPackage && (
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-white/60">Package</span>
+                  <span className="text-white/60">{selectedPackage.name}</span>
                   <span className="text-white">₹{getPackagePrice().toLocaleString("en-IN")}</span>
                 </div>
               )}

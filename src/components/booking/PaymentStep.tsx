@@ -75,7 +75,6 @@ export function PaymentStep() {
     selectedStudio,
     selectedPackage,
     selectedAddOns,
-    getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,
     getSubtotal,
@@ -434,7 +433,7 @@ export function PaymentStep() {
                 </div>
                 <div className="text-right ml-4 shrink-0">
                   <span className="text-white font-semibold">
-                    ₹{(getStudioPrice() + getPackagePrice()).toLocaleString()}
+                    ₹{getPackagePrice().toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -460,21 +459,14 @@ export function PaymentStep() {
             </h3>
 
             <div className="space-y-3 mb-4">
-              {selectedPackage ? (
+              {selectedPackage && (
                 <div className="flex justify-between text-sm">
                   <span className="text-white/60">
                     {selectedPackage.name} × {formatDuration(duration)}
                   </span>
                   <span className="text-white">
-                    ₹{(getStudioPrice() + getPackagePrice()).toLocaleString()}
+                    ₹{getPackagePrice().toLocaleString()}
                   </span>
-                </div>
-              ) : (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/60">
-                    Studio × {formatDuration(duration)}
-                  </span>
-                  <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
                 </div>
               )}
 

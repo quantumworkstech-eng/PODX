@@ -341,9 +341,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getStudioPrice = useCallback(() => {
-    if (!state.selectedStudio) return 0;
-    return state.selectedStudio.price_per_hour * state.duration;
-  }, [state.selectedStudio, state.duration]);
+    return 0;
+  }, []);
 
   const getPackagePrice = useCallback(() => {
     if (!state.selectedPackage) return 0;
@@ -355,8 +354,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, [state.selectedAddOns]);
 
   const getSubtotal = useCallback(() => {
-    return getStudioPrice() + getPackagePrice() + getAddOnsPrice();
-  }, [getStudioPrice, getPackagePrice, getAddOnsPrice]);
+    return getPackagePrice() + getAddOnsPrice();
+  }, [getPackagePrice, getAddOnsPrice]);
 
   const getDiscount = useCallback(() => {
     return state.appliedCoupon?.discountAmount ?? 0;

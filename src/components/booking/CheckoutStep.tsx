@@ -44,7 +44,6 @@ export function CheckoutStep() {
     participants,
     selectedStudio,
     selectedPackage,
-    getStudioPrice,
     getPackagePrice,
     getAddOnsPrice,
     getSubtotal,
@@ -289,7 +288,7 @@ export function CheckoutStep() {
                 </div>
                 <div className="text-right shrink-0 ml-4">
                   <span className="text-white font-semibold">
-                    ₹{(getStudioPrice() + getPackagePrice()).toLocaleString()}
+                    ₹{getPackagePrice().toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -358,21 +357,14 @@ export function CheckoutStep() {
             </h3>
 
             <div className="space-y-3 mb-5">
-              {selectedPackage ? (
+              {selectedPackage && (
                 <div className="flex justify-between text-sm">
                   <span className="text-white/60">
                     {selectedPackage.name} × {formatDuration(duration)}
                   </span>
                   <span className="text-white">
-                    ₹{(getStudioPrice() + getPackagePrice()).toLocaleString()}
+                    ₹{getPackagePrice().toLocaleString()}
                   </span>
-                </div>
-              ) : (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/60">
-                    Studio × {formatDuration(duration)}
-                  </span>
-                  <span className="text-white">₹{getStudioPrice().toLocaleString()}</span>
                 </div>
               )}
 

@@ -15,7 +15,9 @@ export function PackageStep() {
 
   useEffect(() => {
     if (!selectedStudio?.id) {
-      setPackages(SERVICE_PACKAGES);
+      const pkgs = SERVICE_PACKAGES;
+      setPackages(pkgs);
+      if (!selectedPackage) setSelectedPackage(pkgs[0]);
       setLoading(false);
       return;
     }
@@ -25,9 +27,8 @@ export function PackageStep() {
       .then((data) => {
         if (cancelled) return;
         const studioPkgs: any[] = data.packages ?? [];
-        if (studioPkgs.length > 0) {
-          setPackages(
-            studioPkgs.map((p: any) => ({
+        const pkgs: ServicePackage[] = studioPkgs.length > 0
+          ? studioPkgs.map((p: any) => ({
               id: p.id,
               name: p.name,
               description: p.description || "",
@@ -35,12 +36,16 @@ export function PackageStep() {
               features: Array.isArray(p.features) ? p.features : [],
               is_popular: !!p.is_popular,
             }))
-          );
-        } else {
+          : SERVICE_PACKAGES;
+        setPackages(pkgs);
+        if (!selectedPackage) setSelectedPackage(pkgs[0]);
+      })
+      .catch(() => {
+        if (!cancelled) {
           setPackages(SERVICE_PACKAGES);
+          if (!selectedPackage) setSelectedPackage(SERVICE_PACKAGES[0]);
         }
       })
-      .catch(() => { if (!cancelled) setPackages(SERVICE_PACKAGES); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [selectedStudio?.id]);
@@ -69,9 +74,7 @@ export function PackageStep() {
       <div className="grid md:grid-cols-3 gap-6">
         {packages.map((pkg) => {
           const isSelected = selectedPackage?.id === pkg.id;
-          const studioHourlyRate = selectedStudio?.price_per_hour ?? 0;
-          const totalPerHour = studioHourlyRate + pkg.price_per_hour;
-          const totalPrice = totalPerHour * duration;
+          const totalPrice = pkg.price_per_hour * duration;
 
           return (
             <div
@@ -107,7 +110,7 @@ export function PackageStep() {
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold text-white">
-                        ₹{totalPerHour.toLocaleString()}
+                        ₹{pkg.price_per_hour.toLocaleString()}
                       </span>
                       <span className="text-white/40 text-sm">/hr</span>
                     </div>
