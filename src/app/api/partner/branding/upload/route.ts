@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkFeature } from "@/lib/subscription-gates";
+import { isFeatureEnabled } from "@/lib/feature-access";
 
 const BUCKET = "studio-images";
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -56,8 +57,11 @@ export async function POST(req: NextRequest) {
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const canWhitelabel = await checkFeature(user.id, "whitelabel");
-  if (!canWhitelabel) {
+  const [canBySubscription, canByFeatureGrant] = await Promise.all([
+    checkFeature(user.id, "whitelabel"),
+    isFeatureEnabled(user.id, "white_label"),
+  ]);
+  if (!canBySubscription && !canByFeatureGrant) {
     return NextResponse.json(
       {
         error:
@@ -201,8 +205,11 @@ export async function DELETE(req: NextRequest) {
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const canWhitelabel = await checkFeature(user.id, "whitelabel");
-  if (!canWhitelabel) {
+  const [canBySubscription2, canByFeatureGrant2] = await Promise.all([
+    checkFeature(user.id, "whitelabel"),
+    isFeatureEnabled(user.id, "white_label"),
+  ]);
+  if (!canBySubscription2 && !canByFeatureGrant2) {
     return NextResponse.json(
       {
         error:

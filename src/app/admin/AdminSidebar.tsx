@@ -24,6 +24,7 @@ const menuItems = [
   { id: "landing", label: "Landing Page", icon: Layout, href: "/admin/landing" },
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { id: "notifications", label: "Notifications", icon: Bell, href: "/admin/notifications" },
+  { id: "subscriptions", label: "Subscriptions", icon: CreditCard, href: "/admin/subscriptions" },
   { id: "whitelabel", label: "White-Label", icon: Globe, href: "/admin/whitelabel" },
   { id: "feature-access", label: "Feature Access", icon: ToggleLeft, href: "/admin/feature-access" },
   { id: "admins", label: "Admins", icon: ShieldCheck, href: "/admin/admins" },

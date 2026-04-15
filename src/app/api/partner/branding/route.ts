@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
 import { checkFeature } from "@/lib/subscription-gates";
+import { isFeatureEnabled } from "@/lib/feature-access";
 
 export async function GET() {
   const session = await auth();
@@ -45,9 +46,12 @@ export async function PUT(req: NextRequest) {
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // Subscription gate: white-label requires Pro or Enterprise
-  const canWhitelabel = await checkFeature(user.id, "whitelabel");
-  if (!canWhitelabel) {
+  // Gate: white-label requires active subscription OR admin-granted feature access
+  const [canBySubscription, canByFeatureGrant] = await Promise.all([
+    checkFeature(user.id, "whitelabel"),
+    isFeatureEnabled(user.id, "white_label"),
+  ]);
+  if (!canBySubscription && !canByFeatureGrant) {
     return NextResponse.json(
       {
         error: "White-label branding requires a Pro or Enterprise subscription. Visit Billing & Plans to upgrade.",
