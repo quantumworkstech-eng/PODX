@@ -293,28 +293,31 @@ export function PaymentStep() {
     try {
       const amount = getTotalPrice();
 
-      let orderData: any = null;
-      try {
-        const response = await fetch("/api/razorpay/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount }),
-        });
-        if (response.ok) {
-          orderData = await response.json();
-        }
-      } catch {
-        // API might not be set up — fall through to test mode
+      const orderRes = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+
+      if (!orderRes.ok) {
+        const err = await orderRes.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to create payment order. Please try again.");
+      }
+
+      const orderData = await orderRes.json();
+
+      if (!orderData?.orderId) {
+        throw new Error("Invalid order response from payment server.");
       }
 
       const rzpColor = partnerBranding?.primary_color || "#D9FC67";
       const rzpName = partnerBranding?.brand_name || "PodX Studio";
 
       const options = {
-        key: orderData?.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
-        amount: orderData?.amount || amount * 100,
+        key: orderData.keyId,
+        amount: orderData.amount,
         currency: "INR",
-        order_id: orderData?.orderId,
+        order_id: orderData.orderId,
         name: rzpName,
         description: `${selectedStudio.name} · ${formatDuration(duration)}`,
         image: partnerBranding?.logo_url || "/logo.png",
