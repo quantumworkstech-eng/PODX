@@ -311,7 +311,7 @@ export function PaymentStep() {
       }
 
       const rzpColor = partnerBranding?.primary_color || "#D9FC67";
-      const rzpName = partnerBranding?.brand_name || "PodX Studio";
+      const rzpName = partnerBranding?.brand_name || "Yanisa Studios";
 
       const options = {
         key: orderData.keyId,

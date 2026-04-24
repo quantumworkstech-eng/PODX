@@ -129,7 +129,7 @@ export async function PATCH(request: NextRequest) {
   // Verify the booking belongs to one of the partner's studios
   const { data: booking } = await supabaseAdmin
     .from('bookings')
-    .select('id, studio_id')
+    .select('id, studio_id, user_id, booking_number')
     .eq('id', bookingDbId)
     .maybeSingle();
 
@@ -137,6 +137,20 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  await supabaseAdmin.from('bookings').update({ status }).eq('id', bookingDbId);
+  await supabaseAdmin.from('bookings').update({ status, updated_at: new Date().toISOString() }).eq('id', bookingDbId);
+
+  // Notify the client so their dashboard reflects the change
+  if (booking.user_id) {
+    try {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: booking.user_id,
+        type: 'booking_updated',
+        title: 'Booking Updated',
+        content: `Your booking ${booking.booking_number} has been updated to ${status}.`,
+        action_url: '/dashboard',
+      });
+    } catch { /* ignore notification errors */ }
+  }
+
   return NextResponse.json({ success: true });
 }

@@ -118,7 +118,7 @@ export function FooterSection({ content, branding }: Props) {
             {copyright_text || `© ${new Date().getFullYear()} ${branding.brand_name}. All rights reserved.`}
           </p>
           <p className="text-xs" style={{ opacity: 0.2 }}>
-            Powered by <span style={{ color: primary }}>PodX</span>
+            Powered by <span style={{ color: primary }}>Yanisa Studios</span>
           </p>
         </div>
       </div>

@@ -68,7 +68,7 @@ export function StudioPartnerAddonPicker({
             <p className="text-white/80 text-sm font-medium">Platform add-ons</p>
           </div>
           <p className="text-white/35 text-xs mb-3">
-            Created by PodX admin — automatically available to clients on <strong className="text-white/50">all</strong> studios. Cannot be removed.
+            Created by Yanisa Studios admin — automatically available to clients on <strong className="text-white/50">all</strong> studios. Cannot be removed.
           </p>
           <div className="space-y-2">
             {platformAddons.map((a) => (

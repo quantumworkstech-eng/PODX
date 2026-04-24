@@ -217,7 +217,7 @@ export default function BillingPage() {
         amount: payment.amount * 100,
         currency: "INR",
         order_id: payment.razorpay_order_id,
-        name: "PodX",
+        name: "Yanisa Studios",
         description: `${payment.plan?.name || "Subscription"} Plan`,
         theme: { color: "#D9FC67" },
         handler: async (response: any) => {

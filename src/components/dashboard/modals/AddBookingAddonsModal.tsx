@@ -201,7 +201,7 @@ export function AddBookingAddonsModal({
       amount: Math.round(orderPreview.amount * 100),
       currency: "INR",
       order_id: orderPreview.orderId,
-      name: "PodX",
+      name: "Yanisa Studios",
       description: `Add-ons · ${booking.studio.name}`,
       prefill: {
         name: session?.user?.name || "",

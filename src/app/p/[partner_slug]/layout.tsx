@@ -295,7 +295,7 @@ export default async function WhiteLabelLayout({ children, params }: Props) {
                 © {new Date().getFullYear()} {branding.brand_name}. All rights reserved.
               </p>
               <p className="text-xs" style={{ color: textColor, opacity: 0.2 }}>
-                Powered by PodX
+                Powered by Yanisa Studios
               </p>
             </div>
           </div>

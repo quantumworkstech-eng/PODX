@@ -29,6 +29,7 @@ import { SettingsSection } from "@/components/dashboard/bookings/SettingsSection
 import { DashboardOverview } from "@/components/dashboard/bookings/DashboardOverview";
 import { BookingSuccessModal } from "@/components/dashboard/BookingSuccessModal";
 import { formatCalendarDateLocal, parseISTDateTime } from "@/lib/bookingTime";
+import { supabase } from "@/lib/supabase";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: Home },
@@ -127,7 +128,7 @@ export default function DashboardContent() {
 
   const refreshBookings = useCallback(async () => {
     try {
-      const res = await fetch("/api/bookings");
+      const res = await fetch("/api/bookings", { cache: "no-store" });
       if (res.ok) {
         const { bookings: apiBookings } = await res.json();
         if (apiBookings && apiBookings.length > 0) {
@@ -177,6 +178,35 @@ export default function DashboardContent() {
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [status, refreshBookings]);
+
+  // Subscribe to real-time booking updates so admin/partner changes reflect immediately
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.email || !supabase) return;
+    const email = session.user.email;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let channel: any = null;
+
+    supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle()
+      .then(({ data: user }) => {
+        if (!user?.id || !supabase) return;
+        channel = supabase
+          .channel(`bookings-user:${user.id}`)
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "bookings", filter: `user_id=eq.${user.id}` },
+            () => { void refreshBookings(); }
+          )
+          .subscribe();
+      });
+
+    return () => {
+      if (channel && supabase) supabase.removeChannel(channel);
+    };
+  }, [status, session?.user?.email, refreshBookings]);
 
   // Handle ?booking=success from payment redirect
   useEffect(() => {

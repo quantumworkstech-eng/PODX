@@ -44,20 +44,20 @@ import {
 // ─── FAQ data ────────────────────────────────────────────────────────────────
 const FAQ_ITEMS = [
   {
-    q: "How do I get bookings through PodX?",
-    a: "Once you list your studio, it appears in PodX's search results and your own branded booking page. Clients can find you, check availability, and book directly — no back-and-forth required. You also get your own shareable link to promote on social media.",
+    q: "How do I get bookings through Yanisa Studios?",
+    a: "Once you list your studio, it appears in Yanisa Studios's search results and your own branded booking page. Clients can find you, check availability, and book directly — no back-and-forth required. You also get your own shareable link to promote on social media.",
   },
   {
     q: "Can I use my own branding?",
-    a: "Yes! With the white-label feature, you get a fully branded booking page at yourstudio.podx.com or even your own custom domain. Your logo, colors, and studio name — clients never see the PodX backend.",
+    a: "Yes! With the white-label feature, you get a fully branded booking page at yourstudio.podx.com or even your own custom domain. Your logo, colors, and studio name — clients never see the Yanisa Studios backend.",
   },
   {
     q: "How do payments work?",
     a: "Payments are processed securely via Razorpay. Clients pay online at booking time and the funds are settled directly to your registered bank account. You get real-time earnings tracking in your dashboard.",
   },
   {
-    q: "Does PodX charge a commission?",
-    a: "PodX does not charge per-booking commissions. You pay a flat monthly subscription for the platform. This means the more you earn, the better the deal gets for you.",
+    q: "Does Yanisa Studios charge a commission?",
+    a: "Yanisa Studios does not charge per-booking commissions. You pay a flat monthly subscription for the platform. This means the more you earn, the better the deal gets for you.",
   },
   {
     q: "Can I cancel my subscription anytime?",
@@ -75,7 +75,7 @@ const TESTIMONIALS = [
     name: "Arjun Mehta",
     role: "Studio Owner · Mumbai",
     quote:
-      "Before PodX I was managing bookings over WhatsApp. Now I get 15–20 bookings a month automatically. My revenue doubled in 60 days.",
+      "Before Yanisa Studios I was managing bookings over WhatsApp. Now I get 15–20 bookings a month automatically. My revenue doubled in 60 days.",
     stars: 5,
     initials: "AM",
   },
@@ -293,7 +293,7 @@ export default function PartnersPage() {
 
         <p className="relative mt-6 text-center text-white/60 text-lg sm:text-xl max-w-2xl leading-relaxed">
           Get more bookings, manage clients effortlessly, and grow your studio
-          business with PodX — India&apos;s podcast studio marketplace platform.
+          business with Yanisa Studios — India&apos;s podcast studio marketplace platform.
         </p>
 
         {/* CTA Buttons */}
@@ -614,7 +614,7 @@ export default function PartnersPage() {
                 The Solution
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
-                PodX is your complete studio{" "}
+                Yanisa Studios is your complete studio{" "}
                 <span className="text-[#D9FC67]">operating system</span>
               </h2>
               <p className="text-white/60 text-lg leading-relaxed mb-8">
@@ -997,7 +997,7 @@ export default function PartnersPage() {
               <p className="text-white/60 text-lg leading-relaxed mb-8">
                 Clients see{" "}
                 <span className="text-white font-medium">your brand</span>, not
-                PodX. Get a professional booking website with your logo, colors,
+                Yanisa Studios. Get a professional booking website with your logo, colors,
                 and domain — no developer needed.
               </p>
 
@@ -1173,7 +1173,7 @@ export default function PartnersPage() {
           {/* Studio logos / trust badge */}
           <div className="mt-14 text-center">
             <p className="text-white/30 text-sm mb-6">
-              Studios using PodX across India
+              Studios using Yanisa Studios across India
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               {[
@@ -1481,7 +1481,7 @@ export default function PartnersPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-white/5">
             <p className="text-white/20 text-xs">
-              &copy; {new Date().getFullYear()} PodX. All rights reserved.
+              &copy; {new Date().getFullYear()} Yanisa Studios. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <Link href="/terms" className="text-white/20 hover:text-white/60 text-xs transition-colors">

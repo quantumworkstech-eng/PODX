@@ -1678,7 +1678,7 @@ function CreateStudioPageInner() {
         <div className="space-y-6 animate-fade-in">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">Subscription Required</h2>
-            <p className="text-white/60">You need an active plan to list studios on PodX</p>
+            <p className="text-white/60">You need an active plan to list studios on Yanisa Studios</p>
           </div>
           <div className="p-8 bg-white/5 border border-white/10 rounded-2xl text-center">
             <div className="w-16 h-16 rounded-full bg-yellow-400/10 flex items-center justify-center mx-auto mb-5">
