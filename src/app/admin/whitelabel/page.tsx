@@ -566,7 +566,7 @@ export default function AdminWhiteLabelPage() {
                   {[
                     { label: "Slug / URL", value: selectedPartner.partner_slug ? `/p/${selectedPartner.partner_slug}` : "—" },
                     { label: "URL Mode", value: selectedPartner.url_mode || "slug" },
-                    { label: "Subdomain", value: selectedPartner.subdomain ? `${selectedPartner.subdomain}.podx.com` : "—" },
+                    { label: "Subdomain", value: selectedPartner.subdomain ? `${selectedPartner.subdomain}.yanisastudios.com` : "—" },
                     { label: "Custom Domain", value: selectedPartner.custom_domain || "—" },
                     { label: "Domain Verified", value: selectedPartner.domain_verified ? "✓ Verified" : "Not verified" },
                     { label: "Primary Color", value: selectedPartner.primary_color || "—" },
@@ -810,7 +810,7 @@ export default function AdminWhiteLabelPage() {
                     <Field label="URL Mode">
                       <select value={editBranding.url_mode || "slug"} onChange={(e) => updateEdit("url_mode", e.target.value)} className={inputCls}>
                         <option value="slug">Path Slug (/p/slug)</option>
-                        <option value="subdomain">Subdomain (slug.podx.com)</option>
+                        <option value="subdomain">Subdomain (slug.yanisastudios.com)</option>
                         <option value="custom_domain">Custom Domain</option>
                       </select>
                     </Field>
@@ -819,7 +819,7 @@ export default function AdminWhiteLabelPage() {
                         <input value={editBranding.subdomain || ""}
                           onChange={(e) => updateEdit("subdomain", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                           placeholder="mystudio" className={cn(inputCls, "rounded-r-none")} />
-                        <span className="flex items-center px-2 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-white/30 text-xs whitespace-nowrap">.podx.com</span>
+                        <span className="flex items-center px-2 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-white/30 text-xs whitespace-nowrap">.yanisastudios.com</span>
                       </div>
                     </Field>
                     <Field label="Custom Domain" className="col-span-2">

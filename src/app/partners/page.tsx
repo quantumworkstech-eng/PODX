@@ -49,7 +49,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I use my own branding?",
-    a: "Yes! With the white-label feature, you get a fully branded booking page at yourstudio.podx.com or even your own custom domain. Your logo, colors, and studio name — clients never see the Yanisa Studios backend.",
+    a: "Yes! With the white-label feature, you get a fully branded booking page at yourstudio.yanisastudios.com or even your own custom domain. Your logo, colors, and studio name — clients never see the Yanisa Studios backend.",
   },
   {
     q: "How do payments work?",
@@ -895,7 +895,7 @@ export default function PartnersPage() {
                   </div>
                   <div className="flex-1 bg-white/6 rounded-lg h-6 flex items-center px-3">
                     <span className="text-white/30 text-[10px]">
-                      🔒 yourstudio.podx.com
+                      🔒 yourstudio.yanisastudios.com
                     </span>
                   </div>
                 </div>
@@ -967,7 +967,7 @@ export default function PartnersPage() {
               {/* Custom domain badges */}
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
-                  "yourstudio.podx.com",
+                  "yourstudio.yanisastudios.com",
                   "yourstudio.com (custom domain)",
                 ].map((d) => (
                   <div
@@ -1011,7 +1011,7 @@ export default function PartnersPage() {
                   {
                     icon: Globe,
                     title: "Custom domain support",
-                    desc: "Use yourstudio.podx.com or point your own domain.",
+                    desc: "Use yourstudio.yanisastudios.com or point your own domain.",
                   },
                   {
                     icon: BookOpen,
@@ -1387,11 +1387,11 @@ export default function PartnersPage() {
               Still have questions?
             </p>
             <a
-              href="mailto:partners@podx.in"
+              href="mailto:partners@yanisastudios.in"
               className="inline-flex items-center gap-2 text-[#D9FC67] font-medium text-sm hover:underline"
             >
               <Mail className="w-4 h-4" />
-              partners@podx.in
+              partners@yanisastudios.in
             </a>
           </div>
         </div>
@@ -1465,8 +1465,8 @@ export default function PartnersPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <Mail className="w-4 h-4 text-[#D9FC67] mt-0.5 flex-shrink-0" />
-                  <a href="mailto:partners@podx.in" className="text-white/40 hover:text-white text-sm transition-colors">
-                    partners@podx.in
+                  <a href="mailto:partners@yanisastudios.in" className="text-white/40 hover:text-white text-sm transition-colors">
+                    partners@yanisastudios.in
                   </a>
                 </li>
                 <li className="flex items-start gap-3">

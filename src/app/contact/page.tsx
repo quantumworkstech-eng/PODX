@@ -69,8 +69,8 @@ const CONTACT_METHODS = [
     icon: Mail,
     title: "Email Us",
     description: "For detailed inquiries, quotes, or partnerships",
-    action: "hello@podx.in",
-    href: "mailto:hello@podx.in",
+    action: "hello@yanisastudios.in",
+    href: "mailto:hello@yanisastudios.in",
     color: "#D9FC67",
   },
   {

@@ -449,8 +449,8 @@ export default function WhiteLabelSettingsPage() {
               <Field label="URL Mode">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { value: "slug", label: "Path Slug", desc: "podx.com/p/your-slug" },
-                    { value: "subdomain", label: "Subdomain", desc: "yourslug.podx.com" },
+                    { value: "slug", label: "Path Slug", desc: "yanisastudios.com/p/your-slug" },
+                    { value: "subdomain", label: "Subdomain", desc: "yourslug.yanisastudios.com" },
                     { value: "custom_domain", label: "Custom Domain", desc: "booking.yourdomain.com" },
                   ].map((opt) => (
                     <button
@@ -471,11 +471,11 @@ export default function WhiteLabelSettingsPage() {
               </Field>
 
               {branding.url_mode === "subdomain" && (
-                <Field label="Subdomain" hint="Will appear as {subdomain}.podx.com">
+                <Field label="Subdomain" hint="Will appear as {subdomain}.yanisastudios.com">
                   <div className="flex">
                     <input value={branding.subdomain || ""} onChange={(e) => update("subdomain", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                       placeholder="mystudio" className={cn(inputCls, "rounded-r-none")} />
-                    <span className="flex items-center px-3 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-white/40 text-sm">.podx.com</span>
+                    <span className="flex items-center px-3 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-white/40 text-sm">.yanisastudios.com</span>
                   </div>
                 </Field>
               )}
@@ -513,7 +513,7 @@ export default function WhiteLabelSettingsPage() {
                           </div>
                           <div className="p-2 bg-black/40 rounded-lg">
                             <p className="text-white/40 mb-1">Name</p>
-                            <p className="text-white font-mono">_podx-verify</p>
+                            <p className="text-white font-mono">_yanisa-verify</p>
                           </div>
                           <div className="p-2 bg-black/40 rounded-lg relative">
                             <p className="text-white/40 mb-1">Value</p>
@@ -546,7 +546,7 @@ export default function WhiteLabelSettingsPage() {
                   <p className="text-xs text-[#D9FC67]/60 mb-1">Your booking page URL:</p>
                   <div className="flex items-center gap-2">
                     <code className="text-[#D9FC67] text-sm flex-1 truncate">
-                      {typeof window !== "undefined" ? window.location.origin : "https://podx.com"}/p/{branding.partner_slug}
+                      {typeof window !== "undefined" ? window.location.origin : "https://yanisastudios.com"}/p/{branding.partner_slug}
                     </code>
                     <button
                       onClick={() => copyToClipboard(`${typeof window !== "undefined" ? window.location.origin : ""}/p/${branding.partner_slug}`)}
