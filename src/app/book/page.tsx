@@ -306,7 +306,7 @@ function BookingContent() {
               onClick={() => resetBooking()}
               className="flex items-center gap-2 group"
             >
-              <span className="text-2xl font-bold tracking-tight text-white">
+              <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
                 Yanisa <span className="text-[#D9FC67]">Studios</span>
               </span>
             </Link>

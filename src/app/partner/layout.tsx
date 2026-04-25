@@ -153,16 +153,13 @@ function PartnerDashboardInner({ children }: PartnerDashboardProps) {
               {/* Logo */}
               <div className="p-6 border-b border-white/5 flex items-center justify-between">
                 <Link href="/partner/dashboard">
-                  <span className="text-2xl font-bold tracking-tight text-white">
+                  <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
                     Yanisa <span className="text-[#D9FC67]">Studios</span>
                   </span>
                 </Link>
                 <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white/60">
                   <X className="w-5 h-5" />
                 </button>
-                <span className="hidden lg:block text-xs text-[#D9FC67] bg-[#D9FC67]/10 px-2 py-1 rounded-full">
-                  Partner
-                </span>
               </div>
 
               {/* User info */}
@@ -264,10 +261,6 @@ function PartnerDashboardInner({ children }: PartnerDashboardProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#D9FC67]/10 rounded-full border border-[#D9FC67]/20">
-                    <Building2 className="w-3.5 h-3.5 text-[#D9FC67]" />
-                    <span className="text-xs text-[#D9FC67] font-medium">Partner</span>
-                  </div>
                   <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full">
                     <div className="w-2 h-2 bg-[#D9FC67] rounded-full animate-pulse" />
                     <span className="text-xs text-white/50 font-medium">

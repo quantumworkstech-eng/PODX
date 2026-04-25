@@ -15,7 +15,6 @@ import {
   ChevronDown,
   CreditCard,
   Home,
-  Headphones,
   Star,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -406,7 +405,7 @@ export default function DashboardContent() {
           <div className="flex flex-col h-full">
             <div className="p-6 border-b border-white/5">
               <Link href="/" className="flex items-center gap-2">
-                <span className="text-2xl font-bold tracking-tight text-white">
+                <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
                   Yanisa <span className="text-[#D9FC67]">Studios</span>
                 </span>
               </Link>
@@ -501,10 +500,6 @@ export default function DashboardContent() {
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#D9FC67]/10 rounded-full">
-                  <Headphones className="w-3.5 h-3.5 text-[#D9FC67]" />
-                  <span className="text-xs text-[#D9FC67] font-medium">Client</span>
-                </div>
                 <div className="relative">
                   <NotificationBell userEmail={session?.user?.email} />
                 </div>

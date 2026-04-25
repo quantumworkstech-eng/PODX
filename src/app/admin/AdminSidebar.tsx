@@ -62,12 +62,11 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
           {/* Logo */}
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
             <Link href="/admin">
-              <span className="text-2xl font-bold tracking-tight text-white">
+              <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
                 Yanisa <span className="text-[#D9FC67]">Studios</span>
               </span>
             </Link>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded-full font-medium">Admin</span>
               <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white/60">
                 <X className="w-5 h-5" />
               </button>
@@ -139,11 +138,6 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
           <span className="text-sm font-semibold text-white lg:hidden">{currentPage?.label || "Admin"}</span>
 
           <div className="flex items-center gap-3 ml-auto">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full">
-              <Shield className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-xs text-red-400 font-medium">Admin Panel</span>
-            </div>
-
             <NotificationBell userEmail={email} />
 
             <div ref={profileRef} className="relative pl-3 border-l border-white/10">
@@ -162,9 +156,6 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-white text-sm font-medium truncate">{name || "Admin"}</p>
                     <p className="text-white/40 text-xs truncate">{email}</p>
-                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-500/10 text-red-400 text-xs rounded-full">
-                      <Shield className="w-3 h-3" /> Admin
-                    </span>
                   </div>
                   <div className="p-1">
                     <Link

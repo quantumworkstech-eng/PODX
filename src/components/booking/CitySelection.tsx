@@ -67,7 +67,7 @@ export function CitySelection({ onComplete, initialCity }: CitySelectionProps) {
           <ChevronLeft className="w-5 h-5" />
           <span>Exit</span>
         </button>
-        <span className="text-2xl font-bold tracking-tight text-white">
+        <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
           Yanisa <span className="text-[#D9FC67]">Studios</span>
         </span>
         <div className="w-16" />
