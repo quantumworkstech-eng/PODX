@@ -63,7 +63,7 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
             <Link href="/admin">
               <span className="text-2xl font-bold tracking-tight text-white">
-                p<span className="text-[#D9FC67]">o</span>dX
+                Yanisa <span className="text-[#D9FC67]">Studios</span>
               </span>
             </Link>
             <div className="flex items-center gap-2">

@@ -131,7 +131,7 @@ function PartnerSignupContent() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <span className="text-4xl font-bold tracking-tight text-white">p<span className="text-[#D9FC67]">o</span>dX</span>
+            <span className="text-4xl font-bold tracking-tight text-white">Yanisa <span className="text-[#D9FC67]">Studios</span></span>
           </Link>
           <p className="text-white/60 mt-2">Partner Portal</p>
         </div>

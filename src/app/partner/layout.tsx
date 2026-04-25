@@ -154,7 +154,7 @@ function PartnerDashboardInner({ children }: PartnerDashboardProps) {
               <div className="p-6 border-b border-white/5 flex items-center justify-between">
                 <Link href="/partner/dashboard">
                   <span className="text-2xl font-bold tracking-tight text-white">
-                    p<span className="text-[#D9FC67]">o</span>dX
+                    Yanisa <span className="text-[#D9FC67]">Studios</span>
                   </span>
                 </Link>
                 <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white/60">

@@ -85,7 +85,7 @@ export function Header() {
                 <div className="flex flex-col h-full">
                   <div className="flex items-center justify-between p-5 border-b border-white/10">
                     <span className="text-xl font-bold text-white">
-                      p<span className="text-[#D9FC67]">o</span>dX
+                      Yanisa <span className="text-[#D9FC67]">Studios</span>
                     </span>
                     <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} className="text-white hover:bg-white/10">
                       <X className="h-5 w-5" />

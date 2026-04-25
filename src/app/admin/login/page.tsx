@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <span className="text-4xl font-bold tracking-tight text-white">
-            p<span className="text-[#D9FC67]">o</span>dX
+            Yanisa <span className="text-[#D9FC67]">Studios</span>
           </span>
           <div className="flex items-center justify-center gap-2 mt-2">
             <Shield className="w-4 h-4 text-red-400" />

@@ -287,15 +287,54 @@ export async function PATCH(
       if (key in bookingFields) updates[key] = bookingFields[key];
     }
 
+    // Fetch user_id and booking_number so we can notify the client
+    const { data: bookingMeta } = await supabaseAdmin
+      .from('bookings')
+      .select('user_id, booking_number')
+      .eq('id', id)
+      .maybeSingle();
+
     const { error } = await supabaseAdmin.from('bookings').update(updates).eq('id', id);
     if (error) return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
+
+    if (bookingMeta?.user_id) {
+      try {
+        await supabaseAdmin.from('notifications').insert({
+          user_id: bookingMeta.user_id,
+          type: 'booking_updated',
+          title: 'Booking Updated',
+          content: `Your booking ${bookingMeta.booking_number} has been updated by admin.`,
+          action_url: '/dashboard',
+        });
+      } catch { /* non-blocking */ }
+    }
 
     await logAdminAction(email, 'booking_edit', 'booking', id, { fields: Object.keys(bookingFields) });
     return NextResponse.json({ success: true });
   }
 
   if (status) {
+    // Fetch user_id and booking_number before updating so we can notify the client
+    const { data: bookingMeta } = await supabaseAdmin
+      .from('bookings')
+      .select('user_id, booking_number')
+      .eq('id', id)
+      .maybeSingle();
+
     await supabaseAdmin.from('bookings').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+
+    if (bookingMeta?.user_id) {
+      try {
+        await supabaseAdmin.from('notifications').insert({
+          user_id: bookingMeta.user_id,
+          type: 'booking_updated',
+          title: 'Booking Updated',
+          content: `Your booking ${bookingMeta.booking_number} status has been changed to ${status}.`,
+          action_url: '/dashboard',
+        });
+      } catch { /* non-blocking */ }
+    }
+
     await logAdminAction(email, 'booking_status_change', 'booking', id, { status });
     return NextResponse.json({ success: true });
   }

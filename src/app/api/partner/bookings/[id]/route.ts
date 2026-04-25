@@ -110,17 +110,38 @@ export async function PATCH(
         );
     }
 
+    // Re-fetch booking_number and user_id for the notification
+    const { data: fullBooking } = await supabaseAdmin
+        .from('bookings')
+        .select('user_id, booking_number')
+        .eq('id', booking.id)
+        .maybeSingle();
+
     const { error } = await supabaseAdmin
         .from('bookings')
         .update({
             start_time: newStart.toISOString(),
             end_time: newEnd.toISOString(),
+            status: 'rescheduled',
+            updated_at: new Date().toISOString(),
         })
         .eq('id', booking.id);
 
     if (error) {
         console.error('Partner reschedule error:', error);
         return NextResponse.json({ error: 'Failed to reschedule booking' }, { status: 500 });
+    }
+
+    if (fullBooking?.user_id) {
+        try {
+            await supabaseAdmin.from('notifications').insert({
+                user_id: fullBooking.user_id,
+                type: 'booking_rescheduled',
+                title: 'Booking Rescheduled',
+                content: `Your booking ${fullBooking.booking_number} has been rescheduled to ${dateYYYYMMDD} at ${newTimeSlot}.`,
+                action_url: '/dashboard',
+            });
+        } catch { /* non-blocking */ }
     }
 
     return NextResponse.json({ success: true });

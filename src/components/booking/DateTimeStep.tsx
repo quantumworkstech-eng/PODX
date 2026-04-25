@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useBooking } from "@/context/BookingContext";
-import { ChevronLeft, ChevronRight, Clock, Users, Loader2 } from "lucide-react";
-import { PARTICIPANT_OPTIONS, TIME_SLOTS, formatDuration } from "@/lib/booking-types";
+import { ChevronLeft, ChevronRight, ChevronDown, Clock, Users, Loader2 } from "lucide-react";
+import { TIME_SLOTS, formatDuration } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -384,26 +384,31 @@ export function DateTimeStep() {
                 <Users className="w-5 h-5 text-[#D9FC67]" />
               </div>
               <div>
-                <h3 className="text-white font-semibold">Participants</h3>
-                <p className="text-white/50 text-sm">How many people?</p>
+                <h3 className="text-white font-semibold">No. of Participants</h3>
+                <p className="text-white/50 text-sm">
+                  {selectedStudio?.capacity
+                    ? `Up to ${selectedStudio.capacity} people`
+                    : "How many people?"}
+                </p>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              {PARTICIPANT_OPTIONS.map((count) => (
-                <button
-                  key={count}
-                  onClick={() => setParticipants(count)}
-                  className={cn(
-                    "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
-                    participants === count
-                      ? "bg-[#D9FC67] text-black shadow-lg shadow-[#D9FC67]/20"
-                      : "bg-white/10 text-white hover:bg-white/20"
-                  )}
-                >
-                  {count}
-                </button>
-              ))}
+            <div className="relative">
+              <select
+                value={participants}
+                onChange={(e) => setParticipants(Number(e.target.value))}
+                className="w-full h-14 bg-white/10 border border-white/10 rounded-xl px-4 pr-10 text-white text-base font-semibold focus:border-[#D9FC67] focus:outline-none appearance-none cursor-pointer"
+              >
+                {Array.from(
+                  { length: selectedStudio?.capacity || 10 },
+                  (_, i) => i + 1
+                ).map((count) => (
+                  <option key={count} value={count} className="bg-[#1a1a1a] text-white font-normal">
+                    {count} {count === 1 ? "person" : "people"}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
             </div>
           </div>
 

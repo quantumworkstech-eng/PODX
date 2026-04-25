@@ -131,14 +131,15 @@ export default function DashboardContent() {
       const res = await fetch("/api/bookings", { cache: "no-store" });
       if (res.ok) {
         const { bookings: apiBookings } = await res.json();
-        if (apiBookings && apiBookings.length > 0) {
+        // Always trust the API response — even an empty array is authoritative
+        if (Array.isArray(apiBookings)) {
           const sorted = sortBookingsList(apiBookings as BookingData[]);
           setBookings(sorted);
           return sorted;
         }
       }
     } catch {
-      /* fall through */
+      /* fall through to localStorage only on network/parse failure */
     }
 
     const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
@@ -179,7 +180,9 @@ export default function DashboardContent() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [status, refreshBookings]);
 
-  // Subscribe to real-time booking updates so admin/partner changes reflect immediately
+  // Subscribe to real-time changes so admin/partner updates reflect immediately.
+  // We listen on both the bookings table (may be blocked by RLS) and the
+  // notifications table (reliably delivered) so either path triggers a refresh.
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.email || !supabase) return;
     const email = session.user.email;
@@ -194,11 +197,20 @@ export default function DashboardContent() {
       .then(({ data: user }) => {
         if (!user?.id || !supabase) return;
         channel = supabase
-          .channel(`bookings-user:${user.id}`)
+          .channel(`dashboard-bookings:${user.id}`)
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "bookings", filter: `user_id=eq.${user.id}` },
             () => { void refreshBookings(); }
+          )
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (payload: any) => {
+              const type = payload?.new?.type as string | undefined;
+              if (type?.startsWith("booking_")) void refreshBookings();
+            }
           )
           .subscribe();
       });
@@ -207,6 +219,13 @@ export default function DashboardContent() {
       if (channel && supabase) supabase.removeChannel(channel);
     };
   }, [status, session?.user?.email, refreshBookings]);
+
+  // Polling fallback — keeps bookings in sync even if real-time events are missed
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const interval = setInterval(() => { void refreshBookings(); }, 60_000);
+    return () => clearInterval(interval);
+  }, [status, refreshBookings]);
 
   // Handle ?booking=success from payment redirect
   useEffect(() => {
@@ -388,7 +407,7 @@ export default function DashboardContent() {
             <div className="p-6 border-b border-white/5">
               <Link href="/" className="flex items-center gap-2">
                 <span className="text-2xl font-bold tracking-tight text-white">
-                  p<span className="text-[#D9FC67]">o</span>dX
+                  Yanisa <span className="text-[#D9FC67]">Studios</span>
                 </span>
               </Link>
             </div>

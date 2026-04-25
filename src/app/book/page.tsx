@@ -307,7 +307,7 @@ function BookingContent() {
               className="flex items-center gap-2 group"
             >
               <span className="text-2xl font-bold tracking-tight text-white">
-                p<span className="text-[#D9FC67]">o</span>dX
+                Yanisa <span className="text-[#D9FC67]">Studios</span>
               </span>
             </Link>
           )}

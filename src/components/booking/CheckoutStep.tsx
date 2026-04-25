@@ -303,12 +303,22 @@ export function CheckoutStep() {
                 <p className="text-white/30 text-sm">No add-ons selected</p>
               ) : (
                 <div className="space-y-2">
-                  {selectedAddOns.map((addon) => (
-                    <div key={addon.id} className="flex items-center justify-between text-sm">
-                      <span className="text-white/70">{addon.name}</span>
-                      <span className="text-white font-medium">₹{addon.price.toLocaleString("en-IN")}</span>
-                    </div>
-                  ))}
+                  {selectedAddOns.map((addon) => {
+                    const qty = addon.qty ?? 1;
+                    return (
+                      <div key={addon.id} className="flex items-center justify-between text-sm">
+                        <span className="text-white/70">
+                          {addon.name}
+                          {qty > 1 && (
+                            <span className="ml-1.5 text-xs text-white/40">× {qty}</span>
+                          )}
+                        </span>
+                        <span className="text-white font-medium">
+                          ₹{(addon.price * qty).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -382,18 +392,26 @@ export function CheckoutStep() {
                 </div>
               )}
 
-              <div className="flex justify-between text-sm">
-                <span className="text-white/60">Add-ons</span>
-                <span
-                  className={
-                    getAddOnsPrice() > 0
-                      ? "text-[#D9FC67] font-semibold tabular-nums"
-                      : "text-white/35 tabular-nums"
-                  }
-                >
-                  {getAddOnsPrice() > 0 ? `₹${getAddOnsPrice().toLocaleString("en-IN")}` : "—"}
-                </span>
-              </div>
+              {selectedAddOns.length > 0 ? (
+                selectedAddOns.map((addon) => {
+                  const qty = addon.qty ?? 1;
+                  return (
+                    <div key={addon.id} className="flex justify-between text-sm">
+                      <span className="text-white/60">
+                        {addon.name}{qty > 1 ? ` × ${qty}` : ""}
+                      </span>
+                      <span className="text-[#D9FC67] font-semibold tabular-nums">
+                        ₹{(addon.price * qty).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Add-ons</span>
+                  <span className="text-white/35 tabular-nums">—</span>
+                </div>
+              )}
             </div>
 
             {/* Coupon input */}

@@ -68,7 +68,7 @@ export function CitySelection({ onComplete, initialCity }: CitySelectionProps) {
           <span>Exit</span>
         </button>
         <span className="text-2xl font-bold tracking-tight text-white">
-          p<span className="text-[#D9FC67]">o</span>dX
+          Yanisa <span className="text-[#D9FC67]">Studios</span>
         </span>
         <div className="w-16" />
       </header>

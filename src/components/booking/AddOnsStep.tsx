@@ -142,12 +142,19 @@ export function AddOnsStep() {
                   </button>
                   {showAddOnsDropdown && (
                     <div className="mt-2 pl-2 space-y-1.5 border-l-2 border-white/10 ml-1">
-                      {selectedAddOns.map((addon) => (
-                        <div key={addon.id} className="flex justify-between text-xs">
-                          <span className="text-white/80">{addon.name}</span>
-                          <span className="text-white/50">₹{addon.price.toLocaleString("en-IN")}</span>
-                        </div>
-                      ))}
+                      {selectedAddOns.map((addon) => {
+                        const qty = addon.qty ?? 1;
+                        return (
+                          <div key={addon.id} className="flex justify-between text-xs">
+                            <span className="text-white/80">
+                              {addon.name}{qty > 1 ? ` × ${qty}` : ""}
+                            </span>
+                            <span className="text-white/50">
+                              ₹{(addon.price * qty).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

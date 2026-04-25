@@ -14,6 +14,10 @@ import {
   AlertCircle,
   ArrowLeft,
   Info,
+  Mail,
+  Phone,
+  User,
+  Send,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -96,6 +100,10 @@ export function PaymentStep() {
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const paymentInFlight = useRef(false);
+
+  const [participantName, setParticipantName] = useState("");
+  const [participantEmail, setParticipantEmail] = useState("");
+  const [participantPhone, setParticipantPhone] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -191,6 +199,7 @@ export function PaymentStep() {
             id: a.id,
             name: a.name,
             price: a.price,
+            qty: a.qty ?? 1,
           })),
           totalPrice: total,
           subtotal,
@@ -201,6 +210,9 @@ export function PaymentStep() {
           paymentId,
           orderId,
           gstNumber: gstNumber || null,
+          participantName: participantName || null,
+          participantEmail: participantEmail || null,
+          participantPhone: participantPhone || null,
           // White-label partner context
           partnerId: partnerId || null,
           bookingSource: bookingSource || "marketplace",
@@ -443,6 +455,54 @@ export function PaymentStep() {
             </div>
           )}
 
+          {/* Participant Details */}
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                <Users className="w-5 h-5 text-[#D9FC67]" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">Participant Details</h3>
+                <p className="text-white/40 text-xs mt-0.5 flex items-center gap-1.5">
+                  <Send className="w-3 h-3" />
+                  We&apos;ll send booking updates directly to your participant
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                <input
+                  type="text"
+                  value={participantName}
+                  onChange={(e) => setParticipantName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#D9FC67]/50 transition-colors"
+                />
+              </div>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                <input
+                  type="email"
+                  value={participantEmail}
+                  onChange={(e) => setParticipantEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#D9FC67]/50 transition-colors"
+                />
+              </div>
+              <div className="relative">
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                <input
+                  type="tel"
+                  value={participantPhone}
+                  onChange={(e) => setParticipantPhone(e.target.value)}
+                  placeholder="Phone number"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#D9FC67]/50 transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Back button */}
           <button
             onClick={() => prevStep()}
@@ -473,18 +533,26 @@ export function PaymentStep() {
                 </div>
               )}
 
-              <div className="flex justify-between text-sm">
-                <span className="text-white/60">Add-ons</span>
-                <span
-                  className={
-                    getAddOnsPrice() > 0
-                      ? "text-[#D9FC67] font-semibold tabular-nums"
-                      : "text-white/35 tabular-nums"
-                  }
-                >
-                  {getAddOnsPrice() > 0 ? `₹${getAddOnsPrice().toLocaleString("en-IN")}` : "—"}
-                </span>
-              </div>
+              {selectedAddOns.length > 0 ? (
+                selectedAddOns.map((addon) => {
+                  const qty = addon.qty ?? 1;
+                  return (
+                    <div key={addon.id} className="flex justify-between text-sm">
+                      <span className="text-white/60">
+                        {addon.name}{qty > 1 ? ` × ${qty}` : ""}
+                      </span>
+                      <span className="text-[#D9FC67] font-semibold tabular-nums">
+                        ₹{(addon.price * qty).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Add-ons</span>
+                  <span className="text-white/35 tabular-nums">—</span>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-white/10 pt-4 mb-5 space-y-2">
