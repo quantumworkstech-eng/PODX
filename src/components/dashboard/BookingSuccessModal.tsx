@@ -33,6 +33,9 @@ interface BookingData {
   totalPrice: number;
   subtotal?: number;
   tax?: number;
+  discountAmount?: number;
+  couponCode?: string | null;
+  convenienceFee?: number;
   status: string;
   paymentId: string;
   createdAt: string;
@@ -114,7 +117,7 @@ export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalPro
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-md bg-[#0f0f0f] rounded-2xl border border-white/10 overflow-hidden shadow-2xl shadow-black/60 max-h-[90vh] flex flex-col">
+      <div className={`relative w-full ${step === "participants" ? "max-w-lg" : "max-w-md"} bg-[#0f0f0f] rounded-2xl border border-white/10 overflow-hidden shadow-2xl shadow-black/60 max-h-[90vh] flex flex-col transition-[max-width] duration-300`}>
 
         {/* ── Step 1: Booking Confirmation ──────────────────────────────── */}
         {step === "confirm" && (
@@ -179,10 +182,27 @@ export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalPro
                     <span className="text-white">₹{booking.subtotal.toLocaleString()}</span>
                   </div>
                 )}
+                {(booking.discountAmount ?? 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/50">
+                      Discount
+                      {booking.couponCode ? ` (${booking.couponCode})` : ""}
+                    </span>
+                    <span className="text-[#D9FC67] font-medium">
+                      −₹{Number(booking.discountAmount).toLocaleString()}
+                    </span>
+                  </div>
+                )}
                 {booking.tax !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-white/50">GST (18%)</span>
                     <span className="text-white">₹{booking.tax.toLocaleString()}</span>
+                  </div>
+                )}
+                {(booking.convenienceFee ?? 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/50">Processing fee</span>
+                    <span className="text-white">₹{Number(booking.convenienceFee).toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-1 border-t border-white/10">
@@ -231,33 +251,60 @@ export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalPro
             </div>
 
             {/* Participant rows */}
-            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
               {participants.map((p, i) => (
-                <div key={i} className="bg-white/[0.03] border border-white/8 rounded-xl p-4 space-y-2.5">
-                  <p className="text-[#D9FC67] text-xs font-semibold tracking-wide uppercase">
+                <div
+                  key={i}
+                  className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 md:p-5 space-y-3"
+                >
+                  <p className="text-[#D9FC67] text-xs font-semibold tracking-wide uppercase pb-1 border-b border-white/5">
                     Participant {i + 1}
                   </p>
-                  <input
-                    type="text"
-                    placeholder="Full name"
-                    value={p.name}
-                    onChange={(e) => updateParticipant(i, "name", e.target.value)}
-                    className={inputCls}
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={p.email}
-                    onChange={(e) => updateParticipant(i, "email", e.target.value)}
-                    className={inputCls}
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Phone number"
-                    value={p.phone}
-                    onChange={(e) => updateParticipant(i, "phone", e.target.value)}
-                    className={inputCls}
-                  />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-white/35 mb-1.5 uppercase tracking-wide">
+                        Full name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Jane Doe"
+                        autoComplete="name"
+                        value={p.name}
+                        onChange={(e) => updateParticipant(i, "name", e.target.value)}
+                        className={inputCls + " py-2.5"}
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="min-w-0 sm:col-span-1">
+                        <label className="block text-[11px] font-medium text-white/35 mb-1.5 uppercase tracking-wide">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="you@example.com"
+                          autoComplete="email"
+                          inputMode="email"
+                          value={p.email}
+                          onChange={(e) => updateParticipant(i, "email", e.target.value)}
+                          className={inputCls + " py-2.5"}
+                        />
+                      </div>
+                      <div className="min-w-0 sm:col-span-1">
+                        <label className="block text-[11px] font-medium text-white/35 mb-1.5 uppercase tracking-wide">
+                          Phone
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder="+91 …"
+                          autoComplete="tel"
+                          inputMode="tel"
+                          value={p.phone}
+                          onChange={(e) => updateParticipant(i, "phone", e.target.value)}
+                          className={inputCls + " py-2.5"}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
 

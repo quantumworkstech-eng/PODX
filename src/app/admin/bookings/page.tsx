@@ -13,6 +13,7 @@ import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
 import { isoToISTSlot } from "@/lib/bookingDisplay";
 import { formatSessionDateCalendarIST } from "@/lib/bookingTime";
+import { BookingActivityTimeline } from "@/components/booking/BookingActivityTimeline";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "cancelled", "completed", "rescheduled", "no_show"];
 
@@ -97,6 +98,19 @@ function InfoRow({ label, value, mono = false }: { label: string; value: any; mo
       <span className={`text-white text-sm ${mono ? "font-mono" : ""}`}>{value || "—"}</span>
     </div>
   );
+}
+
+function parseAdminBookingNotes(raw: unknown): Record<string, unknown> {
+  if (raw == null) return {};
+  if (typeof raw !== "string") return {};
+  try {
+    const o = JSON.parse(raw);
+    return o !== null && typeof o === "object" && !Array.isArray(o)
+      ? (o as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 export default function AdminBookingsPage() {
@@ -806,16 +820,81 @@ export default function AdminBookingsPage() {
                             </span>
                           } />
                         )}
-                        <InfoRow label="Total Price" value={
-                          editMode ? (
-                            <input
-                              type="number"
-                              value={editFields.total_price}
-                              onChange={(e) => setEditFields((f) => ({ ...f, total_price: e.target.value }))}
-                              className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-white text-sm w-32 text-right focus:outline-none"
+                        {editMode ? (
+                          <InfoRow
+                            label="Total Price"
+                            value={
+                              <input
+                                type="number"
+                                value={editFields.total_price}
+                                onChange={(e) => setEditFields((f) => ({ ...f, total_price: e.target.value }))}
+                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-white text-sm w-32 text-right focus:outline-none"
+                              />
+                            }
+                          />
+                        ) : (
+                          <>
+                            {(() => {
+                              const bn = parseAdminBookingNotes(detailData.booking.notes);
+                              const sub = bn.subtotal != null ? Number(bn.subtotal) : NaN;
+                              const disc =
+                                Number(bn.discountAmount ?? bn.discount_amount ?? 0) ||
+                                0;
+                              const gst = bn.tax != null ? Number(bn.tax) : NaN;
+                              const conv =
+                                Number(bn.convenienceFee ?? bn.convenience_fee ?? 0) ||
+                                0;
+                              const coupon =
+                                typeof bn.couponCode === "string"
+                                  ? bn.couponCode
+                                  : typeof bn.coupon_code === "string"
+                                    ? bn.coupon_code
+                                    : null;
+                              const rows = [];
+                              if (!isNaN(sub) && sub > 0) {
+                                rows.push(
+                                  <InfoRow
+                                    key="subtotal"
+                                    label="Subtotal (before discount)"
+                                    value={`₹${sub.toLocaleString("en-IN")}`}
+                                  />
+                                );
+                              }
+                              if (disc > 0) {
+                                rows.push(
+                                  <InfoRow
+                                    key="disc"
+                                    label={`Coupon discount${coupon ? ` (${coupon})` : ""}`}
+                                    value={`−₹${disc.toLocaleString("en-IN")}`}
+                                  />
+                                );
+                              }
+                              if (!isNaN(gst) && gst > 0) {
+                                rows.push(
+                                  <InfoRow
+                                    key="gst"
+                                    label="GST"
+                                    value={`₹${gst.toLocaleString("en-IN")}`}
+                                  />
+                                );
+                              }
+                              if (conv > 0) {
+                                rows.push(
+                                  <InfoRow
+                                    key="fee"
+                                    label="Processing fee"
+                                    value={`₹${conv.toLocaleString("en-IN")}`}
+                                  />
+                                );
+                              }
+                              return <>{rows}</>;
+                            })()}
+                            <InfoRow
+                              label="Total charged"
+                              value={`₹${Number(detailData.booking.total_price).toLocaleString("en-IN")}`}
                             />
-                          ) : `₹${Number(detailData.booking.total_price).toLocaleString("en-IN")}`
-                        } />
+                          </>
+                        )}
                       </div>
 
                       <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
@@ -866,6 +945,24 @@ export default function AdminBookingsPage() {
                           </>
                         )}
                       </div>
+
+                      {!editMode && (
+                        <BookingActivityTimeline
+                          createdAt={detailData.booking.created_at}
+                          updatedAt={detailData.booking.updated_at}
+                          startTime={detailData.booking.start_time}
+                          endTime={detailData.booking.end_time}
+                          status={detailData.booking.status}
+                          cancelledAt={detailData.booking.cancelled_at}
+                          cancellationReason={detailData.booking.cancellation_reason}
+                          paymentRecorded={(() => {
+                            const bn = parseAdminBookingNotes(detailData.booking.notes);
+                            const pid = bn.paymentId;
+                            const hasPid = Boolean(pid && String(pid).length > 0);
+                            return hasPid || (detailData.payments?.length ?? 0) > 0;
+                          })()}
+                        />
+                      )}
 
                       <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
                         <h4 className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Notes</h4>

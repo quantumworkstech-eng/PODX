@@ -17,6 +17,7 @@ import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
 import type { AddOnService } from "@/lib/booking-types";
 import { FeatureGate } from "@/components/partner/FeatureGate";
 import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
+import { BookingActivityTimeline } from "@/components/booking/BookingActivityTimeline";
 import {
   formatSessionClock12hIST,
   formatSessionDateCalendarIST,
@@ -49,14 +50,21 @@ interface Booking {
   package: { name: string; pricePerHour: number } | null;
   addOns: AddOn[];
   pricing: {
-    basePrice: number;
+    subtotalBeforeDiscount: number;
+    discountAmount: number;
+    couponCode: string | null;
+    preTaxAfterDiscount: number;
     packagePrice: number;
     addOnsTotal: number;
-    subtotal: number;
     gst: number;
+    convenienceFee: number;
     total: number;
   };
   totalPrice: number;
+  paymentId: string;
+  cancellationReason: string | null;
+  cancelledAt: string | null;
+  updatedAt: string;
   status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
   createdAt: string;
 }
@@ -577,6 +585,21 @@ export default function PartnerBookingsPage() {
 
                 {selectedBooking && (
                   <div className="px-6 pb-2">
+                    <BookingActivityTimeline
+                      createdAt={selectedBooking.createdAt}
+                      updatedAt={selectedBooking.updatedAt}
+                      startTime={selectedBooking.start_time || selectedBooking.date}
+                      endTime={selectedBooking.end_time || selectedBooking.endDate}
+                      status={selectedBooking.status}
+                      cancelledAt={selectedBooking.cancelledAt}
+                      cancellationReason={selectedBooking.cancellationReason}
+                      paymentRecorded={Boolean(selectedBooking.paymentId)}
+                    />
+                  </div>
+                )}
+
+                {selectedBooking && (
+                  <div className="px-6 pb-2">
                     <StudioBookingInventoryPanel
                       inventory={studioInventory}
                       selectedAddOns={
@@ -594,6 +617,21 @@ export default function PartnerBookingsPage() {
                   </div>
                 )}
 
+                {selectedBooking && (
+                  <div className="px-6 pb-2">
+                    <BookingActivityTimeline
+                      createdAt={selectedBooking.createdAt}
+                      updatedAt={selectedBooking.updatedAt}
+                      startTime={selectedBooking.start_time || selectedBooking.date}
+                      endTime={selectedBooking.end_time || selectedBooking.endDate}
+                      status={selectedBooking.status}
+                      cancelledAt={selectedBooking.cancelledAt}
+                      cancellationReason={selectedBooking.cancellationReason}
+                      paymentRecorded={Boolean(selectedBooking.paymentId)}
+                    />
+                  </div>
+                )}
+
                 {/* Payment Summary */}
                 <div className="mx-6 mb-6 bg-[#1a1a1a] rounded-xl border border-white/5 p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -603,20 +641,42 @@ export default function PartnerBookingsPage() {
                     <h3 className="text-white font-semibold text-sm">Payment Summary</h3>
                   </div>
                   <div className="space-y-0.5">
-                    {selectedBooking.pricing.basePrice > 0 && (
-                      <PriceRow label={`Base Rate (${selectedBooking.duration}h)`} value={selectedBooking.pricing.basePrice} />
+                    {selectedBooking.pricing.subtotalBeforeDiscount > 0 && (
+                      <PriceRow
+                        label="Subtotal (before discount)"
+                        value={selectedBooking.pricing.subtotalBeforeDiscount}
+                      />
                     )}
-                    {selectedBooking.pricing.packagePrice > 0 && (
-                      <PriceRow label={`Package — ${selectedBooking.package?.name}`} value={selectedBooking.pricing.packagePrice} />
+                    {selectedBooking.pricing.discountAmount > 0 && (
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-white/50">
+                          Coupon discount
+                          {selectedBooking.pricing.couponCode
+                            ? ` (${selectedBooking.pricing.couponCode})`
+                            : ""}
+                        </span>
+                        <span className="text-sm font-semibold text-[#D9FC67]">
+                          −₹{selectedBooking.pricing.discountAmount.toLocaleString("en-IN")}
+                        </span>
+                      </div>
                     )}
-                    {selectedBooking.pricing.addOnsTotal > 0 && (
-                      <PriceRow label="Add-ons" value={selectedBooking.pricing.addOnsTotal} />
+                    {selectedBooking.pricing.preTaxAfterDiscount >= 0 && selectedBooking.pricing.discountAmount > 0 && (
+                      <PriceRow
+                        label="Net (after discount, excl. GST)"
+                        value={selectedBooking.pricing.preTaxAfterDiscount}
+                      />
                     )}
-                    {selectedBooking.pricing.subtotal > 0 && (
+                    {selectedBooking.pricing.gst > 0 && (
                       <PriceRow label="GST (18%)" value={selectedBooking.pricing.gst} />
                     )}
+                    {selectedBooking.pricing.convenienceFee > 0 && (
+                      <PriceRow
+                        label="Processing fee"
+                        value={selectedBooking.pricing.convenienceFee}
+                      />
+                    )}
                     <PriceRow
-                      label="Total Paid"
+                      label="Total paid"
                       value={selectedBooking.pricing.total}
                       highlight
                     />

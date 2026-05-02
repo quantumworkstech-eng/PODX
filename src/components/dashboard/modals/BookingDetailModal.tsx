@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { formatBookingDateLong, formatBookingTimeRange } from "@/lib/bookingDisplay";
+import { BookingActivityTimeline } from "@/components/booking/BookingActivityTimeline";
+import { MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT } from "@/lib/cancellationRefund";
 
 
 interface BookingDetailModalProps {
@@ -205,14 +207,55 @@ export function BookingDetailModal({
                   ))}
                 </>
               )}
+              {(booking.subtotal != null && booking.subtotal > 0) && (
+                <div className="flex justify-between items-center py-2 border-t border-white/10 mt-2">
+                  <span className="text-white/55 text-sm">Subtotal (services)</span>
+                  <span className="text-white/90 text-sm">
+                    ₹{Number(booking.subtotal).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {(booking.discountAmount ?? 0) > 0 && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-white/55 text-sm">
+                    Coupon discount{booking.couponCode ? ` (${booking.couponCode})` : ""}
+                  </span>
+                  <span className="text-[#D9FC67] text-sm font-medium">
+                    −₹{Number(booking.discountAmount).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {booking.tax != null && booking.tax > 0 && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-white/55 text-sm">GST</span>
+                  <span className="text-white/90 text-sm">₹{Number(booking.tax).toLocaleString()}</span>
+                </div>
+              )}
+              {(booking.convenienceFee ?? 0) > 0 && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-white/55 text-sm">Processing fee</span>
+                  <span className="text-white/90 text-sm">₹{Number(booking.convenienceFee).toLocaleString()}</span>
+                </div>
+              )}
               <div className="border-t border-white/10 pt-3 mt-2 flex justify-between items-center">
-                <span className="text-white font-semibold">Total</span>
+                <span className="text-white font-semibold">Total paid</span>
                 <span className="text-2xl font-bold text-[#D9FC67]">
                   ₹{booking.totalPrice.toLocaleString()}
                 </span>
               </div>
             </div>
           </div>
+
+          <BookingActivityTimeline
+            createdAt={booking.createdAt}
+            updatedAt={booking.updatedAt ?? null}
+            startTime={booking.start_time || booking.date}
+            endTime={booking.end_time || booking.endDate}
+            status={booking.status}
+            cancelledAt={booking.cancelledAt ?? null}
+            cancellationReason={booking.cancellationReason ?? null}
+            paymentRecorded={Boolean(booking.paymentId)}
+          />
 
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
@@ -234,6 +277,9 @@ export function BookingDetailModal({
                         </li>
                       );
                     })}
+                    <li className="text-yellow-400/60 text-[11px] mt-2">
+                      A mandatory {MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT}% platform processing fee is deducted from any eligible refund amount.
+                    </li>
                     {rescheduleCutoff !== null && (
                       <li className="mt-1 pt-1 border-t border-yellow-400/20">
                         Rescheduling allowed up to {rescheduleCutoff} hrs before session
@@ -243,6 +289,8 @@ export function BookingDetailModal({
                 ) : (
                   <p className="text-yellow-400/70 text-sm mt-1">
                     Cancel up to 48 hours before for a full refund. 24–48 hrs: 50% refund. Under 24 hrs: no refund.
+                    {" "}
+                    A mandatory {MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT}% fee applies to eligible refunds.
                   </p>
                 )}
               </div>

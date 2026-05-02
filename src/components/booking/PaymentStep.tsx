@@ -53,6 +53,9 @@ interface BookingRecord {
   totalPrice: number;
   subtotal: number;
   tax: number;
+  discountAmount?: number;
+  couponCode?: string | null;
+  convenienceFee?: number;
   status: "confirmed";
   paymentId: string;
   createdAt: string;
@@ -153,6 +156,7 @@ export function PaymentStep() {
     const subtotal = getSubtotal();
     const tax = getTax();
     const convenienceFee = getConvenienceFee();
+    const discountApplied = getDiscount();
     const total = getTotalPrice();
     const paymentId =
       paymentResponse?.razorpay_payment_id || `PAY-${Date.now()}`;
@@ -263,6 +267,9 @@ export function PaymentStep() {
         totalPrice: total,
         subtotal,
         tax,
+        discountAmount: discountApplied > 0 ? discountApplied : undefined,
+        couponCode: appliedCoupon?.code || null,
+        convenienceFee: convenienceFee > 0 ? convenienceFee : undefined,
         status: "confirmed",
         paymentId,
         createdAt: new Date().toISOString(),

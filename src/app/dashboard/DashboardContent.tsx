@@ -262,30 +262,6 @@ export default function DashboardContent() {
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // most recent first
 
-  const handleCancelBooking = async (bookingId: string) => {
-    // Optimistic UI update
-    const updated = bookings.map((b) =>
-      b.id === bookingId ? { ...b, status: "cancelled" as const } : b
-    );
-    setBookings(updated);
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
-
-    // Use the real UUID (dbId) for the API call — bookingId may be booking_number
-    const booking = bookings.find((b) => b.id === bookingId);
-    const apiId = booking?.dbId || bookingId;
-
-    // Persist to Supabase
-    try {
-      await fetch(`/api/bookings/${apiId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel" }),
-      });
-    } catch {
-      /* Already updated locally — ignore API failure */
-    }
-  };
-
   const handleRescheduleBooking = async (
     bookingId: string,
     newDate: Date,
@@ -371,7 +347,9 @@ export default function DashboardContent() {
         return (
           <UpcomingBookings
             bookings={upcomingBookings}
-            onCancel={handleCancelBooking}
+            onBookingCancelled={async () => {
+              await refreshBookings();
+            }}
             onReschedule={handleRescheduleBooking}
             onRefreshBookings={refreshBookings}
           />

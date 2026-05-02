@@ -50,14 +50,24 @@ export interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number }[];
   totalPrice: number;
+  /** Pre-tax package + addons (before coupon), from booking notes when available */
+  subtotal?: number | null;
+  tax?: number | null;
+  discountAmount?: number | null;
+  couponCode?: string | null;
+  convenienceFee?: number | null;
   status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
+  updatedAt?: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
 }
 
 interface UpcomingBookingsProps {
   bookings: BookingData[];
-  onCancel: (bookingId: string) => void;
+  /** Called after a booking is cancelled successfully via the modal (reload from API recommended). */
+  onBookingCancelled?: () => void | Promise<void>;
   onReschedule: (bookingId: string, newDate: Date, newTime: string) => boolean | Promise<boolean>;
   /** Reload bookings from API after add-on purchase */
   onRefreshBookings?: () => Promise<BookingData[] | undefined>;
@@ -198,7 +208,7 @@ function ActionDropdown({
 
 export function UpcomingBookings({
   bookings,
-  onCancel,
+  onBookingCancelled,
   onReschedule,
   onRefreshBookings,
 }: UpcomingBookingsProps) {
@@ -465,12 +475,8 @@ export function UpcomingBookings({
             setShowCancelModal(false);
             setSelectedBooking(null);
           }}
-          onConfirm={() => {
-            if (selectedBooking) {
-              onCancel(selectedBooking.dbId || selectedBooking.id);
-            }
-            setShowCancelModal(false);
-            setSelectedBooking(null);
+          onSuccess={async () => {
+            await onBookingCancelled?.();
           }}
         />
       )}

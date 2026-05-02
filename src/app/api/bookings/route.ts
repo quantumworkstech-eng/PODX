@@ -34,7 +34,7 @@ export async function GET() {
     const { data: rows, error } = await supabaseAdmin
       .from("bookings")
       .select(
-        `id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at,
+        `id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at, updated_at, cancelled_at, cancellation_reason,
          studios!studio_id(id, name, location, cover_image, description),
          booking_addons(id, name, price, quantity)`
       )
@@ -85,12 +85,27 @@ export async function GET() {
           price: Number(a.price),
         })),
         totalPrice: Number(b.total_price),
-        subtotal: notes.subtotal || null,
-        tax: notes.tax || null,
+        subtotal: notes.subtotal ?? null,
+        tax: notes.tax ?? null,
+        discountAmount: Number(notes.discountAmount ?? notes.discount_amount ?? 0) || null,
+        couponCode:
+          typeof notes.couponCode === "string"
+            ? notes.couponCode
+            : typeof notes.coupon_code === "string"
+              ? notes.coupon_code
+              : null,
+        convenienceFee:
+          Number(notes.convenienceFee ?? notes.convenience_fee ?? 0) || null,
         status: b.status,
         paymentId: notes.paymentId || "",
         gstNumber: notes.gstNumber || null,
         createdAt: b.created_at,
+        updatedAt: b.updated_at as string,
+        cancelledAt: b.cancelled_at as string | null,
+        cancellationReason:
+          typeof b.cancellation_reason === "string"
+            ? b.cancellation_reason
+            : null,
       };
     });
 
@@ -138,6 +153,9 @@ export async function POST(request: NextRequest) {
       partnerId,
       bookingSource,
       whitelabelSlug,
+      discountAmount,
+      couponCode,
+      convenienceFee,
     } = body;
 
     if (!studioId || !date || !timeSlot || !duration || !totalPrice) {
@@ -273,6 +291,10 @@ export async function POST(request: NextRequest) {
       paymentId,
       orderId,
       ...(gstNumber ? { gstNumber } : {}),
+      ...(Number(discountAmount) > 0
+        ? { discountAmount: Number(discountAmount), couponCode: couponCode || null }
+        : {}),
+      ...(Number(convenienceFee) > 0 ? { convenienceFee: Number(convenienceFee) } : {}),
     });
 
     const insertData: Record<string, any> = {

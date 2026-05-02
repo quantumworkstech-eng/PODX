@@ -5,6 +5,10 @@ import {
   calendarDateInIST,
   startEndFromCalendarAndSlot,
 } from "@/lib/bookingTime";
+import {
+  computeCancellationRefundBreakdown,
+  MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT,
+} from "@/lib/cancellationRefund";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (v: string) => UUID_RE.test(v);
@@ -114,7 +118,25 @@ export async function PATCH(
         );
       }
 
-      return NextResponse.json({ success: true, refundPercentage });
+      const totalPrice = Number(booking.total_price) || 0;
+      const breakdown = computeCancellationRefundBreakdown(
+        totalPrice,
+        refundPercentage
+      );
+
+      return NextResponse.json({
+        success: true,
+        refundPercentage,
+        mandatoryCancellationFeePercent:
+          breakdown.grossRefundAmount > 0
+            ? MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT
+            : 0,
+        totalPrice: breakdown.totalPrice,
+        grossRefundAmount: breakdown.grossRefundAmount,
+        mandatoryCancellationFeeAmount: breakdown.mandatoryFeeAmount,
+        refundAmount: breakdown.refundAmount,
+        withheldByPolicyAmount: breakdown.withheldByPolicyAmount,
+      });
     }
 
     // ── Reschedule ────────────────────────────────────────────────────────────

@@ -33,6 +33,7 @@ export async function GET() {
     .from('bookings')
     .select(`
       id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at,
+      updated_at, cancelled_at, cancellation_reason,
       studios!studio_id(id, name, city, address),
       users!user_id(id, email)
     `)
@@ -55,17 +56,26 @@ export async function GET() {
     const timeSlotLabel = isoToISTSlot(b.start_time);
     const endTimeLabel  = isoToISTSlot(b.end_time);
 
-    const customerName = notes.customerName || b.users?.email?.split('@')[0] || 'Customer';
-
-    const addOns: { name: string; price: number }[] = notes.addOns || [];
     const pkg = notes.package || null;
     const totalPaid = Number(b.total_price) || 0;
-    // Reverse-calculate base components from stored total
+    const addOns: { name: string; price: number }[] = notes.addOns || [];
     const addOnsTotal = addOns.reduce((s: number, a: any) => s + (a.price || 0), 0);
     const packagePrice = pkg ? (pkg.price_per_hour || 0) * duration : 0;
-    const subtotal = notes.subtotal || totalPaid / 1.18;
-    const gst = notes.tax || subtotal * 0.18;
-    const basePrice = Math.max(0, subtotal - packagePrice - addOnsTotal);
+    const discountAmount = Number(notes.discountAmount ?? notes.discount_amount ?? 0) || 0;
+    const couponCode =
+      typeof notes.couponCode === "string"
+        ? notes.couponCode
+        : typeof notes.coupon_code === "string"
+          ? notes.coupon_code
+          : null;
+    const convenienceFee = Number(notes.convenienceFee ?? notes.convenience_fee ?? 0) || 0;
+    const subtotal =
+      notes.subtotal != null ? Number(notes.subtotal) : packagePrice + addOnsTotal;
+    const preTaxAfterDiscount = Math.max(0, subtotal - discountAmount);
+    const gst =
+      notes.tax != null ? Number(notes.tax) : Math.round(preTaxAfterDiscount * 0.18);
+
+    const customerName = notes.customerName || b.users?.email?.split('@')[0] || 'Customer';
 
     return {
       id: b.booking_number || b.id,
@@ -95,15 +105,25 @@ export async function GET() {
       package: pkg ? { name: pkg.name, pricePerHour: pkg.price_per_hour || 0 } : null,
       addOns,
       pricing: {
-        basePrice,
+        subtotalBeforeDiscount: subtotal,
+        discountAmount,
+        couponCode,
+        preTaxAfterDiscount,
         packagePrice,
         addOnsTotal,
-        subtotal,
         gst,
-        total: Number(b.total_price),
+        convenienceFee,
+        total: totalPaid,
       },
-      totalPrice: Number(b.total_price),
-      status: b.status as 'confirmed' | 'pending' | 'cancelled' | 'completed',
+      totalPrice: totalPaid,
+      paymentId: notes.paymentId ? String(notes.paymentId) : "",
+      cancellationReason:
+        typeof b.cancellation_reason === "string"
+          ? b.cancellation_reason
+          : null,
+      cancelledAt: b.cancelled_at as string | null,
+      updatedAt: b.updated_at as string,
+      status: b.status as 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'rescheduled',
       createdAt: b.created_at,
     };
   });
