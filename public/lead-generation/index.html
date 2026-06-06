@@ -22,6 +22,10 @@
       box-sizing: border-box;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -393,7 +397,6 @@
   </main>
 
   <script>
-    const STORAGE_KEY = "yanisa_leads";
     const questions = [
       {
         key: "description",
@@ -666,26 +669,26 @@
       return true;
     }
 
-    function saveLead() {
-      const leads = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      const submittedAt = new Date().toISOString();
+    async function saveLead() {
       const answers = questions.reduce((result, question) => {
         result[question.key] = state[question.key] || (question.type === "multi" ? [] : "");
         return result;
       }, {});
       answers.city = state.city === "Other" ? state.cityOther : state.city;
       answers.whatsapp = `+91${state.whatsapp}`;
-      const lead = {
-        id: window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : `lead_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-        timestamp: submittedAt,
-        submittedAt,
-        answers
-      };
-      leads.push(lead);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+
+      const response = await fetch("/api/lead-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(answers)
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit lead");
+      }
     }
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!validateStep()) return;
 
@@ -695,10 +698,18 @@
         return;
       }
 
-      saveLead();
-      form.hidden = true;
-      confirmation.hidden = false;
-      progress.style.width = "100%";
+      nextBtn.disabled = true;
+      nextBtn.textContent = "Submitting";
+      try {
+        await saveLead();
+        form.hidden = true;
+        confirmation.hidden = false;
+        progress.style.width = "100%";
+      } catch (error) {
+        errorEl.textContent = "We could not submit your form. Please try again.";
+        nextBtn.disabled = false;
+        nextBtn.textContent = "Submit";
+      }
     });
 
     backBtn.addEventListener("click", () => {

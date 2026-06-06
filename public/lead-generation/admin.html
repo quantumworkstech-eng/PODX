@@ -82,13 +82,13 @@
       font-weight: 800;
     }
 
-    .gate {
+    .status-screen {
       min-height: calc(100vh - 56px);
       display: grid;
       place-items: center;
     }
 
-    .gate-card,
+    .status-card,
     .metric,
     .table-shell {
       background: rgba(18, 18, 18, 0.92);
@@ -97,8 +97,8 @@
       box-shadow: var(--shadow);
     }
 
-    .gate-card {
-      width: min(440px, 100%);
+    .status-card {
+      width: min(520px, 100%);
       padding: 32px;
       display: grid;
       gap: 18px;
@@ -312,7 +312,7 @@
         max-width: none;
       }
 
-      .gate-card {
+      .status-card {
         padding: 24px;
       }
     }
@@ -320,21 +320,20 @@
 </head>
 <body>
   <main class="page">
-    <section class="gate" id="gate">
-      <form class="gate-card" id="loginForm">
+    <section class="status-screen" id="statusScreen">
+      <div class="status-card">
         <div class="logo" aria-label="Yanisa Studios">
           <span class="logo-mark">Y</span>
           <span>Yanisa Studios</span>
         </div>
         <div>
           <h1>Leads Dashboard</h1>
-          <p class="muted">Enter the admin password to view partner submissions.</p>
+          <p class="muted" id="statusMessage">Checking your admin session...</p>
         </div>
-        <input class="input" id="password" type="password" placeholder="Password" autocomplete="current-password">
-        <div class="error" id="loginError" role="alert"></div>
-        <button class="btn" type="submit">Login</button>
+        <button class="btn" id="retryLoad" type="button">Retry</button>
+        <a href="/admin/login">Admin login</a>
         <a href="index.html">Back to form</a>
-      </form>
+      </div>
     </section>
 
     <section class="dashboard" id="dashboard">
@@ -348,7 +347,7 @@
 
       <div>
         <h1>Partner Leads</h1>
-        <p class="muted">Submissions saved in this browser's localStorage.</p>
+        <p class="muted">Submissions are stored in the Yanisa Studios database.</p>
       </div>
 
       <section class="summary" aria-label="Lead summary">
@@ -401,13 +400,10 @@
   </main>
 
   <script>
-    const PASSWORD = "yanisa2024";
-    const STORAGE_KEY = "yanisa_leads";
-    const gate = document.getElementById("gate");
+    const statusScreen = document.getElementById("statusScreen");
     const dashboard = document.getElementById("dashboard");
-    const loginForm = document.getElementById("loginForm");
-    const passwordInput = document.getElementById("password");
-    const loginError = document.getElementById("loginError");
+    const statusMessage = document.getElementById("statusMessage");
+    const retryLoad = document.getElementById("retryLoad");
     const searchInput = document.getElementById("search");
     const rowsEl = document.getElementById("leadRows");
     const emptyState = document.getElementById("emptyState");
@@ -415,6 +411,7 @@
     let sortKey = "timestamp";
     let sortDirection = "desc";
     let expandedId = null;
+    let leadsCache = [];
 
     const answerLabels = {
       description: "What best describes you?",
@@ -433,14 +430,6 @@
       whatsapp: "WhatsApp number",
       websiteOrInstagram: "Studio Instagram or website"
     };
-
-    function getLeads() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      } catch (error) {
-        return [];
-      }
-    }
 
     function getAnswer(lead, key) {
       return lead.answers && lead.answers[key] ? lead.answers[key] : "";
@@ -479,7 +468,7 @@
 
     function filteredAndSortedLeads() {
       const search = searchInput.value.trim().toLowerCase();
-      return getLeads()
+      return leadsCache
         .filter((lead) => {
           const haystack = JSON.stringify(lead.answers || {}).toLowerCase();
           return haystack.includes(search);
@@ -488,17 +477,16 @@
           let aValue = sortKey === "timestamp" ? (a.timestamp || a.submittedAt) : getAnswer(a, sortKey);
           let bValue = sortKey === "timestamp" ? (b.timestamp || b.submittedAt) : getAnswer(b, sortKey);
           if (sortKey === "index") {
-            aValue = getLeads().indexOf(a);
-            bValue = getLeads().indexOf(b);
+            aValue = leadsCache.indexOf(a);
+            bValue = leadsCache.indexOf(b);
           }
           return String(aValue || "").localeCompare(String(bValue || ""), undefined, { numeric: true }) * (sortDirection === "asc" ? 1 : -1);
         });
     }
 
     function renderTable() {
-      const allLeads = getLeads();
       const leads = filteredAndSortedLeads();
-      updateSummary(allLeads);
+      updateSummary(leadsCache);
       rowsEl.innerHTML = "";
       emptyState.hidden = leads.length !== 0;
 
@@ -555,7 +543,7 @@
 
     function exportCsv() {
       const headers = ["id", "timestamp", ...Object.keys(answerLabels)];
-      const rows = getLeads().map((lead) => headers.map((header) => {
+      const rows = leadsCache.map((lead) => headers.map((header) => {
         const value = header === "id" || header === "timestamp" ? lead[header] : getAnswer(lead, header);
         const text = Array.isArray(value) ? value.join("; ") : value || "";
         return `"${String(text).replaceAll('"', '""')}"`;
@@ -570,17 +558,40 @@
       URL.revokeObjectURL(url);
     }
 
-    loginForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      if (passwordInput.value !== PASSWORD) {
-        loginError.textContent = "Incorrect password.";
-        return;
+    async function loadLeads() {
+      statusScreen.style.display = "grid";
+      dashboard.classList.remove("visible");
+      statusMessage.textContent = "Checking your admin session...";
+      retryLoad.disabled = true;
+
+      try {
+        const response = await fetch("/api/admin/lead-generation", {
+          headers: { "Accept": "application/json" }
+        });
+
+        if (response.status === 401) {
+          statusMessage.textContent = "Please log in with an existing admin account to view partner leads.";
+          retryLoad.disabled = false;
+          return;
+        }
+
+        if (!response.ok) {
+          statusMessage.textContent = "Could not load leads right now. Please try again.";
+          retryLoad.disabled = false;
+          return;
+        }
+
+        const data = await response.json();
+        leadsCache = Array.isArray(data.leads) ? data.leads : [];
+        statusScreen.style.display = "none";
+        dashboard.classList.add("visible");
+        retryLoad.disabled = false;
+        renderTable();
+      } catch (error) {
+        statusMessage.textContent = "Could not connect to the leads API. Please try again.";
+        retryLoad.disabled = false;
       }
-      sessionStorage.setItem("yanisa_admin_auth", "true");
-      gate.style.display = "none";
-      dashboard.classList.add("visible");
-      renderTable();
-    });
+    }
 
     document.querySelectorAll("th[data-sort]").forEach((th) => {
       th.addEventListener("click", () => {
@@ -597,12 +608,9 @@
 
     searchInput.addEventListener("input", renderTable);
     exportBtn.addEventListener("click", exportCsv);
+    retryLoad.addEventListener("click", loadLeads);
 
-    if (sessionStorage.getItem("yanisa_admin_auth") === "true") {
-      gate.style.display = "none";
-      dashboard.classList.add("visible");
-      renderTable();
-    }
+    loadLeads();
   </script>
 </body>
 </html>
