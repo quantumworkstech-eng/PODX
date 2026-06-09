@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
@@ -23,6 +23,8 @@ import {
   IndianRupee,
   MessageSquareText,
   Receipt,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -200,11 +202,40 @@ function formatMoney(value?: number): string {
 
 type StudioOpt = { id: string; name: string };
 
+type ManualSlotForm = {
+  studioId: string;
+  date: string;
+  timeSlot: string;
+  duration: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  participants: string;
+  note: string;
+};
+
+const MANUAL_SLOT_TIMES = Array.from({ length: 32 }, (_, i) => {
+  const totalMinutes = 7 * 60 + i * 30;
+  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const mm = String(totalMinutes % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+});
+
+const MANUAL_SLOT_DURATIONS = [
+  { value: "0.5", label: "30 minutes" },
+  { value: "1", label: "1 hour" },
+  { value: "1.5", label: "1.5 hours" },
+  { value: "2", label: "2 hours" },
+  { value: "3", label: "3 hours" },
+  { value: "4", label: "4 hours" },
+];
+
 export function PartnerBookingsCalendar({
   bookings,
   studios,
   audience = "partner",
   onNavigateUpcoming,
+  onBookingCreated,
 }: {
   /** Ignored when audience is admin (data is loaded from /api/admin/bookings/calendar). */
   bookings?: PartnerCalendarBooking[];
@@ -214,6 +245,8 @@ export function PartnerBookingsCalendar({
   audience?: "partner" | "client" | "admin";
   /** Client: e.g. switch dashboard section to upcoming bookings */
   onNavigateUpcoming?: () => void;
+  /** Partner: refresh bookings after manually blocking/booking a slot. */
+  onBookingCreated?: () => void | Promise<void>;
 }) {
   const [adminBookings, setAdminBookings] = useState<PartnerCalendarBooking[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
@@ -237,6 +270,20 @@ export function PartnerBookingsCalendar({
   const [studioFilter, setStudioFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [detail, setDetail] = useState<PartnerCalendarBooking | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualError, setManualError] = useState("");
+  const [manualSlot, setManualSlot] = useState<ManualSlotForm>({
+    studioId: "",
+    date: todayIst,
+    timeSlot: "09:00",
+    duration: "1",
+    customerName: "Blocked slot",
+    customerEmail: "",
+    customerPhone: "",
+    participants: "1",
+    note: "",
+  });
 
   const weekMonday = useMemo(() => mondayOfWeekIST(selectedDay), [selectedDay]);
   const weekDays = useMemo(() => weekDayStringsFromMonday(weekMonday), [weekMonday]);
@@ -296,6 +343,51 @@ export function PartnerBookingsCalendar({
     });
   };
 
+  const updateManualSlot = (updates: Partial<ManualSlotForm>) => {
+    setManualSlot((current) => ({ ...current, ...updates }));
+  };
+
+  const openManualSlot = () => {
+    const fallbackStudio = studioFilter !== "all" ? studioFilter : studioOptions[0]?.id || "";
+    setManualError("");
+    setManualSlot((current) => ({
+      ...current,
+      studioId: current.studioId || fallbackStudio,
+      date: selectedDay,
+    }));
+    setManualOpen(true);
+  };
+
+  const submitManualSlot = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!manualSlot.studioId) {
+      setManualError("Select a studio first.");
+      return;
+    }
+
+    setManualSaving(true);
+    setManualError("");
+    try {
+      const response = await fetch("/api/partner/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(manualSlot),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Could not create this slot.");
+      }
+
+      setManualOpen(false);
+      setSelectedDay(manualSlot.date);
+      await onBookingCreated?.();
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : "Could not create this slot.");
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
   return (
     <div className="bg-[#141414] border border-white/5 rounded-2xl overflow-hidden">
       <div className="p-4 sm:p-6 border-b border-white/5 flex flex-col gap-4">
@@ -318,6 +410,18 @@ export function PartnerBookingsCalendar({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {audience === "partner" && (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black text-xs font-semibold"
+                onClick={openManualSlot}
+                disabled={studioOptions.length === 0}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Book slot
+              </Button>
+            )}
             <div className="flex rounded-lg border border-white/10 overflow-hidden">
               <button
                 type="button"
@@ -530,6 +634,168 @@ export function PartnerBookingsCalendar({
           </div>
         )}
       </div>
+
+      <Dialog open={manualOpen} onOpenChange={(open) => !manualSaving && setManualOpen(open)}>
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white">Book a studio slot</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitManualSlot} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-xs font-medium text-white/55">Studio</span>
+                <select
+                  value={manualSlot.studioId}
+                  onChange={(e) => updateManualSlot({ studioId: e.target.value })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                  required
+                >
+                  <option value="" className="bg-[#141414] text-white">
+                    Select studio
+                  </option>
+                  {studioOptions.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-[#141414] text-white">
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-white/55">Date</span>
+                <input
+                  type="date"
+                  value={manualSlot.date}
+                  onChange={(e) => updateManualSlot({ date: e.target.value })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white [&::-webkit-calendar-picker-indicator]:invert"
+                  required
+                />
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-white/55">Start time</span>
+                <select
+                  value={manualSlot.timeSlot}
+                  onChange={(e) => updateManualSlot({ timeSlot: e.target.value })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                  required
+                >
+                  {MANUAL_SLOT_TIMES.map((time) => (
+                    <option key={time} value={time} className="bg-[#141414] text-white">
+                      {time}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-white/55">Duration</span>
+                <select
+                  value={manualSlot.duration}
+                  onChange={(e) => updateManualSlot({ duration: e.target.value })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                  required
+                >
+                  {MANUAL_SLOT_DURATIONS.map((duration) => (
+                    <option key={duration.value} value={duration.value} className="bg-[#141414] text-white">
+                      {duration.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-white/55">Participants</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={manualSlot.participants}
+                  onChange={(e) => updateManualSlot({ participants: e.target.value })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                />
+              </label>
+
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-xs font-medium text-white/55">Customer or slot label</span>
+                <input
+                  type="text"
+                  value={manualSlot.customerName}
+                  onChange={(e) => updateManualSlot({ customerName: e.target.value })}
+                  placeholder="Blocked slot"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25"
+                  required
+                />
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-white/55">Customer phone</span>
+                <input
+                  type="tel"
+                  value={manualSlot.customerPhone}
+                  onChange={(e) => updateManualSlot({ customerPhone: e.target.value })}
+                  placeholder="Optional"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25"
+                />
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-white/55">Customer email</span>
+                <input
+                  type="email"
+                  value={manualSlot.customerEmail}
+                  onChange={(e) => updateManualSlot({ customerEmail: e.target.value })}
+                  placeholder="Optional"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25"
+                />
+              </label>
+            </div>
+
+            <label className="space-y-1.5 block">
+              <span className="text-xs font-medium text-white/55">Note</span>
+              <textarea
+                value={manualSlot.note}
+                onChange={(e) => updateManualSlot({ note: e.target.value })}
+                rows={3}
+                placeholder="Any internal note or client request"
+                className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25"
+              />
+            </label>
+
+            {manualError && (
+              <p className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {manualError}
+              </p>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 border-white/15 text-white hover:bg-white/5 text-sm"
+                onClick={() => setManualOpen(false)}
+                disabled={manualSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black text-sm font-semibold"
+                disabled={manualSaving || !manualSlot.studioId}
+              >
+                {manualSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving
+                  </>
+                ) : (
+                  "Book slot"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto">

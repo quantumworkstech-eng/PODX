@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -95,6 +95,11 @@ export default function PartnerDashboardOverview() {
   const [studios, setStudios] = useState<Studio[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const refreshBookings = useCallback(async () => {
+    const data = await fetch("/api/partner/bookings").then((r) => r.json());
+    setBookings(data.bookings || []);
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -191,6 +196,7 @@ export default function PartnerDashboardOverview() {
           totalPrice: b.totalPrice,
         }))}
         studios={studios.map((s) => ({ id: s.id, name: s.name }))}
+        onBookingCreated={refreshBookings}
       />
 
       {/* Stats */}
