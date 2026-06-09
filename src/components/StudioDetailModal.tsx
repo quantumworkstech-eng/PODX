@@ -33,6 +33,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getVideoInfo } from "@/components/StudioCardMedia";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -192,10 +193,12 @@ export function StudioDetailModal({
     if (!studioId) {
       setDetails(null);
       setSlideIdx(0);
+      setShowVideo(false);
       return;
     }
     setLoading(true);
     setSlideIdx(0);
+    setShowVideo(false);
     fetch(`/api/studios/${studioId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setDetails(data))
@@ -289,6 +292,9 @@ export function StudioDetailModal({
   const displayAddress = details?.address ?? "";
   const activeRooms = details?.rooms ?? [];
   const activePackages = details?.packages ?? [];
+  const tourVideo = details?.video_url
+    ? getVideoInfo(details.video_url, { controls: true, muted: false, loop: false })
+    : null;
   const minPrice =
     activePackages.length > 0
       ? Math.min(...activePackages.map((pkg) => Number(pkg.price_per_hour) || 0))
@@ -405,7 +411,7 @@ export function StudioDetailModal({
         </div>
 
         {/* ── Studio Video ─────────────────────────────────────── */}
-        {details?.video_url && (
+        {tourVideo && (
           <div className="border-b border-white/5">
             {!showVideo ? (
               <button
@@ -425,57 +431,77 @@ export function StudioDetailModal({
               </button>
             ) : (
               <div className="relative bg-black">
-                <video
-                  ref={videoRef}
-                  src={details.video_url}
-                  className="w-full max-h-64 object-contain"
-                  onTimeUpdate={handleVideoTimeUpdate}
-                  onEnded={() => setIsVideoPlaying(false)}
-                  playsInline
-                  autoPlay
-                  onPlay={() => setIsVideoPlaying(true)}
-                />
-                {!isVideoPlaying && (
-                  <button
-                    onClick={toggleVideo}
-                    className="absolute inset-0 flex items-center justify-center bg-black/30"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
-                      <Play className="w-8 h-8 text-white ml-1" />
-                    </div>
-                  </button>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                  <div className="flex items-center gap-3">
-                    <button onClick={toggleVideo} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
-                      {isVideoPlaying
-                        ? <Pause className="w-4 h-4 text-white" />
-                        : <Play className="w-4 h-4 text-white" />
-                      }
-                    </button>
-                    <div
-                      className="flex-1 h-1 bg-white/30 rounded-full cursor-pointer"
-                      onClick={handleVideoSeek}
-                    >
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${videoProgress}%`, background: primaryColor }}
-                      />
-                    </div>
-                    <button onClick={toggleVideoMute} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
-                      {isVideoMuted
-                        ? <VolumeX className="w-4 h-4 text-white" />
-                        : <Volume2 className="w-4 h-4 text-white" />
-                      }
-                    </button>
+                {tourVideo.isEmbedded ? (
+                  <div className="relative aspect-video">
+                    <iframe
+                      src={tourVideo.embedUrl}
+                      title={`${displayName} studio tour`}
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                      className="absolute inset-0 w-full h-full border-0"
+                    />
                     <button
-                      onClick={() => { setShowVideo(false); setIsVideoPlaying(false); setVideoProgress(0); }}
-                      className="p-1.5 rounded-full hover:bg-white/20 transition-colors"
+                      onClick={() => setShowVideo(false)}
+                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 transition-colors text-white"
                     >
-                      <X className="w-4 h-4 text-white" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <video
+                      ref={videoRef}
+                      src={tourVideo.embedUrl}
+                      className="w-full max-h-64 object-contain"
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={() => setIsVideoPlaying(false)}
+                      playsInline
+                      autoPlay
+                      onPlay={() => setIsVideoPlaying(true)}
+                    />
+                    {!isVideoPlaying && (
+                      <button
+                        onClick={toggleVideo}
+                        className="absolute inset-0 flex items-center justify-center bg-black/30"
+                      >
+                        <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
+                          <Play className="w-8 h-8 text-white ml-1" />
+                        </div>
+                      </button>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                      <div className="flex items-center gap-3">
+                        <button onClick={toggleVideo} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                          {isVideoPlaying
+                            ? <Pause className="w-4 h-4 text-white" />
+                            : <Play className="w-4 h-4 text-white" />
+                          }
+                        </button>
+                        <div
+                          className="flex-1 h-1 bg-white/30 rounded-full cursor-pointer"
+                          onClick={handleVideoSeek}
+                        >
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${videoProgress}%`, background: primaryColor }}
+                          />
+                        </div>
+                        <button onClick={toggleVideoMute} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                          {isVideoMuted
+                            ? <VolumeX className="w-4 h-4 text-white" />
+                            : <Volume2 className="w-4 h-4 text-white" />
+                          }
+                        </button>
+                        <button
+                          onClick={() => { setShowVideo(false); setIsVideoPlaying(false); setVideoProgress(0); }}
+                          className="p-1.5 rounded-full hover:bg-white/20 transition-colors"
+                        >
+                          <X className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
