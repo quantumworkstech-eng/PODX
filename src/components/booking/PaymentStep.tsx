@@ -50,6 +50,12 @@ interface BookingRecord {
     price_per_hour: number;
   } | null;
   addOns: { id: string; name: string; price: number }[];
+  selectedSetup?: {
+    id: string;
+    name: string;
+    image_url: string;
+    capacity?: number | null;
+  } | null;
   totalPrice: number;
   subtotal: number;
   tax: number;
@@ -82,8 +88,8 @@ export function PaymentStep() {
     selectedStudio,
     selectedPackage,
     selectedAddOns,
+    selectedSetup,
     getPackagePrice,
-    getAddOnsPrice,
     getSubtotal,
     getTax,
     getTotalPrice,
@@ -205,6 +211,7 @@ export function PaymentStep() {
             price: a.price,
             qty: a.qty ?? 1,
           })),
+          selectedSetup,
           totalPrice: total,
           subtotal,
           tax,
@@ -264,6 +271,7 @@ export function PaymentStep() {
           name: a.name,
           price: a.price,
         })),
+        selectedSetup,
         totalPrice: total,
         subtotal,
         tax,
@@ -432,6 +440,28 @@ export function PaymentStep() {
                     </span>
                   </div>
                   <p className="text-white/40 text-xs mt-2">{selectedStudio.description}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedSetup && (
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+              <h3 className="text-base font-semibold text-white mb-4">Selected Setup</h3>
+              <div className="flex gap-4">
+                <div className="relative w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/10">
+                  <Image
+                    src={selectedSetup.image_url}
+                    alt={selectedSetup.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold">{selectedSetup.name}</h4>
+                  {selectedSetup.capacity ? (
+                    <p className="text-white/50 text-sm mt-1">Up to {selectedSetup.capacity} people</p>
+                  ) : null}
                 </div>
               </div>
             </div>

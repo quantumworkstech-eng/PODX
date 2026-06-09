@@ -8,7 +8,6 @@ import {
   ChevronRight,
   MapPin,
   Users,
-  Star,
   Clock,
   Mic2,
   Video,
@@ -70,6 +69,16 @@ interface Addon {
   icon?: string;
 }
 
+interface StudioPackage {
+  id: string;
+  name: string;
+  description?: string;
+  price_per_hour: number;
+  features?: string[];
+  is_popular?: boolean;
+  display_order?: number;
+}
+
 interface StudioDetails {
   id: string;
   name: string;
@@ -91,6 +100,7 @@ interface StudioDetails {
   rooms: Room[];
   amenities: Amenity[];
   addons: Addon[];
+  packages?: StudioPackage[];
 }
 
 export interface StudioDetailModalProps {
@@ -278,9 +288,12 @@ export function StudioDetailModal({
   const displayCity = details?.city ?? "";
   const displayAddress = details?.address ?? "";
   const activeRooms = details?.rooms ?? [];
+  const activePackages = details?.packages ?? [];
   const minPrice =
-    activeRooms.length > 0
-      ? Math.min(...activeRooms.map((r) => r.price_per_hour))
+    activePackages.length > 0
+      ? Math.min(...activePackages.map((pkg) => Number(pkg.price_per_hour) || 0))
+      : activeRooms.length > 0
+      ? Math.min(...activeRooms.map((r) => Number(r.price_per_hour) || 0))
       : null;
 
   return (

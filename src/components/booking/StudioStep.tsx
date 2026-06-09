@@ -15,6 +15,8 @@ async function enrichStudioForBooking(studio: Studio): Promise<Studio> {
     return {
       ...studio,
       booking_inventory: data.booking_inventory ?? null,
+      image_urls: (data.images || []).map((img: any) => img.image_url).filter(Boolean),
+      setup_options: data.setup_options || [],
       price_per_hour: firstPkg ? Number(firstPkg.price_per_hour) : studio.price_per_hour,
     };
   } catch {

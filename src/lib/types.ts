@@ -9,6 +9,7 @@ export interface Studio {
   cover_image: string;
   image_urls?: string[];
   video_url?: string;
+  setup_options?: StudioSetupOption[];
   location: {
     city: string;
     area: string;
@@ -25,6 +26,14 @@ export interface Studio {
   is_instant_bookable: boolean;
   description: string;
   amenities: string[];
+}
+
+export interface StudioSetupOption {
+  id: string;
+  name: string;
+  description?: string | null;
+  image_url: string;
+  capacity?: number | null;
 }
 
 export interface Equipment {
@@ -61,4 +70,3 @@ export interface SearchParams {
   date?: string;
   time?: string;
 }
-

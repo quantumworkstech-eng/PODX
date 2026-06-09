@@ -20,7 +20,11 @@ export async function GET(
       id, name, slug, description, short_description, address, city, state, country,
       featured_image_url, is_verified, phone, email, website, equipment, video_url,
       studio_images (id, image_url, caption, display_order),
-      rooms (id, name, description, capacity, price_per_hour, min_booking_hours, max_booking_hours, is_active),
+      rooms (
+        id, name, description, capacity, price_per_hour, min_booking_hours, max_booking_hours,
+        featured_image_url, is_active,
+        room_images (image_url, display_order)
+      ),
       studio_amenities (amenities (id, name, icon, category))
     `)
     .eq('id', id)
@@ -68,6 +72,26 @@ export async function GET(
     (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
 
+  const rooms = ((studio as any).rooms ?? []).filter((r: any) => r.is_active !== false);
+  const setupOptions = rooms
+    .flatMap((room: any) => {
+      const roomImages = [
+        room.featured_image_url,
+        ...((room.room_images ?? [])
+          .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+          .map((img: any) => img.image_url)),
+      ].filter(Boolean);
+
+      return roomImages.slice(0, 3).map((imageUrl: string, idx: number) => ({
+        id: idx === 0 ? room.id : `${room.id}-${idx}`,
+        name: idx === 0 ? room.name || "Studio setup" : `${room.name || "Studio setup"} ${idx + 1}`,
+        description: room.description || null,
+        image_url: imageUrl,
+        capacity: room.capacity ?? null,
+      }));
+    })
+    .filter((setup: any) => setup.image_url);
+
   // Fetch studio-specific packages
   let studioPackages: any[] = [];
   try {
@@ -97,7 +121,8 @@ export async function GET(
     video_url: (studio as any).video_url || null,
     equipment: equipmentMerged,
     images,
-    rooms: ((studio as any).rooms ?? []).filter((r: any) => r.is_active !== false),
+    rooms,
+    setup_options: setupOptions,
     amenities,
     addons,
     booking_inventory,

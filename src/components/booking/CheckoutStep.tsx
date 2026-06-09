@@ -42,8 +42,8 @@ export function CheckoutStep() {
     participants,
     selectedStudio,
     selectedPackage,
+    selectedSetup,
     getPackagePrice,
-    getAddOnsPrice,
     getSubtotal,
     getTax,
     getTotalPrice,
@@ -254,6 +254,37 @@ export function CheckoutStep() {
                     </span>
                   </div>
                   <p className="text-white/40 text-xs mt-2">{selectedStudio.description}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedSetup && (
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
+                <span>Selected Setup</span>
+                <button
+                  onClick={() => goToStep(4)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              </h3>
+              <div className="flex gap-4">
+                <div className="relative w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/10">
+                  <Image
+                    src={selectedSetup.image_url}
+                    alt={selectedSetup.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold">{selectedSetup.name}</h4>
+                  {selectedSetup.capacity ? (
+                    <p className="text-white/50 text-sm mt-1">Up to {selectedSetup.capacity} people</p>
+                  ) : null}
                 </div>
               </div>
             </div>

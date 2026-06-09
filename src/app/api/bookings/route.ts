@@ -96,6 +96,7 @@ export async function GET() {
               : null,
         convenienceFee:
           Number(notes.convenienceFee ?? notes.convenience_fee ?? 0) || null,
+        selectedSetup: notes.selectedSetup || null,
         status: b.status,
         paymentId: notes.paymentId || "",
         gstNumber: notes.gstNumber || null,
@@ -156,6 +157,7 @@ export async function POST(request: NextRequest) {
       discountAmount,
       couponCode,
       convenienceFee,
+      selectedSetup,
     } = body;
 
     if (!studioId || !date || !timeSlot || !duration || !totalPrice) {
@@ -291,6 +293,16 @@ export async function POST(request: NextRequest) {
       paymentId,
       orderId,
       ...(gstNumber ? { gstNumber } : {}),
+      ...(selectedSetup
+        ? {
+            selectedSetup: {
+              id: selectedSetup.id,
+              name: selectedSetup.name,
+              image_url: selectedSetup.image_url,
+              capacity: selectedSetup.capacity ?? null,
+            },
+          }
+        : {}),
       ...(Number(discountAmount) > 0
         ? { discountAmount: Number(discountAmount), couponCode: couponCode || null }
         : {}),

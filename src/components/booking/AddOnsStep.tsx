@@ -3,12 +3,44 @@
 import { useState } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
+import Image from "next/image";
 import {
   BookingAddonsSection,
   AddOnsStepSearchInput,
 } from "@/components/booking/BookingAddonsSection";
 import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
+import type { Studio, StudioSetupOption } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+function getSetupOptions(studio: Studio | null): StudioSetupOption[] {
+  if (!studio) return [];
+
+  const seen = new Set<string>();
+  const options: StudioSetupOption[] = [];
+  const addOption = (option: StudioSetupOption) => {
+    if (!option.image_url || seen.has(option.image_url)) return;
+    seen.add(option.image_url);
+    options.push(option);
+  };
+
+  for (const option of studio.setup_options || []) {
+    addOption(option);
+  }
+
+  const gallery = [studio.cover_image, ...(studio.image_urls || [])].filter(Boolean);
+  gallery.forEach((imageUrl, index) => {
+    addOption({
+      id: `gallery-${index}`,
+      name: index === 0 ? "Primary studio setup" : `Studio setup ${index + 1}`,
+      description: studio.description,
+      image_url: imageUrl,
+      capacity: studio.capacity,
+    });
+  });
+
+  return options.slice(0, 6);
+}
 
 export function AddOnsStep() {
   const {
@@ -24,9 +56,12 @@ export function AddOnsStep() {
     timeSlot,
     selectedStudio,
     selectedPackage,
+    selectedSetup,
+    setSelectedSetup,
   } = useBooking();
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
+  const setupOptions = getSetupOptions(selectedStudio);
 
   const formatDate = () => {
     if (!date) return "";
@@ -49,6 +84,72 @@ export function AddOnsStep() {
               inventory={selectedStudio.booking_inventory}
               selectedAddOns={selectedAddOns}
             />
+          )}
+          {setupOptions.length > 0 && (
+            <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-[#D9FC67]" />
+                    Select your studio setup
+                  </h3>
+                  <p className="mt-1 text-xs text-white/45">
+                    Choose from the actual room photos available for this studio.
+                  </p>
+                </div>
+                {selectedSetup && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSetup(null)}
+                    className="text-xs text-white/40 hover:text-white/75 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                {setupOptions.map((setup) => {
+                  const selected = selectedSetup?.id === setup.id;
+                  return (
+                    <button
+                      key={setup.id}
+                      type="button"
+                      onClick={() => setSelectedSetup(setup)}
+                      className={cn(
+                        "group overflow-hidden rounded-xl border text-left transition-all",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FC67]/40",
+                        selected
+                          ? "border-[#D9FC67] bg-[#D9FC67]/[0.06] ring-2 ring-[#D9FC67]/25"
+                          : "border-white/10 bg-black/20 hover:border-white/25"
+                      )}
+                    >
+                      <div className="relative aspect-[16/10] overflow-hidden">
+                        <Image
+                          src={setup.image_url}
+                          alt={setup.name}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                        {selected && (
+                          <span className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-full bg-[#D9FC67] text-black">
+                            <Check className="h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <p className="text-sm font-semibold text-white drop-shadow">{setup.name}</p>
+                          {setup.capacity ? (
+                            <p className="mt-0.5 text-xs text-white/65">Up to {setup.capacity} people</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           <AddOnsStepSearchInput value={searchTerm} onChange={setSearchTerm} />
           {selectedStudio && (

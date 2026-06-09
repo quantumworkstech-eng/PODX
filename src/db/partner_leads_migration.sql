@@ -1,4 +1,3 @@
--- Partner lead generation submissions
 CREATE TABLE IF NOT EXISTS partner_leads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

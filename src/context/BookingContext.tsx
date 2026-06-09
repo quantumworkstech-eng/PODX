@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
-import { Studio } from "@/lib/types";
+import { Studio, StudioSetupOption } from "@/lib/types";
 import { ServicePackage, AddOnService, TIME_SLOTS } from "@/lib/booking-types";
 import {
   BOOKING_PENDING_KEY,
@@ -35,6 +35,7 @@ interface BookingState {
   selectedStudio: Studio | null;
   selectedPackage: ServicePackage | null;
   selectedAddOns: AddOnService[];
+  selectedSetup: StudioSetupOption | null;
   showAuthModal: boolean;
   isAuthenticated: boolean;
   showPayment: boolean;
@@ -58,6 +59,7 @@ interface StoredBooking {
   selectedStudio: Studio | null;
   selectedPackage: ServicePackage | null;
   selectedAddOns: AddOnService[];
+  selectedSetup?: StudioSetupOption | null;
   currentStep: number;
   selectedCity: string | null;
   selectionMode: "studio" | "date" | null;
@@ -75,6 +77,7 @@ interface BookingContextType extends BookingState {
   setParticipants: (count: number) => void;
   setSelectedStudio: (studio: Studio | null) => void;
   setSelectedPackage: (pkg: ServicePackage | null) => void;
+  setSelectedSetup: (setup: StudioSetupOption | null) => void;
   addAddOn: (addOn: AddOnService) => void;
   removeAddOn: (addOnId: string) => void;
   toggleAddOn: (addOn: AddOnService) => void;
@@ -123,6 +126,7 @@ const initialState: BookingState = {
   selectedStudio: null,
   selectedPackage: null,
   selectedAddOns: [],
+  selectedSetup: null,
   showAuthModal: false,
   isAuthenticated: false,
   showPayment: false,
@@ -181,6 +185,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         selectedStudio: parsed.selectedStudio,
         selectedPackage: parsed.selectedPackage,
         selectedAddOns: parsed.selectedAddOns || [],
+        selectedSetup: parsed.selectedSetup || null,
         currentStep: parsed.currentStep || 1,
         selectedCity: parsed.selectedCity,
         selectionMode: parsed.selectionMode,
@@ -204,6 +209,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       selectedStudio: state.selectedStudio,
       selectedPackage: state.selectedPackage,
       selectedAddOns: state.selectedAddOns,
+      selectedSetup: state.selectedSetup,
       currentStep: state.currentStep,
       selectedCity: state.selectedCity,
       selectionMode: state.selectionMode,
@@ -253,11 +259,19 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setSelectedStudio = useCallback((studio: Studio | null) => {
-    setState((prev) => ({ ...prev, selectedStudio: studio }));
+    setState((prev) => ({
+      ...prev,
+      selectedStudio: studio,
+      selectedSetup: studio?.id === prev.selectedStudio?.id ? prev.selectedSetup : null,
+    }));
   }, []);
 
   const setSelectedPackage = useCallback((pkg: ServicePackage | null) => {
     setState((prev) => ({ ...prev, selectedPackage: pkg }));
+  }, []);
+
+  const setSelectedSetup = useCallback((setup: StudioSetupOption | null) => {
+    setState((prev) => ({ ...prev, selectedSetup: setup }));
   }, []);
 
   const addAddOn = useCallback((addOn: AddOnService) => {
@@ -477,6 +491,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setParticipants,
     setSelectedStudio,
     setSelectedPackage,
+    setSelectedSetup,
     addAddOn,
     removeAddOn,
     toggleAddOn,
