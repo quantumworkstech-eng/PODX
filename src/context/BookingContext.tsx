@@ -49,6 +49,7 @@ interface BookingState {
   partnerBranding: PartnerBrandingBasic | null;
   // Tax invoice
   gstNumber: string;
+  bookingNote: string;
 }
 
 interface StoredBooking {
@@ -68,6 +69,7 @@ interface StoredBooking {
   partnerSlug: string | null;
   partnerId: string | null;
   bookingSource: "marketplace" | "whitelabel" | "partner_direct" | null;
+  bookingNote?: string;
 }
 
 interface BookingContextType extends BookingState {
@@ -110,6 +112,7 @@ interface BookingContextType extends BookingState {
   setSelectionMode: (mode: "studio" | "date") => void;
   setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
   setGstNumber: (gst: string) => void;
+  setBookingNote: (note: string) => void;
   // White-label partner context
   setPartnerContext: (slug: string | null, partnerId: string | null, source: "marketplace" | "whitelabel" | "partner_direct" | null) => void;
   setPartnerBranding: (branding: PartnerBrandingBasic | null) => void;
@@ -138,6 +141,7 @@ const initialState: BookingState = {
   bookingSource: null,
   partnerBranding: null,
   gstNumber: "",
+  bookingNote: "",
 };
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -193,6 +197,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         partnerSlug: parsed.partnerSlug || null,
         partnerId: parsed.partnerId || null,
         bookingSource: parsed.bookingSource || null,
+        bookingNote: parsed.bookingNote || "",
       }));
     } catch {
       // Corrupt storage — ignore
@@ -217,6 +222,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       partnerSlug: state.partnerSlug,
       partnerId: state.partnerId,
       bookingSource: state.bookingSource,
+      bookingNote: state.bookingNote,
     };
     localStorage.setItem(BOOKING_PENDING_KEY, JSON.stringify(data));
   }, [state]);
@@ -456,6 +462,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, gstNumber: gst }));
   }, []);
 
+  const setBookingNote = useCallback((note: string) => {
+    setState((prev) => ({ ...prev, bookingNote: note }));
+  }, []);
+
   const setPartnerContext = useCallback(
     (slug: string | null, partnerId: string | null, source: "marketplace" | "whitelabel" | "partner_direct" | null) => {
       setState((prev) => ({ ...prev, partnerSlug: slug, partnerId, bookingSource: source }));
@@ -523,6 +533,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setSelectionMode,
     setAppliedCoupon,
     setGstNumber,
+    setBookingNote,
     setPartnerContext,
     setPartnerBranding,
   };

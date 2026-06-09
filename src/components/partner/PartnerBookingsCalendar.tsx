@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
@@ -12,10 +12,17 @@ import {
   User,
   UserCheck,
   Package,
+  ShoppingBag,
   Clock,
   CheckCircle,
   AlertCircle,
   XCircle,
+  Mail,
+  Phone,
+  Users,
+  IndianRupee,
+  MessageSquareText,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,15 +49,29 @@ export type PartnerCalendarBooking = {
   dbId?: string;
   date: string;
   endDate: string;
+  createdAt?: string;
   studioId?: string;
-  studio: { id?: string; name: string; city?: string };
-  customer: { name: string; email?: string };
+  studio: { id?: string; name: string; city?: string; address?: string };
+  customer: { name: string; email?: string; phone?: string };
   /** Studio owner (partner) — admin calendar */
   partnerName?: string;
   partnerEmail?: string;
   status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
-  package: { name: string } | null;
+  package: { name: string; pricePerHour?: number } | null;
+  addOns?: { name: string; price: number; qty?: number }[];
+  participants?: number | null;
+  duration?: number;
+  paymentId?: string;
+  bookingNote?: string | null;
   totalPrice?: number;
+  pricing?: {
+    subtotalBeforeDiscount?: number;
+    discountAmount?: number;
+    couponCode?: string | null;
+    gst?: number;
+    convenienceFee?: number;
+    total?: number;
+  };
 };
 
 type ViewMode = "day" | "week";
@@ -151,6 +172,30 @@ function statusLabel(status: PartnerCalendarBooking["status"]): string {
     default:
       return "Confirmed";
   }
+}
+
+function CalendarDetailRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-white/40 text-xs">{label}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function formatMoney(value?: number): string {
+  return `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
 }
 
 type StudioOpt = { id: string; name: string };
@@ -487,7 +532,7 @@ export function PartnerBookingsCalendar({
       </div>
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <StatusIcon status={detail?.status ?? "confirmed"} />
@@ -509,57 +554,154 @@ export function PartnerBookingsCalendar({
             </DialogTitle>
           </DialogHeader>
           {detail && (
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start gap-2">
-                <Building2 className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-white/40 text-xs">Studio</p>
+            <div className="space-y-4 text-sm">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <CalendarDetailRow icon={Building2} label="Studio">
                   <p className="text-white font-medium">{detail.studio.name}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Clock className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-white/40 text-xs">Time</p>
+                  {detail.studio.city && (
+                    <p className="text-white/35 text-xs mt-0.5">{detail.studio.city}</p>
+                  )}
+                  {detail.studio.address && (
+                    <p className="text-white/30 text-xs mt-0.5 line-clamp-2">{detail.studio.address}</p>
+                  )}
+                </CalendarDetailRow>
+
+                <CalendarDetailRow icon={Clock} label="Session">
                   <p className="text-white font-medium">
                     {formatRangeIST(new Date(detail.date), new Date(detail.endDate))}
                   </p>
-                </div>
-              </div>
-              {(audience === "partner" || audience === "admin") && (
-                <div className="flex items-start gap-2">
-                  <User className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-white/40 text-xs">{audience === "admin" ? "Client" : "Customer"}</p>
+                  <p className="text-white/35 text-xs mt-0.5">
+                    {new Date(detail.date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      timeZone: "Asia/Kolkata",
+                    })}
+                    {detail.duration ? ` · ${detail.duration} hr` : ""}
+                  </p>
+                </CalendarDetailRow>
+
+                {(audience === "partner" || audience === "admin") && (
+                  <CalendarDetailRow icon={User} label={audience === "admin" ? "Client" : "Customer"}>
                     <p className="text-white font-medium">{detail.customer.name}</p>
                     {detail.customer.email && (
-                      <p className="text-white/35 text-xs mt-0.5">{detail.customer.email}</p>
+                      <p className="text-white/35 text-xs mt-0.5 flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {detail.customer.email}
+                      </p>
                     )}
-                  </div>
-                </div>
-              )}
+                    {detail.customer.phone && (
+                      <p className="text-white/35 text-xs mt-0.5 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {detail.customer.phone}
+                      </p>
+                    )}
+                  </CalendarDetailRow>
+                )}
+
+                <CalendarDetailRow icon={Users} label="Participants">
+                  <p className="text-white font-medium">
+                    {detail.participants ? `${detail.participants} people` : "Not specified"}
+                  </p>
+                </CalendarDetailRow>
+              </div>
+
               {audience === "admin" && (detail.partnerName || detail.partnerEmail) && (
-                <div className="flex items-start gap-2">
-                  <UserCheck className="w-4 h-4 text-violet-400/80 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-white/40 text-xs">Partner (studio owner)</p>
-                    <p className="text-white font-medium">{detail.partnerName || "—"}</p>
-                    {detail.partnerEmail && (
-                      <p className="text-white/35 text-xs mt-0.5">{detail.partnerEmail}</p>
-                    )}
-                  </div>
-                </div>
+                <CalendarDetailRow icon={UserCheck} label="Partner (studio owner)">
+                  <p className="text-white font-medium">{detail.partnerName || "—"}</p>
+                  {detail.partnerEmail && (
+                    <p className="text-white/35 text-xs mt-0.5">{detail.partnerEmail}</p>
+                  )}
+                </CalendarDetailRow>
               )}
-              {detail.package && (
-                <div className="flex items-start gap-2">
-                  <Package className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-white/40 text-xs">Package</p>
-                    <p className="text-white font-medium">{detail.package.name}</p>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                <CalendarDetailRow icon={Package} label="Package">
+                  <p className="text-white font-medium">{detail.package?.name || "No package"}</p>
+                  {detail.package?.pricePerHour ? (
+                    <p className="text-white/35 text-xs mt-0.5">{formatMoney(detail.package.pricePerHour)}/hr</p>
+                  ) : null}
+                </CalendarDetailRow>
+
+                {detail.addOns && detail.addOns.length > 0 && (
+                  <div className="pt-2 border-t border-white/10">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ShoppingBag className="w-4 h-4 text-white/40" />
+                      <p className="text-white/40 text-xs">Add-ons</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      {detail.addOns.map((addon, index) => {
+                        const qty = Number(addon.qty) || 1;
+                        return (
+                          <div key={`${addon.name}-${index}`} className="flex justify-between gap-3">
+                            <span className="text-white/75">
+                              {addon.name}
+                              {qty > 1 && <span className="text-white/40"> × {qty}</span>}
+                            </span>
+                            <span className="text-white/60 tabular-nums">
+                              {formatMoney(addon.price * qty)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-white/40" />
+                  <p className="text-white/40 text-xs">Payment</p>
                 </div>
+                {detail.pricing?.subtotalBeforeDiscount ? (
+                  <div className="flex justify-between gap-3 text-xs">
+                    <span className="text-white/45">Subtotal</span>
+                    <span className="text-white/70 tabular-nums">
+                      {formatMoney(detail.pricing.subtotalBeforeDiscount)}
+                    </span>
+                  </div>
+                ) : null}
+                {detail.pricing?.discountAmount ? (
+                  <div className="flex justify-between gap-3 text-xs">
+                    <span className="text-white/45">
+                      Discount{detail.pricing.couponCode ? ` (${detail.pricing.couponCode})` : ""}
+                    </span>
+                    <span className="text-[#D9FC67] tabular-nums">
+                      -{formatMoney(detail.pricing.discountAmount)}
+                    </span>
+                  </div>
+                ) : null}
+                {detail.pricing?.gst ? (
+                  <div className="flex justify-between gap-3 text-xs">
+                    <span className="text-white/45">GST</span>
+                    <span className="text-white/70 tabular-nums">{formatMoney(detail.pricing.gst)}</span>
+                  </div>
+                ) : null}
+                {detail.pricing?.convenienceFee ? (
+                  <div className="flex justify-between gap-3 text-xs">
+                    <span className="text-white/45">Processing fee</span>
+                    <span className="text-white/70 tabular-nums">{formatMoney(detail.pricing.convenienceFee)}</span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-2">
+                  <span className="text-white font-medium flex items-center gap-1">
+                    <IndianRupee className="w-3.5 h-3.5" />
+                    Total
+                  </span>
+                  <span className="text-[#D9FC67] font-semibold tabular-nums">
+                    {formatMoney(detail.pricing?.total ?? detail.totalPrice)}
+                  </span>
+                </div>
+              </div>
+
+              {detail.bookingNote && (
+                <CalendarDetailRow icon={MessageSquareText} label="Client note">
+                  <p className="text-white/75 whitespace-pre-wrap leading-relaxed">{detail.bookingNote}</p>
+                </CalendarDetailRow>
               )}
-              <div className="pt-2 flex gap-2">
+
+              <div className="pt-1 flex gap-2">
                 {audience === "client" ? (
                   <>
                     {onNavigateUpcoming && (

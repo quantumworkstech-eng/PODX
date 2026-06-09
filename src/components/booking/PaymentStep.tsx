@@ -62,6 +62,7 @@ interface BookingRecord {
   discountAmount?: number;
   couponCode?: string | null;
   convenienceFee?: number;
+  bookingNote?: string;
   status: "confirmed";
   paymentId: string;
   createdAt: string;
@@ -103,6 +104,7 @@ export function PaymentStep() {
     partnerBranding,
     partnerSlug,
     gstNumber,
+    bookingNote,
   } = useBooking();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -221,6 +223,7 @@ export function PaymentStep() {
           paymentId,
           orderId,
           gstNumber: gstNumber || null,
+          bookingNote: bookingNote.trim() || null,
           participantName: participantName || null,
           participantEmail: participantEmail || null,
           participantPhone: participantPhone || null,
@@ -278,6 +281,7 @@ export function PaymentStep() {
         discountAmount: discountApplied > 0 ? discountApplied : undefined,
         couponCode: appliedCoupon?.code || null,
         convenienceFee: convenienceFee > 0 ? convenienceFee : undefined,
+        bookingNote: bookingNote.trim() || undefined,
         status: "confirmed",
         paymentId,
         createdAt: new Date().toISOString(),
@@ -371,7 +375,7 @@ export function PaymentStep() {
         );
       });
       rzp.open();
-    } catch (error: any) {
+    } catch {
       paymentInFlight.current = false;
       setIsProcessing(false);
       setPaymentError("Something went wrong. Please try again.");

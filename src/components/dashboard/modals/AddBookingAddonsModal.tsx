@@ -9,6 +9,8 @@ import {
   AlertCircle,
   ArrowLeft,
   CreditCard,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,6 +41,14 @@ interface AddBookingAddonsModalProps {
 
 type Step = "select" | "summary";
 
+type AddonLineItem = {
+  id: string;
+  name: string;
+  price: number;
+  qty: number;
+  total: number;
+};
+
 export function AddBookingAddonsModal({
   booking,
   open,
@@ -50,14 +60,14 @@ export function AddBookingAddonsModal({
   const [studioAddons, setStudioAddons] = useState<StudioAddon[]>([]);
   const [loadingAddons, setLoadingAddons] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
   const [orderPreview, setOrderPreview] = useState<{
     orderId: string;
     keyId: string;
     amount: number;
     subtotal: number;
     tax: number;
-    lineItems: { id: string; name: string; price: number }[];
+    lineItems: AddonLineItem[];
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
@@ -91,7 +101,7 @@ export function AddBookingAddonsModal({
   useEffect(() => {
     if (!open) return;
     setStep("select");
-    setSelectedIds(new Set());
+    setSelectedQuantities({});
     setOrderPreview(null);
     setPaymentError(null);
     setFetchError(null);
@@ -109,17 +119,36 @@ export function AddBookingAddonsModal({
       .finally(() => setLoadingAddons(false));
   }, [open, booking.studio.id]);
 
+  const selectedItems = availableAddons
+    .filter((addon) => selectedQuantities[addon.id] > 0)
+    .map((addon) => ({
+      id: addon.id,
+      qty: selectedQuantities[addon.id],
+    }));
+
+  const selectedCount = selectedItems.length;
+
   const toggleAddon = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setSelectedQuantities((prev) => {
+      if (prev[id]) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: 1 };
+    });
+  }, []);
+
+  const updateQuantity = useCallback((id: string, delta: number) => {
+    setSelectedQuantities((prev) => {
+      const current = prev[id] || 1;
+      const nextQty = Math.max(1, Math.min(99, current + delta));
+      return { ...prev, [id]: nextQty };
     });
   }, []);
 
   const handleContinueToSummary = async () => {
-    if (selectedIds.size === 0) {
+    if (selectedItems.length === 0) {
       setPaymentError("Select at least one add-on.");
       return;
     }
@@ -131,7 +160,7 @@ export function AddBookingAddonsModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phase: "order",
-          addonIds: Array.from(selectedIds),
+          addons: selectedItems,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -172,7 +201,7 @@ export function AddBookingAddonsModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phase: "confirm",
-            addonIds: orderPreview.lineItems.map((l) => l.id),
+            addons: orderPreview.lineItems.map((l) => ({ id: l.id, qty: l.qty })),
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
             razorpay_signature: response.razorpay_signature,
@@ -298,14 +327,22 @@ export function AddBookingAddonsModal({
                     Choose one or more services. Prices exclude GST until checkout.
                   </p>
                   {availableAddons.map((a) => {
-                    const selected = selectedIds.has(a.id);
+                    const qty = selectedQuantities[a.id] || 0;
+                    const selected = qty > 0;
                     return (
-                      <button
+                      <div
                         key={a.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => toggleAddon(a.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            toggleAddon(a.id);
+                          }
+                        }}
                         className={cn(
-                          "w-full text-left p-4 rounded-xl border transition-all flex gap-3",
+                          "w-full text-left p-4 rounded-xl border transition-all flex gap-3 cursor-pointer",
                           selected
                             ? "bg-[#D9FC67]/10 border-[#D9FC67]/40 ring-1 ring-[#D9FC67]/20"
                             : "bg-white/5 border-white/10 hover:bg-white/[0.07]"
@@ -329,8 +366,35 @@ export function AddBookingAddonsModal({
                           <p className="text-[#D9FC67] text-sm font-semibold mt-2">
                             ₹{a.price.toLocaleString("en-IN")}
                           </p>
+                          {selected && (
+                            <div
+                              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-black/30 border border-white/10 p-1"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(a.id, -1)}
+                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                                disabled={qty <= 1}
+                                aria-label={`Decrease ${a.name} quantity`}
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <span className="w-9 text-center text-white font-semibold tabular-nums">
+                                {qty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(a.id, 1)}
+                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center"
+                                aria-label={`Increase ${a.name} quantity`}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -344,8 +408,15 @@ export function AddBookingAddonsModal({
                 <p className="text-white/50 text-xs uppercase tracking-wide">Order summary</p>
                 {orderPreview.lineItems.map((line) => (
                   <div key={line.id} className="flex justify-between text-sm gap-3">
-                    <span className="text-white/80">{line.name}</span>
-                    <span className="text-white tabular-nums">₹{line.price.toLocaleString("en-IN")}</span>
+                    <span className="text-white/80">
+                      {line.name}
+                      {line.qty > 1 && (
+                        <span className="text-white/40"> × {line.qty}</span>
+                      )}
+                    </span>
+                    <span className="text-white tabular-nums">
+                      ₹{line.total.toLocaleString("en-IN")}
+                    </span>
                   </div>
                 ))}
                 <div className="border-t border-white/10 pt-3 space-y-2 text-sm">
@@ -399,7 +470,7 @@ export function AddBookingAddonsModal({
                 type="button"
                 onClick={handleContinueToSummary}
                 disabled={
-                  selectedIds.size === 0 || loadingAddons || availableAddons.length === 0 || isPaying
+                  selectedCount === 0 || loadingAddons || availableAddons.length === 0 || isPaying
                 }
                 className="flex-1 bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black font-semibold disabled:opacity-50"
               >

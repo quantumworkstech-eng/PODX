@@ -44,9 +44,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       id, name, description, short_description, address, city, state, country,
       is_active, review_status, latitude, longitude, video_url,
       buffer_minutes, reschedule_cutoff_hours, equipment,
-      rooms(id, price_per_hour, capacity, is_active),
+      rooms(id, name, description, price_per_hour, capacity, featured_image_url, is_active),
       studio_images(image_url, display_order),
-      studio_addons(addon_id)
+      studio_addons(addon_id),
+      studio_hours(day_of_week, open_time, close_time, is_closed)
     `)
     .eq('id', id)
     .maybeSingle();
@@ -58,9 +59,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .from('studios')
       .select(`
         id, name, description, short_description, address, city, is_active,
-        rooms(id, price_per_hour, capacity, is_active),
+        rooms(id, name, description, price_per_hour, capacity, featured_image_url, is_active),
         studio_images(image_url, display_order),
-        studio_addons(addon_id)
+        studio_addons(addon_id),
+        studio_hours(day_of_week, open_time, close_time, is_closed)
       `)
       .eq('id', id)
       .maybeSingle();
@@ -78,6 +80,25 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const images = [...(studio.studio_images || [])]
     .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
     .map((i: any) => i.image_url);
+  const dayNumToName: Record<number, string> = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
+  const openHours = [...(studio.studio_hours || [])].filter((h: any) => h.is_closed !== true);
+  const firstOpen = openHours[0];
+  const availableDays = openHours
+    .map((h: any) => dayNumToName[Number(h.day_of_week)])
+    .filter(Boolean);
+  const workingHours = {
+    start: firstOpen?.open_time?.slice(0, 5) || '09:00',
+    end: firstOpen?.close_time?.slice(0, 5) || '21:00',
+  };
+  const setups = (studio.rooms || []).map((room: any) => ({
+    id: room.id,
+    name: room.name || 'Studio setup',
+    description: room.description || '',
+    capacity: Number(room.capacity) || 1,
+    price_per_hour: Number(room.price_per_hour) || 0,
+    featured_image_url: room.featured_image_url || null,
+    is_active: room.is_active !== false,
+  }));
 
   let partnerInventory = null as Awaited<ReturnType<typeof fetchStudioPartnerInventorySnapshot>> | null;
   try {
@@ -114,6 +135,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       capacity,
       buffer_minutes: studio.buffer_minutes ?? 0,
       reschedule_cutoff_hours: studio.reschedule_cutoff_hours ?? 48,
+      availableDays: availableDays.length > 0 ? availableDays : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      workingHours,
+      setups,
       equipment: studio.equipment || [],
       addon_ids: (studio.studio_addons || []).map((a: any) => a.addon_id),
       partner_inventory: partnerInventory,
@@ -152,6 +176,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     amenities,   // string[] of amenity names like ['wifi', 'ac']
     availableDays, // string[] like ['Mon', 'Tue']
     workingHours, // { start: string, end: string }
+    setups,
     cancellationRules, // [{ type, value, refundPercent, deductionPercent }]
     useCustomPolicies,
     review_status, // allow transitioning draft → pending_review
@@ -204,7 +229,43 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   // Update rooms table for price and capacity
-  if (pricePerHour !== undefined || capacity !== undefined) {
+  if (Array.isArray(setups)) {
+    const { data: existingRooms } = await supabaseAdmin
+      .from('rooms')
+      .select('id')
+      .eq('studio_id', id);
+    const existingIds = new Set((existingRooms || []).map((room: any) => room.id));
+    const keptIds = new Set<string>();
+
+    for (const raw of setups) {
+      const roomPayload = {
+        studio_id: id,
+        name: String(raw.name || 'Studio setup').trim(),
+        description: raw.description ? String(raw.description).trim() : null,
+        price_per_hour: Math.max(0, Number(raw.price_per_hour) || 0),
+        capacity: Math.max(1, Math.floor(Number(raw.capacity) || 1)),
+        featured_image_url: raw.featured_image_url ? String(raw.featured_image_url) : null,
+        is_active: raw.is_active !== false,
+        updated_at: new Date().toISOString(),
+      };
+      if (raw.id && existingIds.has(raw.id)) {
+        await supabaseAdmin.from('rooms').update(roomPayload).eq('id', raw.id).eq('studio_id', id);
+        keptIds.add(raw.id);
+      } else {
+        const { data: inserted } = await supabaseAdmin
+          .from('rooms')
+          .insert(roomPayload)
+          .select('id')
+          .single();
+        if (inserted?.id) keptIds.add(inserted.id);
+      }
+    }
+
+    const toDelete = [...existingIds].filter((roomId) => !keptIds.has(roomId));
+    if (toDelete.length > 0) {
+      await supabaseAdmin.from('rooms').delete().in('id', toDelete).eq('studio_id', id);
+    }
+  } else if (pricePerHour !== undefined || capacity !== undefined) {
     const { data: existingRoom } = await supabaseAdmin
       .from('rooms').select('id').eq('studio_id', id).maybeSingle();
     if (existingRoom) {
@@ -258,7 +319,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   // Update studio hours
   if (availableDays !== undefined && workingHours !== undefined) {
     const dayNameToNum: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-    const allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const hoursData = Object.entries(dayNameToNum).map(([name, num]) => ({
       studio_id: id,
       day_of_week: num,

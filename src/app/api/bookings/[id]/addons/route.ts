@@ -8,6 +8,23 @@ const TAX_RATE = 0.18;
 
 type Phase = "order" | "confirm";
 
+type RequestedAddon = {
+  id: string;
+  qty: number;
+};
+
+type ValidAddon = {
+  id: string;
+  name: string;
+  price: number;
+  description: string | null;
+};
+
+type AddonLine = ValidAddon & {
+  qty: number;
+  total: number;
+};
+
 async function resolveBookingForUser(bookingRef: string, userId: string) {
   const { data: booking, error } = await supabaseAdmin!
     .from("bookings")
@@ -35,7 +52,7 @@ async function loadValidAddonsForStudio(
   addonIds: string[]
 ): Promise<
   | { error: string }
-  | { addons: { id: string; name: string; price: number; description: string | null }[] }
+  | { addons: ValidAddon[] }
 > {
   if (!addonIds.length) return { error: "No add-ons selected" };
 
@@ -49,7 +66,7 @@ async function loadValidAddonsForStudio(
     else platformIds.push(id);
   }
 
-  const result: { id: string; name: string; price: number; description: string | null }[] = [];
+  const result: ValidAddon[] = [];
 
   if (platformIds.length > 0) {
     const { data: links, error: linkErr } = await supabaseAdmin!
@@ -128,10 +145,57 @@ async function loadValidAddonsForStudio(
   return { addons: result };
 }
 
+function parseRequestedAddons(body: any): RequestedAddon[] {
+  const rawAddons = Array.isArray(body.addons)
+    ? body.addons
+    : Array.isArray(body.lineItems)
+      ? body.lineItems
+      : [];
+  const rawIds = rawAddons.length > 0
+    ? rawAddons
+    : Array.isArray(body.addonIds)
+      ? body.addonIds
+      : [];
+  const byId = new Map<string, number>();
+
+  for (const item of rawIds) {
+    const id =
+      typeof item === "string"
+        ? item
+        : typeof item?.id === "string"
+          ? item.id
+          : typeof item?.addonId === "string"
+            ? item.addonId
+            : "";
+    if (!id) continue;
+
+    const rawQty =
+      typeof item === "string"
+        ? 1
+        : Number(item.qty ?? item.quantity ?? 1);
+    const qty = Math.max(1, Math.min(99, Math.floor(Number.isFinite(rawQty) ? rawQty : 1)));
+    byId.set(id, Math.min(99, (byId.get(id) || 0) + qty));
+  }
+
+  return Array.from(byId, ([id, qty]) => ({ id, qty }));
+}
+
+function buildAddonLines(addons: ValidAddon[], requested: RequestedAddon[]): AddonLine[] {
+  const addonById = new Map(addons.map((addon) => [addon.id, addon]));
+  return requested.flatMap((req) => {
+    const addon = addonById.get(req.id);
+    if (!addon) return [];
+    return [{ ...addon, qty: req.qty, total: addon.price * req.qty }];
+  });
+}
+
 function computeTotals(
-  addons: { price: number }[]
+  addons: { total?: number; price: number; qty?: number }[]
 ): { subtotal: number; tax: number; total: number } {
-  const subtotal = addons.reduce((s, a) => s + a.price, 0);
+  const subtotal = addons.reduce(
+    (s, a) => s + (a.total ?? a.price * (a.qty || 1)),
+    0
+  );
   const tax = Math.round(subtotal * TAX_RATE);
   const total = subtotal + tax;
   return { subtotal, tax, total };
@@ -190,7 +254,7 @@ function verifyPaymentSignature(
   return expected === signature;
 }
 
-// POST { phase: "order", addonIds: string[] } | { phase: "confirm", addonIds, razorpay_* }
+// POST accepts either legacy addonIds or addons: [{ id, qty }].
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -237,7 +301,8 @@ export async function POST(
       return NextResponse.json({ error: "Booking is not eligible" }, { status: 400 });
     }
 
-    const addonIds: string[] = Array.isArray(body.addonIds) ? body.addonIds : [];
+    const requestedAddons = parseRequestedAddons(body);
+    const addonIds = requestedAddons.map((addon) => addon.id);
 
     if (phase === "order") {
       const loaded = await loadValidAddonsForStudio(booking.studio_id, addonIds);
@@ -253,7 +318,7 @@ export async function POST(
       const existingNames = new Set(
         (existingRows || []).map((r: { name: string }) => r.name.trim().toLowerCase())
       );
-      const newAddons = loaded.addons.filter(
+      const newAddons = buildAddonLines(loaded.addons, requestedAddons).filter(
         (a) => !existingNames.has(a.name.trim().toLowerCase())
       );
 
@@ -285,6 +350,8 @@ export async function POST(
           id: a.id,
           name: a.name,
           price: a.price,
+          qty: a.qty,
+          total: a.total,
         })),
       });
     }
@@ -317,7 +384,7 @@ export async function POST(
       const existingNames = new Set(
         (existingRows || []).map((r: { name: string }) => r.name.trim().toLowerCase())
       );
-      const newAddons = loaded.addons.filter(
+      const newAddons = buildAddonLines(loaded.addons, requestedAddons).filter(
         (a) => !existingNames.has(a.name.trim().toLowerCase())
       );
 
@@ -342,7 +409,7 @@ export async function POST(
         name: a.name,
         description: a.description,
         price: a.price,
-        quantity: 1,
+        quantity: a.qty,
       }));
 
       const { error: insErr } = await supabaseAdmin.from("booking_addons").insert(insertRows);
@@ -376,6 +443,13 @@ export async function POST(
           subtotal,
           tax,
           addon_ids: newAddons.map((a) => a.id),
+          addons: newAddons.map((a) => ({
+            id: a.id,
+            name: a.name,
+            price: a.price,
+            quantity: a.qty,
+            total: a.total,
+          })),
         },
       });
 

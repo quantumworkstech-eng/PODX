@@ -27,7 +27,7 @@ import { BillingSection } from "@/components/dashboard/bookings/BillingSection";
 import { SettingsSection } from "@/components/dashboard/bookings/SettingsSection";
 import { DashboardOverview } from "@/components/dashboard/bookings/DashboardOverview";
 import { BookingSuccessModal } from "@/components/dashboard/BookingSuccessModal";
-import { formatCalendarDateLocal, parseISTDateTime } from "@/lib/bookingTime";
+import { formatCalendarDateLocal } from "@/lib/bookingTime";
 import { supabase } from "@/lib/supabase";
 
 const menuItems = [
@@ -42,6 +42,8 @@ interface BookingData {
   id: string;
   dbId?: string;
   studioId?: string;
+  start_time?: string;
+  end_time?: string;
   date: string;
   endDate?: string;
   timeSlot: string;
@@ -59,11 +61,12 @@ interface BookingData {
     name: string;
     price_per_hour: number;
   } | null;
-  addOns: { id: string; name: string; price: number }[];
+  addOns: { id: string; name: string; price: number; qty?: number }[];
   totalPrice: number;
   status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
+  bookingNote?: string | null;
 }
 
 const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
@@ -71,14 +74,26 @@ const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
 function sortBookingsList(bookings: BookingData[]): BookingData[] {
   return [...bookings].sort((a: BookingData, b: BookingData) => {
     const now = Date.now();
-    const aEnd = new Date(a.date).getTime() + (a.duration || 1) * 3600000;
-    const bEnd = new Date(b.date).getTime() + (b.duration || 1) * 3600000;
+    const aEnd = getBookingEndTime(a).getTime();
+    const bEnd = getBookingEndTime(b).getTime();
     const aUp = aEnd >= now;
     const bUp = bEnd >= now;
     if (aUp && bUp) return new Date(a.date).getTime() - new Date(b.date).getTime();
     if (!aUp && !bUp) return new Date(b.date).getTime() - new Date(a.date).getTime();
     return aUp ? -1 : 1;
   });
+}
+
+function getBookingStartTime(booking: BookingData): Date {
+  return new Date(booking.start_time || booking.date);
+}
+
+function getBookingEndTime(booking: BookingData): Date {
+  if (booking.end_time || booking.endDate) {
+    return new Date(booking.end_time || booking.endDate || "");
+  }
+  const start = getBookingStartTime(booking);
+  return new Date(start.getTime() + (booking.duration || 1) * 60 * 60 * 1000);
 }
 
 export default function DashboardContent() {
@@ -246,9 +261,7 @@ export default function DashboardContent() {
   const upcomingBookings = bookings
     .filter((b) => {
       if (!b.date) return false;
-      // A booking is upcoming until its END time passes (start + duration hours)
-      const startTime = new Date(b.date);
-      const endTime = new Date(startTime.getTime() + (b.duration || 1) * 60 * 60 * 1000);
+      const endTime = getBookingEndTime(b);
       return endTime >= new Date() && (b.status === "confirmed" || b.status === "pending" || b.status === "rescheduled");
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // nearest first
@@ -256,11 +269,10 @@ export default function DashboardContent() {
   const pastBookings = bookings
     .filter((b) => {
       if (!b.date) return false;
-      const startTime = new Date(b.date);
-      const endTime = new Date(startTime.getTime() + (b.duration || 1) * 60 * 60 * 1000);
+      const endTime = getBookingEndTime(b);
       return endTime < new Date() || b.status === "completed" || b.status === "cancelled";
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // most recent first
+    .sort((a, b) => getBookingStartTime(b).getTime() - getBookingStartTime(a).getTime()); // most recent first
 
   const handleRescheduleBooking = async (
     bookingId: string,

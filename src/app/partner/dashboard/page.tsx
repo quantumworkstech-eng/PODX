@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Clock,
   ArrowUpRight,
-  ArrowDownRight,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -33,15 +32,28 @@ interface Booking {
   id: string;
   dbId: string;
   studioId?: string;
-  studio: { id?: string; name: string; city?: string };
-  customer: { name: string; email: string };
+  studio: { id?: string; name: string; city?: string; address?: string };
+  customer: { name: string; email: string; phone?: string };
   date: string;
   endDate: string;
+  createdAt?: string;
   timeSlot: string;
   duration: number;
+  participants?: number | null;
   totalPrice: number;
-  status: "confirmed" | "pending" | "cancelled" | "completed";
+  status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
   package: { name: string; pricePerHour?: number } | null;
+  addOns?: { name: string; price: number; qty?: number }[];
+  bookingNote?: string | null;
+  paymentId?: string;
+  pricing?: {
+    subtotalBeforeDiscount?: number;
+    discountAmount?: number;
+    couponCode?: string | null;
+    gst?: number;
+    convenienceFee?: number;
+    total?: number;
+  };
 }
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
@@ -68,6 +80,12 @@ function StatusBadge({ status }: { status: Booking["status"] }) {
       return (
         <span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full">
           <CheckCircle className="w-3 h-3" /> Completed
+        </span>
+      );
+    case "rescheduled":
+      return (
+        <span className="flex items-center gap-1 text-xs text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-full">
+          <Calendar className="w-3 h-3" /> Rescheduled
         </span>
       );
   }
@@ -162,7 +180,14 @@ export default function PartnerDashboardOverview() {
           studio: b.studio,
           customer: b.customer,
           status: b.status,
-          package: b.package ? { name: b.package.name } : null,
+          package: b.package ? { name: b.package.name, pricePerHour: b.package.pricePerHour } : null,
+          addOns: b.addOns || [],
+          participants: b.participants,
+          duration: b.duration,
+          createdAt: b.createdAt,
+          bookingNote: b.bookingNote,
+          paymentId: b.paymentId,
+          pricing: b.pricing,
           totalPrice: b.totalPrice,
         }))}
         studios={studios.map((s) => ({ id: s.id, name: s.name }))}

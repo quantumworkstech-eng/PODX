@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Calendar, Clock, CheckCircle, XCircle, AlertCircle, CalendarPlus,
+  Calendar, CheckCircle, XCircle, AlertCircle, CalendarPlus,
   Building2, User, Phone, Mail, MapPin, Package, ShoppingBag,
-  IndianRupee, Receipt, Hash, CalendarCheck, X as XIcon,
+  Receipt, CalendarCheck, X as XIcon,
+  MessageSquareText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +13,7 @@ import { cn } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
-import type { StudioBookingInventory } from "@/lib/studio-booking-inventory";
-import type { AddOnService } from "@/lib/booking-types";
 import { FeatureGate } from "@/components/partner/FeatureGate";
-import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
 import { BookingActivityTimeline } from "@/components/booking/BookingActivityTimeline";
 import {
   formatSessionClock12hIST,
@@ -29,6 +26,7 @@ import {
 interface AddOn {
   name: string;
   price: number;
+  qty?: number;
 }
 
 interface Booking {
@@ -65,6 +63,7 @@ interface Booking {
   cancellationReason: string | null;
   cancelledAt: string | null;
   updatedAt: string;
+  bookingNote?: string | null;
   status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
   createdAt: string;
 }
@@ -107,6 +106,14 @@ function PriceRow({ label, value, highlight }: { label: string; value: number; h
   );
 }
 
+function getAddOnQty(addon: AddOn) {
+  return Number(addon.qty) || 1;
+}
+
+function getAddOnUnitCount(addOns: AddOn[]) {
+  return addOns.reduce((sum, addon) => sum + getAddOnQty(addon), 0);
+}
+
 export default function PartnerBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isFetching, setIsFetching] = useState(true);
@@ -120,14 +127,22 @@ export default function PartnerBookingsPage() {
   const [newTime, setNewTime] = useState("");
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
-  const [studioInventory, setStudioInventory] = useState<StudioBookingInventory | null>(null);
 
   const loadBookingsFromApi = useCallback(async (): Promise<Booking[] | undefined> => {
     try {
       const r = await fetch("/api/partner/bookings");
       if (!r.ok) return undefined;
       const d = await r.json();
-      const list = (d.bookings || []) as Booking[];
+      const list = ((d.bookings || []) as Booking[]).map((booking) => ({
+        ...booking,
+        addOns: Array.isArray(booking.addOns)
+          ? booking.addOns.map((addon) => ({
+              ...addon,
+              price: Number(addon.price) || 0,
+              qty: getAddOnQty(addon),
+            }))
+          : [],
+      }));
       setBookings(list);
       return list;
     } catch {
@@ -138,18 +153,6 @@ export default function PartnerBookingsPage() {
   useEffect(() => {
     loadBookingsFromApi().catch(console.error).finally(() => setIsFetching(false));
   }, [loadBookingsFromApi]);
-
-  useEffect(() => {
-    const sid = selectedBooking?.studio?.id || selectedBooking?.studioId;
-    if (!showDetailModal || !sid) {
-      setStudioInventory(null);
-      return;
-    }
-    fetch(`/api/studios/${sid}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setStudioInventory(d?.booking_inventory ?? null))
-      .catch(() => setStudioInventory(null));
-  }, [showDetailModal, selectedBooking?.studio?.id, selectedBooking?.studioId]);
 
   // Keep detail modal aligned with the table after refetch / reschedule (avoid stale object).
   useEffect(() => {
@@ -374,7 +377,10 @@ export default function PartnerBookingsPage() {
                           <span className="text-white/20 text-xs">No package</span>
                         )}
                         {booking.addOns.length > 0 && (
-                          <p className="text-white/40 text-xs mt-1">+{booking.addOns.length} add-on{booking.addOns.length > 1 ? "s" : ""}</p>
+                          <p className="text-white/40 text-xs mt-1">
+                            +{getAddOnUnitCount(booking.addOns)} add-on
+                            {getAddOnUnitCount(booking.addOns) > 1 ? "s" : ""}
+                          </p>
                         )}
                       </td>
                       <td className="p-4">
@@ -570,12 +576,19 @@ export default function PartnerBookingsPage() {
                         <p className="text-white/40 text-xs mb-2 flex items-center gap-1">
                           <ShoppingBag className="w-3.5 h-3.5" /> Add-ons
                         </p>
-                        {selectedBooking.addOns.map((addon, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm">
-                            <span className="text-white/70">{addon.name}</span>
-                            <span className="text-white/50">₹{addon.price.toLocaleString("en-IN")}</span>
+                        {selectedBooking.addOns.map((addon, i) => {
+                          const qty = getAddOnQty(addon);
+                          const lineTotal = addon.price * qty;
+                          return (
+                          <div key={`${addon.name}-${i}`} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/70">
+                              {addon.name}
+                              {qty > 1 && <span className="text-white/40"> × {qty}</span>}
+                            </span>
+                            <span className="text-white/50 tabular-nums">₹{lineTotal.toLocaleString("en-IN")}</span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-white/30 text-xs">No add-ons</p>
@@ -583,37 +596,19 @@ export default function PartnerBookingsPage() {
                   </div>
                 </div>
 
-                {selectedBooking && (
+                {selectedBooking.bookingNote && (
                   <div className="px-6 pb-2">
-                    <BookingActivityTimeline
-                      createdAt={selectedBooking.createdAt}
-                      updatedAt={selectedBooking.updatedAt}
-                      startTime={selectedBooking.start_time || selectedBooking.date}
-                      endTime={selectedBooking.end_time || selectedBooking.endDate}
-                      status={selectedBooking.status}
-                      cancelledAt={selectedBooking.cancelledAt}
-                      cancellationReason={selectedBooking.cancellationReason}
-                      paymentRecorded={Boolean(selectedBooking.paymentId)}
-                    />
-                  </div>
-                )}
-
-                {selectedBooking && (
-                  <div className="px-6 pb-2">
-                    <StudioBookingInventoryPanel
-                      inventory={studioInventory}
-                      selectedAddOns={
-                        selectedBooking.addOns.map(
-                          (a, i): AddOnService => ({
-                            id: `addon-${i}-${a.name}`,
-                            name: a.name,
-                            price: a.price,
-                            description: "",
-                          })
-                        )
-                      }
-                      title="Equipment, services & add-ons"
-                    />
+                    <div className="bg-[#1a1a1a] rounded-xl border border-white/5 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-[#D9FC67]/10 flex items-center justify-center">
+                          <MessageSquareText className="w-4 h-4 text-[#D9FC67]" />
+                        </div>
+                        <h3 className="text-white font-semibold text-sm">Client Note</h3>
+                      </div>
+                      <p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedBooking.bookingNote}
+                      </p>
+                    </div>
                   </div>
                 )}
 

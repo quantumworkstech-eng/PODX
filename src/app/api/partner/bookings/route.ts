@@ -35,7 +35,8 @@ export async function GET() {
       id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at,
       updated_at, cancelled_at, cancellation_reason,
       studios!studio_id(id, name, city, address),
-      users!user_id(id, email)
+      users!user_id(id, email),
+      booking_addons(id, name, price, quantity)
     `)
     .in('studio_id', studioIds)
     .order('start_time', { ascending: false });
@@ -58,8 +59,23 @@ export async function GET() {
 
     const pkg = notes.package || null;
     const totalPaid = Number(b.total_price) || 0;
-    const addOns: { name: string; price: number }[] = notes.addOns || [];
-    const addOnsTotal = addOns.reduce((s: number, a: any) => s + (a.price || 0), 0);
+    const dbAddOns = (b.booking_addons || []).map((a: any) => ({
+      name: a.name,
+      price: Number(a.price) || 0,
+      qty: Number(a.quantity) || 1,
+    }));
+    const noteAddOns = Array.isArray(notes.addOns)
+      ? notes.addOns.map((a: any) => ({
+          name: a.name,
+          price: Number(a.price) || 0,
+          qty: Number(a.qty ?? a.quantity) || 1,
+        }))
+      : [];
+    const addOns = dbAddOns.length > 0 ? dbAddOns : noteAddOns;
+    const addOnsTotal = addOns.reduce(
+      (s: number, a: any) => s + (Number(a.price) || 0) * (Number(a.qty) || 1),
+      0
+    );
     const packagePrice = pkg ? (pkg.price_per_hour || 0) * duration : 0;
     const discountAmount = Number(notes.discountAmount ?? notes.discount_amount ?? 0) || 0;
     const couponCode =
@@ -104,6 +120,12 @@ export async function GET() {
       participants: notes.participants || null,
       package: pkg ? { name: pkg.name, pricePerHour: pkg.price_per_hour || 0 } : null,
       addOns,
+      bookingNote:
+        typeof notes.bookingNote === "string"
+          ? notes.bookingNote
+          : typeof notes.booking_note === "string"
+            ? notes.booking_note
+            : null,
       pricing: {
         subtotalBeforeDiscount: subtotal,
         discountAmount,

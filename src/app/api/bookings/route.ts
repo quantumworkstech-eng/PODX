@@ -83,6 +83,7 @@ export async function GET() {
           id: a.id,
           name: a.name,
           price: Number(a.price),
+          qty: Number(a.quantity) || 1,
         })),
         totalPrice: Number(b.total_price),
         subtotal: notes.subtotal ?? null,
@@ -97,6 +98,12 @@ export async function GET() {
         convenienceFee:
           Number(notes.convenienceFee ?? notes.convenience_fee ?? 0) || null,
         selectedSetup: notes.selectedSetup || null,
+        bookingNote:
+          typeof notes.bookingNote === "string"
+            ? notes.bookingNote
+            : typeof notes.booking_note === "string"
+              ? notes.booking_note
+              : null,
         status: b.status,
         paymentId: notes.paymentId || "",
         gstNumber: notes.gstNumber || null,
@@ -158,6 +165,7 @@ export async function POST(request: NextRequest) {
       couponCode,
       convenienceFee,
       selectedSetup,
+      bookingNote,
     } = body;
 
     if (!studioId || !date || !timeSlot || !duration || !totalPrice) {
@@ -288,11 +296,21 @@ export async function POST(request: NextRequest) {
     const notes = JSON.stringify({
       participants,
       package: packageData,
+      ...(Array.isArray(addOns) && addOns.length > 0
+        ? {
+            addOns: addOns.map((a: any) => ({
+              name: a.name,
+              price: Number(a.price) || 0,
+              qty: Number(a.qty ?? a.quantity) || 1,
+            })),
+          }
+        : {}),
       subtotal,
       tax,
       paymentId,
       orderId,
       ...(gstNumber ? { gstNumber } : {}),
+      ...(bookingNote ? { bookingNote: String(bookingNote).trim().slice(0, 500) } : {}),
       ...(selectedSetup
         ? {
             selectedSetup: {
@@ -417,7 +435,7 @@ export async function POST(request: NextRequest) {
         booking_id: booking.id,
         name: a.name,
         price: a.price,
-        quantity: 1,
+        quantity: Number(a.qty ?? a.quantity) || 1,
       }));
       await supabaseAdmin.from("booking_addons").insert(addonRows);
     }

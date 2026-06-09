@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Clock, MapPin, Users, Package, AlertCircle, RefreshCw, Navigation, Star, CheckCircle2, Sparkles } from "lucide-react";
+import { X, Calendar, Clock, MapPin, Users, Package, AlertCircle, RefreshCw, Navigation, Star, CheckCircle2, Sparkles, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookingData } from "../bookings/UpcomingBookings";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -199,12 +199,19 @@ export function BookingDetailModal({
                     <Sparkles className="w-3.5 h-3.5" />
                     Add-ons
                   </p>
-                  {booking.addOns.map((addon) => (
+                  {booking.addOns.map((addon) => {
+                    const qty = Number(addon.qty) || 1;
+                    const total = addon.price * qty;
+                    return (
                     <div key={addon.id} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
-                      <span className="text-white/70">{addon.name}</span>
-                      <span className="text-white">₹{addon.price.toLocaleString()}</span>
+                      <span className="text-white/70">
+                        {addon.name}
+                        {qty > 1 && <span className="text-white/40"> × {qty}</span>}
+                      </span>
+                      <span className="text-white">₹{total.toLocaleString()}</span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </>
               )}
               {(booking.subtotal != null && booking.subtotal > 0) && (
@@ -256,6 +263,18 @@ export function BookingDetailModal({
             cancellationReason={booking.cancellationReason ?? null}
             paymentRecorded={Boolean(booking.paymentId)}
           />
+
+          {booking.bookingNote && (
+            <div className="bg-white/5 rounded-xl p-5 mb-6">
+              <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
+                <MessageSquareText className="w-4 h-4 text-[#D9FC67]" />
+                Note for studio
+              </h4>
+              <p className="text-white/65 text-sm leading-relaxed whitespace-pre-wrap">
+                {booking.bookingNote}
+              </p>
+            </div>
+          )}
 
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
@@ -321,7 +340,7 @@ export function BookingDetailModal({
             isReviewed ? (
               <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium">
                 <CheckCircle2 className="w-4 h-4" />
-                You've reviewed this session
+                You&apos;ve reviewed this session
               </div>
             ) : (
               <Button

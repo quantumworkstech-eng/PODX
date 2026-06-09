@@ -16,6 +16,7 @@ import {
   Shield,
   AlertCircle,
   Info,
+  MessageSquareText,
   Pencil,
   Tag,
   X,
@@ -60,6 +61,8 @@ export function CheckoutStep() {
     setAppliedCoupon,
     gstNumber,
     setGstNumber,
+    bookingNote,
+    setBookingNote,
   } = useBooking();
 
   const { data: session } = useSession();
@@ -354,6 +357,28 @@ export function CheckoutStep() {
               )}
             </div>
           )}
+
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+              <MessageSquareText className="w-4 h-4 text-[#D9FC67]" />
+              Add a note
+            </h3>
+            <p className="text-white/45 text-sm mb-4">
+              Share any setup requests, guest details, or instructions for the studio.
+            </p>
+            <textarea
+              value={bookingNote}
+              onChange={(e) => setBookingNote(e.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="Example: We need two chairs, a table mic setup, and help connecting a laptop."
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-colors focus:border-[#D9FC67]/60"
+            />
+            <div className="mt-2 flex justify-between text-xs text-white/30">
+              <span>Optional</span>
+              <span>{bookingNote.length}/500</span>
+            </div>
+          </div>
 
           {/* Cancellation policy */}
           <div className="bg-white/5 rounded-2xl border border-white/10 p-5">

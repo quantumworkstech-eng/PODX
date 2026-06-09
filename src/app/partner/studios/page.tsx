@@ -17,6 +17,8 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  Clock,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,30 @@ interface CancellationRule {
   refund_percentage: number;
 }
 
+interface PkgFeature {
+  text: string;
+  included: boolean;
+}
+
+interface StudioPackage {
+  id?: string;
+  name: string;
+  description: string;
+  price_per_hour: number;
+  features: PkgFeature[];
+  is_popular: boolean;
+}
+
+interface StudioSetup {
+  id?: string;
+  name: string;
+  description?: string | null;
+  capacity: number;
+  price_per_hour: number;
+  featured_image_url?: string | null;
+  is_active: boolean;
+}
+
 interface PartnerInvSnapshot {
   partnerEquipmentSelections: { id: string; quantity: number }[];
   partnerServiceIds: string[];
@@ -56,6 +82,10 @@ interface Studio {
   buffer_minutes: number;
   reschedule_cutoff_hours?: number;
   cancellation_rules?: CancellationRule[];
+  availableDays?: string[];
+  workingHours?: { start: string; end: string };
+  packages?: StudioPackage[];
+  setups?: StudioSetup[];
   equipment?: string[];
   addon_ids?: string[];
   partner_inventory?: PartnerInvSnapshot | null;
@@ -73,6 +103,24 @@ const BUFFER_OPTIONS = [
   { value: 90,  label: "1.5 hours" },
   { value: 120, label: "2 hours" },
 ];
+
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const TIME_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+
+const DEFAULT_PACKAGES: StudioPackage[] = [
+  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+];
+
+const DEFAULT_SETUP = (capacity = 2, price = 0): StudioSetup => ({
+  name: "Main Room",
+  description: "",
+  capacity,
+  price_per_hour: price,
+  featured_image_url: null,
+  is_active: true,
+});
 
 const equipmentOptions = [
   "Microphones",
@@ -115,6 +163,10 @@ export default function PartnerStudiosPage() {
       partnerEquipmentSelections?: { id: string; quantity: number }[];
       partnerServiceIds?: string[];
       partnerAddonSelections?: { id: string; enabled_for_booking: boolean }[];
+      availableDays?: string[];
+      workingHours?: { start: string; end: string };
+      packages?: StudioPackage[];
+      setups?: StudioSetup[];
     }
   >({
     name: "",
@@ -126,6 +178,10 @@ export default function PartnerStudiosPage() {
     buffer_minutes: 0,
     reschedule_cutoff_hours: 48,
     cancellation_rules: DEFAULT_CANCELLATION_RULES,
+    availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    workingHours: { start: "09:00", end: "21:00" },
+    packages: DEFAULT_PACKAGES,
+    setups: [DEFAULT_SETUP(2, 0)],
     equipment: [],
     addonIds: [],
     partnerEquipmentSelections: [],
@@ -177,6 +233,10 @@ export default function PartnerStudiosPage() {
       setFormData({
         ...studio,
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
+        availableDays: studio.availableDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        workingHours: studio.workingHours || { start: "09:00", end: "21:00" },
+        packages: studio.packages?.length ? studio.packages : DEFAULT_PACKAGES,
+        setups: studio.setups?.length ? studio.setups : [DEFAULT_SETUP(studio.capacity, studio.price_per_hour)],
         addonIds: studio.addon_ids || [],
         partnerEquipmentSelections: studio.partner_inventory?.partnerEquipmentSelections ?? [],
         partnerServiceIds: studio.partner_inventory?.partnerServiceIds ?? [],
@@ -193,6 +253,10 @@ export default function PartnerStudiosPage() {
             ...prev,
             ...fresh,
             addonIds: fresh.addon_ids || [],
+            availableDays: fresh.availableDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            workingHours: fresh.workingHours || { start: "09:00", end: "21:00" },
+            packages: fresh.packages?.length ? fresh.packages : DEFAULT_PACKAGES,
+            setups: fresh.setups?.length ? fresh.setups : [DEFAULT_SETUP(fresh.capacity, fresh.price_per_hour)],
             partnerEquipmentSelections: fresh.partner_inventory?.partnerEquipmentSelections ?? [],
             partnerServiceIds: fresh.partner_inventory?.partnerServiceIds ?? [],
             partnerAddonSelections: fresh.partner_inventory?.partnerAddonSelections ?? [],
@@ -225,6 +289,10 @@ export default function PartnerStudiosPage() {
         buffer_minutes: 0,
         reschedule_cutoff_hours: 48,
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
+        availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        workingHours: { start: "09:00", end: "21:00" },
+        packages: DEFAULT_PACKAGES,
+        setups: [DEFAULT_SETUP(2, 0)],
         equipment: [],
         addonIds: [],
         partnerEquipmentSelections: [],
@@ -262,6 +330,10 @@ export default function PartnerStudiosPage() {
       buffer_minutes: 0,
       reschedule_cutoff_hours: 48,
       cancellation_rules: DEFAULT_CANCELLATION_RULES,
+      availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      workingHours: { start: "09:00", end: "21:00" },
+      packages: DEFAULT_PACKAGES,
+      setups: [DEFAULT_SETUP(2, 0)],
       equipment: [],
       addonIds: [],
       partnerEquipmentSelections: [],
@@ -287,10 +359,14 @@ export default function PartnerStudiosPage() {
             description: formData.description,
             address: formData.address,
             city: formData.city,
-
+            pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
+            availableDays: formData.availableDays || [],
+            workingHours: formData.workingHours || { start: "09:00", end: "21:00" },
             buffer_minutes: formData.buffer_minutes ?? 0,
             reschedule_cutoff_hours: formData.reschedule_cutoff_hours ?? 48,
+            packages: (formData.packages || []).filter((p) => p.name.trim()),
+            setups: (formData.setups || []).filter((setup) => setup.name.trim()),
             images: formData.images,
             is_active: formData.status !== "inactive",
             equipment: formData.equipment || [],
@@ -319,8 +395,12 @@ export default function PartnerStudiosPage() {
             description: formData.description,
             address: formData.address,
             city: formData.city,
-
+            pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
+            availableDays: formData.availableDays || [],
+            workingHours: formData.workingHours || { start: "09:00", end: "21:00" },
+            packages: (formData.packages || []).filter((p) => p.name.trim()),
+            setups: (formData.setups || []).filter((setup) => setup.name.trim()),
             images: formData.images,
             equipment: formData.equipment || [],
             addonIds: formData.addonIds || [],
@@ -423,6 +503,69 @@ export default function PartnerStudiosPage() {
     setFormData((prev) => ({
       ...prev,
       equipment: prev.equipment?.includes(item) ? prev.equipment.filter((e) => e !== item) : [...(prev.equipment || []), item],
+    }));
+  };
+
+  const updatePackage = (index: number, updates: Partial<StudioPackage>) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      packages[index] = { ...DEFAULT_PACKAGES[index], ...packages[index], ...updates };
+      return { ...prev, packages };
+    });
+  };
+
+  const addPackageFeature = (pkgIndex: number) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      const pkg = { ...DEFAULT_PACKAGES[pkgIndex], ...packages[pkgIndex] };
+      pkg.features = [...(pkg.features || []), { text: "", included: true }];
+      packages[pkgIndex] = pkg;
+      return { ...prev, packages };
+    });
+  };
+
+  const updatePackageFeature = (pkgIndex: number, featureIndex: number, updates: Partial<PkgFeature>) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      const pkg = { ...DEFAULT_PACKAGES[pkgIndex], ...packages[pkgIndex] };
+      pkg.features = (pkg.features || []).map((feature, index) =>
+        index === featureIndex ? { ...feature, ...updates } : feature
+      );
+      packages[pkgIndex] = pkg;
+      return { ...prev, packages };
+    });
+  };
+
+  const removePackageFeature = (pkgIndex: number, featureIndex: number) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      const pkg = { ...DEFAULT_PACKAGES[pkgIndex], ...packages[pkgIndex] };
+      pkg.features = (pkg.features || []).filter((_, index) => index !== featureIndex);
+      packages[pkgIndex] = pkg;
+      return { ...prev, packages };
+    });
+  };
+
+  const addSetup = () => {
+    setFormData((prev) => ({
+      ...prev,
+      setups: [...(prev.setups || []), DEFAULT_SETUP(prev.capacity || 2, prev.price_per_hour || 0)],
+    }));
+  };
+
+  const updateSetup = (index: number, updates: Partial<StudioSetup>) => {
+    setFormData((prev) => ({
+      ...prev,
+      setups: (prev.setups || []).map((setup, idx) =>
+        idx === index ? { ...setup, ...updates } : setup
+      ),
+    }));
+  };
+
+  const removeSetup = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      setups: (prev.setups || []).filter((_, idx) => idx !== index),
     }));
   };
 
@@ -608,6 +751,69 @@ export default function PartnerStudiosPage() {
                   <label className="text-white/60 text-sm mb-2 block">Capacity *</label>
                   <Input type="number" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 2 })} placeholder="4" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
                 </div>
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Base Price/hr</label>
+                  <Input type="number" min={0} value={formData.price_per_hour ?? 0} onChange={(e) => setFormData({ ...formData, price_per_hour: parseInt(e.target.value) || 0 })} placeholder="3000" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                </div>
+              </div>
+
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#D9FC67]" />
+                  <div>
+                    <p className="text-white/80 text-sm font-medium">Working Hours</p>
+                    <p className="text-white/30 text-xs">Control when clients can book this studio.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-white/50 text-xs mb-1 block">Opens at</label>
+                    <select
+                      value={formData.workingHours?.start || "09:00"}
+                      onChange={(e) => setFormData({ ...formData, workingHours: { ...(formData.workingHours || { start: "09:00", end: "21:00" }), start: e.target.value } })}
+                      className="w-full h-10 bg-white/5 border border-white/10 rounded-lg px-3 text-white text-sm"
+                    >
+                      {TIME_SLOTS.map((time) => <option key={time} value={time} className="bg-[#141414]">{time}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs mb-1 block">Closes at</label>
+                    <select
+                      value={formData.workingHours?.end || "21:00"}
+                      onChange={(e) => setFormData({ ...formData, workingHours: { ...(formData.workingHours || { start: "09:00", end: "21:00" }), end: e.target.value } })}
+                      className="w-full h-10 bg-white/5 border border-white/10 rounded-lg px-3 text-white text-sm"
+                    >
+                      {TIME_SLOTS.map((time) => <option key={time} value={time} className="bg-[#141414]">{time}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs mb-2 block">Open days</label>
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((day) => {
+                      const selected = (formData.availableDays || []).includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            const current = formData.availableDays || [];
+                            setFormData({
+                              ...formData,
+                              availableDays: selected ? current.filter((d) => d !== day) : [...current, day],
+                            });
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-sm transition-colors",
+                            selected ? "bg-[#D9FC67] text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                          )}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -628,6 +834,64 @@ export default function PartnerStudiosPage() {
                     >
                       {opt.label}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-white/80 text-sm font-medium">Studio Setups</p>
+                    <p className="text-white/30 text-xs">Add/remove bookable setup options shown to clients.</p>
+                  </div>
+                  <Button type="button" size="sm" onClick={addSetup} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black">
+                    <Plus className="w-4 h-4 mr-1" /> Add setup
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {(formData.setups || []).map((setup, index) => (
+                    <div key={setup.id || index} className="rounded-xl bg-white/[0.03] border border-white/10 p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-white/70 text-sm font-medium">Setup {index + 1}</p>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs text-white/55">
+                            <input
+                              type="checkbox"
+                              checked={setup.is_active !== false}
+                              onChange={(e) => updateSetup(index, { is_active: e.target.checked })}
+                              className="accent-[#D9FC67]"
+                            />
+                            Active
+                          </label>
+                          {(formData.setups || []).length > 1 && (
+                            <button type="button" onClick={() => removeSetup(index)} className="text-red-400/70 hover:text-red-300">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input value={setup.name} onChange={(e) => updateSetup(index, { name: e.target.value })} placeholder="Setup name" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                        <Input type="number" min={0} value={setup.price_per_hour} onChange={(e) => updateSetup(index, { price_per_hour: parseInt(e.target.value) || 0 })} placeholder="Price/hr" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                        <Input type="number" min={1} value={setup.capacity} onChange={(e) => updateSetup(index, { capacity: parseInt(e.target.value) || 1 })} placeholder="Capacity" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                        <select
+                          value={setup.featured_image_url || ""}
+                          onChange={(e) => updateSetup(index, { featured_image_url: e.target.value || null })}
+                          className="h-10 bg-white/5 border border-white/10 rounded-md px-3 text-white text-sm"
+                        >
+                          <option value="" className="bg-[#141414]">No setup image</option>
+                          {(formData.images || []).map((img, imgIndex) => (
+                            <option key={img} value={img} className="bg-[#141414]">Photo {imgIndex + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <textarea
+                        value={setup.description || ""}
+                        onChange={(e) => updateSetup(index, { description: e.target.value })}
+                        placeholder="Setup description"
+                        className="w-full h-16 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none text-sm"
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -735,8 +999,100 @@ export default function PartnerStudiosPage() {
                 }}
               />
 
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#D9FC67]" />
+                  <div>
+                    <p className="text-white/80 text-sm font-medium">Plans / Packages</p>
+                    <p className="text-white/30 text-xs">These are the package choices clients see while booking.</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {[0, 1, 2].map((index) => {
+                    const pkg = (formData.packages || DEFAULT_PACKAGES)[index] || DEFAULT_PACKAGES[index];
+                    return (
+                      <div key={index} className="rounded-xl bg-white/[0.03] border border-white/10 p-3 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-white/70 text-sm font-medium">Package {index + 1}</p>
+                          <label className="flex items-center gap-2 text-xs text-white/55">
+                            <input
+                              type="checkbox"
+                              checked={pkg.is_popular}
+                              onChange={(e) => updatePackage(index, { is_popular: e.target.checked })}
+                              className="accent-[#D9FC67]"
+                            />
+                            Best deal
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Input
+                            value={pkg.name}
+                            onChange={(e) => updatePackage(index, { name: e.target.value })}
+                            placeholder="Basic Recording"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                          <Input
+                            type="number"
+                            min={0}
+                            value={pkg.price_per_hour}
+                            onChange={(e) => updatePackage(index, { price_per_hour: parseInt(e.target.value) || 0 })}
+                            placeholder="Price/hr"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                        </div>
+                        <Input
+                          value={pkg.description}
+                          onChange={(e) => updatePackage(index, { description: e.target.value })}
+                          placeholder="Short package description"
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                        />
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-white/45 text-xs">Features</p>
+                            <button type="button" onClick={() => addPackageFeature(index)} className="text-[#D9FC67] text-xs inline-flex items-center gap-1">
+                              <Plus className="w-3 h-3" /> Add feature
+                            </button>
+                          </div>
+                          {(pkg.features || []).map((feature, featureIndex) => (
+                            <div key={featureIndex} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={feature.included}
+                                onChange={(e) => updatePackageFeature(index, featureIndex, { included: e.target.checked })}
+                                className="accent-[#D9FC67]"
+                              />
+                              <Input
+                                value={feature.text}
+                                onChange={(e) => updatePackageFeature(index, featureIndex, { text: e.target.value })}
+                                placeholder="Feature text"
+                                className="h-9 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                              />
+                              <button type="button" onClick={() => removePackageFeature(index, featureIndex)} className="text-red-400/70 hover:text-red-300">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
-                <label className="text-white/60 text-sm mb-1 block">Bookable add-ons</label>
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <label className="text-white/60 text-sm block">Bookable add-ons</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInventoryDrawerTab("addons");
+                      setInventoryDrawerOpen(true);
+                    }}
+                    className="text-[#D9FC67] hover:text-[#E8FF8A] text-xs font-medium"
+                  >
+                    Manage add-on prices
+                  </button>
+                </div>
                 <p className="text-white/30 text-xs mb-3">Platform + your custom upsells for this studio</p>
                 {addonsLoading ? (
                   <div className="flex items-center justify-center py-6">
