@@ -26,6 +26,18 @@
       display: none !important;
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -38,7 +50,8 @@
     }
 
     button,
-    input {
+    input,
+    textarea {
       font: inherit;
     }
 
@@ -260,12 +273,18 @@
     }
 
     .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border: 1px solid transparent;
       border-radius: 8px;
       min-height: 48px;
       padding: 0 20px;
       cursor: pointer;
       font-weight: 900;
+      line-height: 1.1;
+      text-align: center;
+      text-decoration: none;
       transition: transform 160ms ease, opacity 160ms ease, border-color 160ms ease;
     }
 
@@ -327,6 +346,54 @@
       font-weight: 900;
     }
 
+    .confirmation .btn {
+      min-width: 220px;
+      max-width: 100%;
+      padding: 0 22px;
+    }
+
+    .repeat-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .repeat-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .repeat-row .text-input {
+      min-width: 0;
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      min-height: 44px;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .icon-btn:hover {
+      color: var(--text);
+      border-color: rgba(200, 245, 58, 0.56);
+    }
+
+    .repeat-add {
+      justify-self: start;
+      min-height: 44px;
+      margin-top: 2px;
+      background: var(--lime-soft);
+      border-color: rgba(200, 245, 58, 0.34);
+      color: var(--lime);
+    }
+
     @media (max-width: 620px) {
       .page {
         padding: 18px 12px;
@@ -348,6 +415,10 @@
 
       .btn {
         width: 100%;
+      }
+
+      .repeat-add {
+        justify-self: stretch;
       }
     }
   </style>
@@ -447,6 +518,26 @@
         type: "multi",
         hint: "Select all that apply.",
         options: ["Acoustic treated room", "Professional microphones", "Camera & lighting setup", "Mixing console", "Green screen", "Editing & post-production setup", "Live streaming capability"]
+      },
+      {
+        key: "equipmentDetails",
+        title: "Equipment Details",
+        type: "repeat",
+        hint: "Add equipment names such as cameras, microphones, lights, recorders, or other gear available at your studio.",
+        label: "Equipment name",
+        placeholder: "e.g. Sony A7 III, Shure MV7, Rodecaster Pro",
+        minFields: 4,
+        addLabel: "Add more equipment"
+      },
+      {
+        key: "addonServices",
+        title: "Add-on Services details",
+        type: "repeat",
+        hint: "Add services you can provide beyond the studio booking.",
+        label: "Add-on service",
+        placeholder: "e.g. Editing, reels creation, transcription, thumbnail design",
+        minFields: 4,
+        addLabel: "Add more service"
       },
       {
         key: "biggestChallenge",
@@ -608,6 +699,10 @@
         wrapper.append(label, phone);
         answerArea.appendChild(wrapper);
       }
+
+      if (question.type === "repeat") {
+        answerArea.appendChild(createRepeatField(question));
+      }
     }
 
     function createTextField(question) {
@@ -627,6 +722,76 @@
         errorEl.textContent = "";
       });
       wrapper.append(label, input);
+      return wrapper;
+    }
+
+    function ensureRepeatValues(question) {
+      const current = Array.isArray(state[question.key]) ? state[question.key] : [];
+      const minFields = question.minFields || 3;
+      while (current.length < minFields) {
+        current.push("");
+      }
+      state[question.key] = current;
+      return current;
+    }
+
+    function createRepeatField(question) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+
+      const list = document.createElement("div");
+      list.className = "repeat-list";
+
+      const renderRows = () => {
+        const values = ensureRepeatValues(question);
+        list.innerHTML = "";
+
+        values.forEach((value, index) => {
+          const row = document.createElement("div");
+          row.className = "repeat-row";
+
+          const input = document.createElement("input");
+          input.className = "text-input";
+          input.type = "text";
+          input.placeholder = index === 0 ? question.placeholder || "" : question.label;
+          input.value = value || "";
+          input.setAttribute("aria-label", `${question.label} ${index + 1}`);
+          input.addEventListener("input", () => {
+            state[question.key][index] = input.value.trim();
+            errorEl.textContent = "";
+          });
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "icon-btn";
+          remove.textContent = "×";
+          remove.setAttribute("aria-label", `Remove ${question.label} ${index + 1}`);
+          remove.disabled = values.length <= (question.minFields || 3);
+          remove.addEventListener("click", () => {
+            state[question.key].splice(index, 1);
+            renderRows();
+          });
+
+          row.append(input, remove);
+          list.appendChild(row);
+        });
+      };
+
+      const label = document.createElement("label");
+      label.textContent = question.label;
+      label.className = "sr-only";
+
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "btn repeat-add";
+      add.textContent = question.addLabel || "Add more";
+      add.addEventListener("click", () => {
+        ensureRepeatValues(question).push("");
+        renderRows();
+      });
+
+      renderRows();
+      wrapper.append(list, add);
       return wrapper;
     }
 
@@ -651,6 +816,13 @@
           errorEl.textContent = "Please select at least one option.";
           return false;
         }
+      } else if (question.type === "repeat") {
+        const filled = Array.isArray(value) ? value.map((item) => item.trim()).filter(Boolean) : [];
+        if (filled.length === 0) {
+          errorEl.textContent = "Please add at least one detail.";
+          return false;
+        }
+        state[question.key] = filled;
       } else if (!value) {
         errorEl.textContent = "Please answer this question.";
         return false;
@@ -671,7 +843,7 @@
 
     async function saveLead() {
       const answers = questions.reduce((result, question) => {
-        result[question.key] = state[question.key] || (question.type === "multi" ? [] : "");
+        result[question.key] = state[question.key] || (question.type === "multi" || question.type === "repeat" ? [] : "");
         return result;
       }, {});
       answers.city = state.city === "Other" ? state.cityOther : state.city;

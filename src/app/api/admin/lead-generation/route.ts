@@ -30,6 +30,12 @@ export async function GET() {
       monthlyBookings: lead.monthly_bookings,
       pricing: lead.pricing,
       equipment: lead.equipment || [],
+      equipmentDetails: Array.isArray(lead.answers?.equipmentDetails)
+        ? lead.answers.equipmentDetails
+        : [],
+      addonServices: Array.isArray(lead.answers?.addonServices)
+        ? lead.answers.addonServices
+        : [],
       biggestChallenge: lead.biggest_challenge,
       listedPlatform: lead.listed_platform,
       joinReason: lead.join_reason,

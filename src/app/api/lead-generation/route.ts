@@ -10,6 +10,8 @@ type LeadPayload = {
   monthlyBookings?: string;
   pricing?: string;
   equipment?: string[];
+  equipmentDetails?: string[];
+  addonServices?: string[];
   biggestChallenge?: string;
   listedPlatform?: string;
   joinReason?: string;
@@ -60,6 +62,12 @@ export async function POST(request: Request) {
     monthlyBookings: cleanText(payload.monthlyBookings),
     pricing: cleanText(payload.pricing),
     equipment: Array.isArray(payload.equipment) ? payload.equipment.map(cleanText).filter(Boolean) : [],
+    equipmentDetails: Array.isArray(payload.equipmentDetails)
+      ? payload.equipmentDetails.map(cleanText).filter(Boolean)
+      : [],
+    addonServices: Array.isArray(payload.addonServices)
+      ? payload.addonServices.map(cleanText).filter(Boolean)
+      : [],
     biggestChallenge: cleanText(payload.biggestChallenge),
     listedPlatform: cleanText(payload.listedPlatform),
     joinReason: cleanText(payload.joinReason),
@@ -77,6 +85,14 @@ export async function POST(request: Request) {
 
   if (!cleaned.equipment?.length) {
     return NextResponse.json({ error: 'Missing field: equipment' }, { status: 400 });
+  }
+
+  if (!cleaned.equipmentDetails?.length) {
+    return NextResponse.json({ error: 'Missing field: equipmentDetails' }, { status: 400 });
+  }
+
+  if (!cleaned.addonServices?.length) {
+    return NextResponse.json({ error: 'Missing field: addonServices' }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin
