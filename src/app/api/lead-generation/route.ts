@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 type LeadPayload = {
   description?: string;
   studioType?: string;
-  city?: string;
+  city?: string | string[];
   operationalAge?: string;
   weeklySlots?: string;
   monthlyBookings?: string;
@@ -12,9 +12,9 @@ type LeadPayload = {
   equipment?: string[];
   equipmentDetails?: string[];
   addonServices?: string[];
-  biggestChallenge?: string;
+  biggestChallenge?: string | string[];
   listedPlatform?: string;
-  joinReason?: string;
+  joinReason?: string | string[];
   studioName?: string;
   contactName?: string;
   whatsapp?: string;
@@ -41,6 +41,18 @@ function cleanText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function cleanTextList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(cleanText).filter(Boolean) : [];
+}
+
+function cleanTextOrList(value: unknown): string {
+  return Array.isArray(value) ? cleanTextList(value).join(', ') : cleanText(value);
+}
+
+function cleanAnswerChoice(value: unknown): string | string[] {
+  return Array.isArray(value) ? cleanTextList(value) : cleanText(value);
+}
+
 export async function POST(request: Request) {
   if (!supabaseAdmin) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
@@ -56,25 +68,28 @@ export async function POST(request: Request) {
   const cleaned: LeadPayload = {
     description: cleanText(payload.description),
     studioType: cleanText(payload.studioType),
-    city: cleanText(payload.city),
+    city: cleanTextOrList(payload.city),
     operationalAge: cleanText(payload.operationalAge),
     weeklySlots: cleanText(payload.weeklySlots),
     monthlyBookings: cleanText(payload.monthlyBookings),
     pricing: cleanText(payload.pricing),
-    equipment: Array.isArray(payload.equipment) ? payload.equipment.map(cleanText).filter(Boolean) : [],
-    equipmentDetails: Array.isArray(payload.equipmentDetails)
-      ? payload.equipmentDetails.map(cleanText).filter(Boolean)
-      : [],
-    addonServices: Array.isArray(payload.addonServices)
-      ? payload.addonServices.map(cleanText).filter(Boolean)
-      : [],
-    biggestChallenge: cleanText(payload.biggestChallenge),
+    equipment: cleanTextList(payload.equipment),
+    equipmentDetails: cleanTextList(payload.equipmentDetails),
+    addonServices: cleanTextList(payload.addonServices),
+    biggestChallenge: cleanTextOrList(payload.biggestChallenge),
     listedPlatform: cleanText(payload.listedPlatform),
-    joinReason: cleanText(payload.joinReason),
+    joinReason: cleanTextOrList(payload.joinReason),
     studioName: cleanText(payload.studioName),
     contactName: cleanText(payload.contactName),
     whatsapp: cleanText(payload.whatsapp),
     websiteOrInstagram: cleanText(payload.websiteOrInstagram),
+  };
+
+  const answers = {
+    ...cleaned,
+    city: cleanAnswerChoice(payload.city),
+    biggestChallenge: cleanAnswerChoice(payload.biggestChallenge),
+    joinReason: cleanAnswerChoice(payload.joinReason),
   };
 
   for (const field of requiredFields) {
@@ -113,7 +128,7 @@ export async function POST(request: Request) {
       contact_name: cleaned.contactName,
       whatsapp: cleaned.whatsapp,
       website_or_instagram: cleaned.websiteOrInstagram || null,
-      answers: cleaned,
+      answers,
     })
     .select('id, created_at')
     .single();

@@ -430,7 +430,6 @@
         <span class="logo-mark">Y</span>
         <span>Yanisa Studios</span>
       </div>
-      <a class="admin-link" href="admin.html">Admin</a>
     </header>
 
     <section class="shell" aria-live="polite">
@@ -484,7 +483,8 @@
       {
         key: "city",
         title: "Which city is your studio located in?",
-        type: "single",
+        type: "multi",
+        hint: "Select all that apply.",
         options: ["Mumbai", "Delhi NCR", "Bangalore", "Hyderabad", "Pune", "Chennai", "Other"],
         other: true
       },
@@ -542,7 +542,8 @@
       {
         key: "biggestChallenge",
         title: "What is your biggest challenge right now?",
-        type: "single",
+        type: "multi",
+        hint: "Select all that apply.",
         options: ["Getting discovered by new clients", "Managing bookings and scheduling", "Not earning enough revenue", "No online presence", "Marketing & social media", "All of the above"]
       },
       {
@@ -554,7 +555,8 @@
       {
         key: "joinReason",
         title: "What would make you join a platform like Yanisa Studios?",
-        type: "single",
+        type: "multi",
+        hint: "Select all that apply.",
         options: ["More bookings & visibility", "Easy booking management system", "Earning more revenue", "Professional credibility", "All of the above"]
       },
       {
@@ -640,6 +642,7 @@
               const selected = Array.from(options.querySelectorAll("input:checked")).map((node) => node.value);
               state[question.key] = selected;
               label.classList.toggle("selected", input.checked);
+              toggleOtherInput(question);
             }
             errorEl.textContent = "";
           });
@@ -799,8 +802,10 @@
       if (!question.other) return;
       const otherInput = document.getElementById("otherCity");
       if (!otherInput) return;
-      otherInput.classList.toggle("visible", state[question.key] === "Other");
-      if (state[question.key] === "Other") {
+      const value = state[question.key];
+      const isOtherSelected = Array.isArray(value) ? value.includes("Other") : value === "Other";
+      otherInput.classList.toggle("visible", isOtherSelected);
+      if (isOtherSelected) {
         otherInput.focus();
       }
     }
@@ -828,7 +833,8 @@
         return false;
       }
 
-      if (question.other && value === "Other" && !state.cityOther) {
+      const otherSelected = Array.isArray(value) ? value.includes("Other") : value === "Other";
+      if (question.other && otherSelected && !state.cityOther) {
         errorEl.textContent = "Please enter your city.";
         return false;
       }
@@ -846,7 +852,13 @@
         result[question.key] = state[question.key] || (question.type === "multi" || question.type === "repeat" ? [] : "");
         return result;
       }, {});
-      answers.city = state.city === "Other" ? state.cityOther : state.city;
+      if (Array.isArray(state.city)) {
+        answers.city = state.city
+          .map((city) => city === "Other" ? state.cityOther : city)
+          .filter(Boolean);
+      } else {
+        answers.city = state.city === "Other" ? state.cityOther : state.city;
+      }
       answers.whatsapp = `+91${state.whatsapp}`;
 
       const response = await fetch("/api/lead-generation", {

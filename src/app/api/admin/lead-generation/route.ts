@@ -24,7 +24,7 @@ export async function GET() {
     answers: {
       description: lead.description,
       studioType: lead.studio_type,
-      city: lead.city,
+      city: lead.answers?.city || lead.city,
       operationalAge: lead.operational_age,
       weeklySlots: lead.weekly_slots,
       monthlyBookings: lead.monthly_bookings,
@@ -36,9 +36,9 @@ export async function GET() {
       addonServices: Array.isArray(lead.answers?.addonServices)
         ? lead.answers.addonServices
         : [],
-      biggestChallenge: lead.biggest_challenge,
+      biggestChallenge: lead.answers?.biggestChallenge || lead.biggest_challenge,
       listedPlatform: lead.listed_platform,
-      joinReason: lead.join_reason,
+      joinReason: lead.answers?.joinReason || lead.join_reason,
       studioName: lead.studio_name,
       contactName: lead.contact_name,
       whatsapp: lead.whatsapp,
