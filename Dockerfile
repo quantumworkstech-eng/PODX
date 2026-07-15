@@ -4,7 +4,7 @@ FROM base AS dependencies
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci && npm install --no-save lightningcss-linux-x64-musl@1.30.2
 
 FROM base AS builder
 WORKDIR /app
