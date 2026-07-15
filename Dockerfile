@@ -4,7 +4,13 @@ FROM base AS dependencies
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci && npm install --no-save lightningcss-linux-x64-musl@1.30.2
+# npm can omit platform-specific optional packages from a lockfile generated on
+# another OS. Install the Alpine-native CSS bindings explicitly for production
+# builds (Tailwind/PostCSS and Next's CSS processing).
+RUN npm ci \
+  && npm install --no-save \
+    lightningcss-linux-x64-musl@1.30.2 \
+    @tailwindcss/oxide-linux-x64-musl@4.1.18
 
 FROM base AS builder
 WORKDIR /app
