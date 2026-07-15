@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "db:bootstrap": "node scripts/run-sql-file.mjs src/db/bootstrap.sql",
     "db:migrate-coupons": "node scripts/run-sql-file.mjs src/db/coupon_migration.sql",
     "db:migrate-feature-access": "node scripts/run-sql-file.mjs src/db/feature_access_migration.sql"
   },

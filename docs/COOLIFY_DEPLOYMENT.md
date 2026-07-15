@@ -26,13 +26,25 @@ Keep Supabase and PodX in the same Coolify project, environment, and destination
 
 ## 3. Create the database schema
 
+Run the one combined file: `src/db/bootstrap.sql`. It contains `schema.sql` followed by every migration in dependency order.
+
+### Easiest: Supabase Studio
+
 1. Open the Supabase Studio/dashboard from the Coolify service.
 2. Open **SQL Editor** → **New query**.
-3. Copy and run `src/db/schema.sql` from this repository.
-4. Run each SQL file in `src/db` ending with `_migration.sql`, one file at a time, in alphabetical order.
-5. Check that every query reports success. Do not run `src/db/seed.sql` in production unless you specifically want its sample data.
+3. Copy the contents of `src/db/bootstrap.sql` into the editor and click **Run**.
+4. Confirm the query succeeds.
 
-This is a one-time setup for an empty database. Do not put these SQL commands in the Dockerfile or run them automatically on every app deployment.
+### Or: use a database URL from a trusted terminal
+
+If your terminal can reach the database, run this once from a clone of this repository:
+
+```powershell
+$env:DATABASE_URL = 'postgresql://<user>:<password>@<host>:5432/<database>'
+npm run db:bootstrap
+```
+
+Run it from your computer or a one-off trusted terminal that can reach the database—not from the website/frontend application. Do not add an API route that runs this file. It performs database-definition changes and must not be reachable by website visitors. This bootstrap is for a new, empty database only; do not run it again after data exists. Do not run `src/db/seed.sql` in production unless you specifically want sample data.
 
 ## 4. Create the PodX application
 
