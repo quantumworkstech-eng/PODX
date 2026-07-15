@@ -17,7 +17,16 @@ const adminSecret = new TextEncoder().encode(
 );
 
 // Known PodX host patterns (add your production domain here)
-const MAIN_HOSTS = ["localhost", "podx.com", "www.podx.com"];
+const MAIN_HOSTS = [
+  "localhost",
+  "podx.com",
+  "www.podx.com",
+  "yanisa.in",
+  "www.yanisa.in",
+  "studios.yanisa.in",
+  "yanisastudios.com",
+  "www.yanisastudios.com",
+];
 
 function getSubdomain(host: string): string | null {
   const clean = host.split(":")[0];
