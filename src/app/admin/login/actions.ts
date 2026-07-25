@@ -20,13 +20,21 @@ const secret = new TextEncoder().encode(
  */
 async function findActiveAdmin(email: string): Promise<{ email: string } | null> {
   if (!supabaseAdmin) return null;
-  const { data } = await supabaseAdmin
+  const normalized = email.toLowerCase().trim();
+  // ilike = case-insensitive exact match; limit(1) avoids maybeSingle() erroring
+  // if the roster somehow has duplicate rows for the same email.
+  const { data, error } = await supabaseAdmin
     .from("admins")
     .select("id, email, is_active")
-    .eq("email", email.toLowerCase().trim())
-    .maybeSingle();
-  if (!data || data.is_active === false) return null;
-  return { email: (data.email as string) };
+    .ilike("email", normalized)
+    .limit(1);
+  if (error) {
+    console.error("adminLogin findActiveAdmin error:", error.message);
+    return null;
+  }
+  const row = data?.[0];
+  if (!row || row.is_active === false) return null;
+  return { email: (row.email as string) || normalized };
 }
 
 /** Returns the admin_credentials row for this email, creating it if missing. */
