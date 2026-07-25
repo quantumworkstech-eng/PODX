@@ -18,23 +18,36 @@ const secret = new TextEncoder().encode(
  * demand so admins added directly in the DB (not via the Admins UI) can still
  * log in and set a password on first sign-in.
  */
-async function findActiveAdmin(email: string): Promise<{ email: string } | null> {
-  if (!supabaseAdmin) return null;
+type AdminLookup =
+  | { ok: true; email: string }
+  | { ok: false; reason: "no_client" | "query_error" | "not_found" | "inactive"; detail?: string };
+
+/**
+ * Resolve an admin from the `admins` roster. Compares email in JS (trimmed +
+ * lowercased) so stray whitespace / case in a manually-entered row still
+ * matches. The `admins` table is small, so fetching all rows is fine.
+ */
+async function lookupAdmin(email: string): Promise<AdminLookup> {
+  if (!supabaseAdmin) return { ok: false, reason: "no_client" };
   const normalized = email.toLowerCase().trim();
-  // ilike = case-insensitive exact match; limit(1) avoids maybeSingle() erroring
-  // if the roster somehow has duplicate rows for the same email.
   const { data, error } = await supabaseAdmin
     .from("admins")
-    .select("id, email, is_active")
-    .ilike("email", normalized)
-    .limit(1);
+    .select("email, is_active");
   if (error) {
-    console.error("adminLogin findActiveAdmin error:", error.message);
-    return null;
+    console.error("adminLogin lookupAdmin error:", error.message);
+    return { ok: false, reason: "query_error", detail: error.message };
   }
-  const row = data?.[0];
-  if (!row || row.is_active === false) return null;
-  return { email: (row.email as string) || normalized };
+  const row = (data ?? []).find(
+    (r: any) => String(r.email ?? "").trim().toLowerCase() === normalized
+  );
+  if (!row) return { ok: false, reason: "not_found" };
+  if (row.is_active === false) return { ok: false, reason: "inactive" };
+  return { ok: true, email: normalized };
+}
+
+async function findActiveAdmin(email: string): Promise<{ email: string } | null> {
+  const result = await lookupAdmin(email);
+  return result.ok ? { email: result.email } : null;
 }
 
 /** Returns the admin_credentials row for this email, creating it if missing. */
@@ -83,10 +96,14 @@ export async function adminSetPassword(email: string, password: string): Promise
 export async function adminCheckEmail(email: string): Promise<{ error: string } | { hasPassword: boolean }> {
   if (!supabaseAdmin) return { error: "DB not configured." };
 
-  const admin = await findActiveAdmin(email);
-  if (!admin) return { error: "Not authorized. This email is not registered as admin." };
+  const lookup = await lookupAdmin(email);
+  if (!lookup.ok) {
+    if (lookup.reason === "inactive") return { error: "Your admin account is inactive. Contact an administrator." };
+    if (lookup.reason === "query_error") return { error: `Admin lookup failed: ${lookup.detail || "database error"}` };
+    return { error: "Not authorized. This email is not registered as admin." };
+  }
 
-  const cred = await ensureCredentials(admin.email);
+  const cred = await ensureCredentials(lookup.email);
   if (!cred) return { error: "Database error. Make sure admin_credentials table exists." };
 
   return { hasPassword: !!cred.password_hash };
