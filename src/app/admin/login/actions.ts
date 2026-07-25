@@ -51,8 +51,12 @@ export async function adminCheckEmail(email: string): Promise<{ error: string } 
   return { hasPassword: !!admin.password_hash };
 }
 
-// Signs in admin by setting a custom cookie — no NextAuth involved
-export async function adminSignIn(email: string, password: string, rememberMe = true): Promise<{ error: string } | void> {
+// Signs in admin by setting a custom cookie — no NextAuth involved.
+// Returns { success: true } instead of redirect()ing: the client then does a
+// HARD navigation to /admin so the freshly-set cookie is guaranteed to be sent
+// on the next request. redirect() from a Server Action triggers a soft RSC
+// navigation where the just-set cookie can be missing, bouncing the user back.
+export async function adminSignIn(email: string, password: string, rememberMe = true): Promise<{ error: string } | { success: true }> {
   if (!supabaseAdmin) return { error: "DB not configured." };
 
   const { data: admin, error: dbErr } = await supabaseAdmin
@@ -84,7 +88,7 @@ export async function adminSignIn(email: string, password: string, rememberMe = 
     path: "/",
   });
 
-  redirect("/admin");
+  return { success: true };
 }
 
 export async function adminSignOut(): Promise<void> {
