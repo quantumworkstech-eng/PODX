@@ -73,9 +73,11 @@ export async function getAllStudios(): Promise<Studio[]> {
       ? Math.max(...activeRooms.map((r: any) => r.capacity ?? 0))
       : 2;
     const packages: any[] = studio.studio_packages || [];
-    const minPrice = packages.length > 0
-      ? Math.min(...packages.map((p: any) => Number(p.price_per_hour) || 0))
-      : 0;
+    const packagePrices = packages
+      .map((p: any) => Number(p.price_per_hour) || 0)
+      .filter((n: number) => n > 0);
+    const minPrice = packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
+    const maxPrice = packagePrices.length > 0 ? Math.max(...packagePrices) : 0;
     const sortedImages = (studio.studio_images || []).sort(
       (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
     );
@@ -95,6 +97,7 @@ export async function getAllStudios(): Promise<Studio[]> {
       video_url: studio.video_url || undefined,
       location: { city: studio.city || '', area: studio.city || '', address: studio.address || '' },
       price_per_hour: minPrice,
+      original_price_per_hour: maxPrice > minPrice ? maxPrice : undefined,
       currency: '₹',
       capacity: maxCapacity,
       equipment: [],

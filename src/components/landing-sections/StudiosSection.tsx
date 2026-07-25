@@ -78,6 +78,9 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
             {studios.map((studio) => {
               const activeRooms = studio.rooms?.filter((r) => r.is_active) || [];
               const maxCap = activeRooms.length > 0 ? Math.max(...activeRooms.map((r) => r.capacity)) : null;
+              const roomPrices = activeRooms.map((r) => r.price_per_hour).filter((n) => n > 0);
+              const minPrice = roomPrices.length > 0 ? Math.min(...roomPrices) : null;
+              const maxPrice = roomPrices.length > 0 ? Math.max(...roomPrices) : null;
 
               return (
                 <div
@@ -138,16 +141,30 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
 
                   <div className="p-5">
                     <h3 className="text-lg font-bold mb-1">{studio.name}</h3>
-                    {studio.short_description && (
-                      <p className="text-sm mb-4 line-clamp-2" style={{ opacity: 0.5 }}>
-                        {studio.short_description}
+                    {(studio.address || studio.city) && (
+                      <p className="flex items-start gap-1.5 text-sm mb-4 line-clamp-2" style={{ opacity: 0.5 }}>
+                        <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ opacity: 0.7 }} />
+                        <span>{studio.address || studio.city}</span>
                       </p>
                     )}
 
                     <div className="flex items-center justify-between">
                       <div>
+                        {minPrice !== null && (
+                          <p className="flex items-baseline gap-1.5">
+                            {maxPrice !== null && maxPrice > minPrice && (
+                              <span className="text-sm line-through" style={{ opacity: 0.35 }}>
+                                ₹{maxPrice.toLocaleString()}
+                              </span>
+                            )}
+                            <span className="font-bold text-lg" style={{ color: primary }}>
+                              from ₹{minPrice.toLocaleString()}
+                            </span>
+                            <span className="text-xs" style={{ opacity: 0.5 }}>/hr</span>
+                          </p>
+                        )}
                         {content.show_capacity !== false && maxCap !== null && maxCap > 0 && (
-                          <p className="text-xs" style={{ opacity: 0.35 }}>Up to {maxCap} people</p>
+                          <p className="text-xs mt-0.5" style={{ opacity: 0.35 }}>Up to {maxCap} people</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2">

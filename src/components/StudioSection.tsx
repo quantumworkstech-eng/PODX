@@ -131,9 +131,24 @@ export function StudioSection() {
                 
                 {/* Location */}
                 <div className="flex items-center gap-2 text-white/80">
-                  <MapPin className="w-5 h-5 text-[#D9FC67]" />
-                  <span>{currentStudio.location.area} - {currentStudio.location.city}</span>
+                  <MapPin className="w-5 h-5 flex-shrink-0 text-[#D9FC67]" />
+                  <span>{currentStudio.location.address || `${currentStudio.location.area} - ${currentStudio.location.city}`}</span>
                 </div>
+
+                {/* Price */}
+                {currentStudio.price_per_hour > 0 && (
+                  <div className="mt-3 flex items-baseline gap-2">
+                    {(currentStudio.original_price_per_hour ?? 0) > currentStudio.price_per_hour && (
+                      <span className="text-white/40 text-base line-through">
+                        ₹{currentStudio.original_price_per_hour?.toLocaleString("en-IN")}
+                      </span>
+                    )}
+                    <span className="text-[#D9FC67] font-bold text-2xl">
+                      from ₹{currentStudio.price_per_hour.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-white/50 text-sm">/hr</span>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}

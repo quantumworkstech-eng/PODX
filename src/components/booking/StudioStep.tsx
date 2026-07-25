@@ -330,8 +330,9 @@ export function StudioStep() {
                         )}
                       </div>
 
-                      <p className="text-white/40 text-sm mb-4 line-clamp-2">
-                        {studio.description}
+                      <p className="flex items-start gap-1.5 text-white/40 text-sm mb-4 line-clamp-2">
+                        <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-white/30" />
+                        <span>{studio.location.address || studio.location.city}</span>
                       </p>
 
                       {/* ── Availability time pills ─────────────────────────────── */}
@@ -369,6 +370,12 @@ export function StudioStep() {
 
                       <div className="flex items-center justify-between">
                         <div>
+                          {studio.price_per_hour > 0 &&
+                            (studio.original_price_per_hour ?? 0) > studio.price_per_hour && (
+                              <span className="text-white/30 text-sm line-through mr-1.5">
+                                ₹{studio.original_price_per_hour?.toLocaleString()}
+                              </span>
+                            )}
                           <span className="text-xl font-bold text-white">
                             {studio.price_per_hour > 0 ? `from ₹${studio.price_per_hour.toLocaleString()}` : "See packages"}
                           </span>

@@ -16,6 +16,8 @@ export interface Studio {
     address: string;
   };
   price_per_hour: number;
+  /** Highest package rate — shown struck-through as the original price when it exceeds price_per_hour */
+  original_price_per_hour?: number;
   currency: string;
   capacity: number;
   equipment: Equipment[];

@@ -106,7 +106,7 @@ export default function StudiosPage() {
                 <div className="flex items-center gap-4 mb-6 text-white/70 text-sm">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-[#D9FC67]" />
-                    {featured.location?.area}, {featured.location?.city || "Mumbai"}
+                    {featured.location?.address || `${featured.location?.area}, ${featured.location?.city || "Mumbai"}`}
                   </span>
                   {featured.review_count > 0 && (
                     <span className="flex items-center gap-1.5">
@@ -145,6 +145,11 @@ export default function StudiosPage() {
                   </button>
                   {(featured.price_per_hour ?? 0) > 0 && (
                     <span className="text-white font-bold text-xl">
+                      {(featured.original_price_per_hour ?? 0) > (featured.price_per_hour ?? 0) && (
+                        <span className="text-white/40 text-base font-normal line-through mr-2">
+                          ₹{featured.original_price_per_hour?.toLocaleString("en-IN")}
+                        </span>
+                      )}
                       from ₹{featured.price_per_hour?.toLocaleString("en-IN")}<span className="text-white/50 text-sm font-normal">/hr</span>
                     </span>
                   )}
@@ -345,6 +350,11 @@ export default function StudiosPage() {
                       <div className="text-right flex-shrink-0 ml-3">
                         {(studio.price_per_hour ?? 0) > 0 && (
                           <>
+                            {(studio.original_price_per_hour ?? 0) > (studio.price_per_hour ?? 0) && (
+                              <span className="text-white/30 text-sm line-through mr-1.5">
+                                ₹{studio.original_price_per_hour?.toLocaleString("en-IN")}
+                              </span>
+                            )}
                             <span className="text-[#D9FC67] font-bold text-lg">
                               from ₹{studio.price_per_hour?.toLocaleString("en-IN")}
                             </span>
@@ -354,9 +364,12 @@ export default function StudiosPage() {
                       </div>
                     </div>
 
-                    {/* Description */}
-                    <p className="text-white/50 text-sm leading-relaxed line-clamp-2 mb-4">
-                      {studio.description || "Professional podcast studio with premium equipment."}
+                    {/* Address */}
+                    <p className="flex items-start gap-1.5 text-white/50 text-sm leading-relaxed line-clamp-2 mb-4">
+                      <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-white/30" />
+                      <span>
+                        {studio.location?.address || studio.location?.city || "Mumbai"}
+                      </span>
                     </p>
 
                     {/* Amenities */}
