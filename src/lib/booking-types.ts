@@ -3,8 +3,11 @@ import { Studio } from "./types";
 export interface ServicePackage {
   id: string;
   name: string;
-  description: string;
+  /** Effective per-hour price the customer pays (after any discount). */
   price_per_hour: number;
+  /** Original per-hour price before discount — shown struck-through when present. */
+  original_price_per_hour?: number;
+  description: string;
   features: { text: string; included: boolean }[];
   is_popular?: boolean;
 }

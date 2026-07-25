@@ -3,6 +3,7 @@
 import { useBooking } from "@/context/BookingContext";
 import { SERVICE_PACKAGES, formatDuration } from "@/lib/booking-types";
 import type { ServicePackage } from "@/lib/booking-types";
+import { discountedPrice } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Check, X, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,14 +29,19 @@ export function PackageStep() {
         if (cancelled) return;
         const studioPkgs: any[] = data.packages ?? [];
         const pkgs: ServicePackage[] = studioPkgs.length > 0
-          ? studioPkgs.map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              description: p.description || "",
-              price_per_hour: Number(p.price_per_hour) || 0,
-              features: Array.isArray(p.features) ? p.features : [],
-              is_popular: !!p.is_popular,
-            }))
+          ? studioPkgs.map((p: any) => {
+              const original = Number(p.price_per_hour) || 0;
+              const price = discountedPrice(original, p.discount_percentage);
+              return {
+                id: p.id,
+                name: p.name,
+                description: p.description || "",
+                price_per_hour: price,
+                original_price_per_hour: price < original ? original : undefined,
+                features: Array.isArray(p.features) ? p.features : [],
+                is_popular: !!p.is_popular,
+              };
+            })
           : SERVICE_PACKAGES;
         setPackages(pkgs);
         if (!selectedPackage) setSelectedPackage(pkgs[0]);
@@ -108,7 +114,12 @@ export function PackageStep() {
                   <p className="text-white/60 text-sm mb-5">{pkg.description}</p>
 
                   <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
+                    <div className="flex items-baseline gap-2">
+                      {pkg.original_price_per_hour != null && (
+                        <span className="text-lg font-medium text-white/30 line-through">
+                          ₹{pkg.original_price_per_hour.toLocaleString()}
+                        </span>
+                      )}
                       <span className="text-3xl font-bold text-white">
                         ₹{pkg.price_per_hour.toLocaleString()}
                       </span>

@@ -51,6 +51,7 @@ interface StudioPackage {
   name: string;
   description: string;
   price_per_hour: number;
+  discount_percentage: number;
   features: PkgFeature[];
   is_popular: boolean;
 }
@@ -108,9 +109,9 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TIME_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
 const DEFAULT_PACKAGES: StudioPackage[] = [
-  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
-  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
-  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
 ];
 
 const DEFAULT_SETUP = (capacity = 2, price = 0): StudioSetup => ({
@@ -1037,6 +1038,15 @@ export default function PartnerStudiosPage() {
                             value={pkg.price_per_hour}
                             onChange={(e) => updatePackage(index, { price_per_hour: parseInt(e.target.value) || 0 })}
                             placeholder="Price/hr"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={pkg.discount_percentage}
+                            onChange={(e) => updatePackage(index, { discount_percentage: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                            placeholder="Discount %"
                             className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
                           />
                         </div>

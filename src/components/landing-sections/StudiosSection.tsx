@@ -28,6 +28,8 @@ interface Studio {
   studio_images?: { image_url: string; display_order?: number }[];
   is_verified: boolean;
   rooms: Room[];
+  price_per_hour?: number;
+  original_price_per_hour?: number | null;
 }
 
 interface Props {
@@ -79,8 +81,8 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
               const activeRooms = studio.rooms?.filter((r) => r.is_active) || [];
               const maxCap = activeRooms.length > 0 ? Math.max(...activeRooms.map((r) => r.capacity)) : null;
               const roomPrices = activeRooms.map((r) => r.price_per_hour).filter((n) => n > 0);
-              const minPrice = roomPrices.length > 0 ? Math.min(...roomPrices) : null;
-              const maxPrice = roomPrices.length > 0 ? Math.max(...roomPrices) : null;
+              const minPrice = studio.price_per_hour ?? (roomPrices.length > 0 ? Math.min(...roomPrices) : null);
+              const originalPrice = studio.original_price_per_hour ?? null;
 
               return (
                 <div
@@ -152,9 +154,9 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
                       <div>
                         {minPrice !== null && (
                           <p className="flex items-baseline gap-1.5">
-                            {maxPrice !== null && maxPrice > minPrice && (
+                            {originalPrice !== null && originalPrice > minPrice && (
                               <span className="text-sm line-through" style={{ opacity: 0.35 }}>
-                                ₹{maxPrice.toLocaleString()}
+                                ₹{originalPrice.toLocaleString()}
                               </span>
                             )}
                             <span className="font-bold text-lg" style={{ color: primary }}>

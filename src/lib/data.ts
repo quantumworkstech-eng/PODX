@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { Studio } from "./types";
+import { resolveBasePricing } from "./pricing";
 
 export interface City {
   id: string;
@@ -51,9 +52,9 @@ export async function getAllStudios(): Promise<Studio[]> {
     .from('studios')
     .select(`
       id, name, slug, description, short_description, address, city, featured_image_url, video_url, created_at,
-      rooms (id, capacity, is_active),
+      rooms (id, capacity, is_active, price_per_hour),
       studio_images (image_url, display_order),
-      studio_packages (price_per_hour, display_order)
+      studio_packages (price_per_hour, discount_percentage, display_order)
     `)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
@@ -72,12 +73,7 @@ export async function getAllStudios(): Promise<Studio[]> {
     const maxCapacity = activeRooms.length > 0
       ? Math.max(...activeRooms.map((r: any) => r.capacity ?? 0))
       : 2;
-    const packages: any[] = studio.studio_packages || [];
-    const packagePrices = packages
-      .map((p: any) => Number(p.price_per_hour) || 0)
-      .filter((n: number) => n > 0);
-    const minPrice = packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
-    const maxPrice = packagePrices.length > 0 ? Math.max(...packagePrices) : 0;
+    const pricing = resolveBasePricing(studio.studio_packages, activeRooms);
     const sortedImages = (studio.studio_images || []).sort(
       (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
     );
@@ -96,8 +92,8 @@ export async function getAllStudios(): Promise<Studio[]> {
       image_urls: imageUrls.length > 0 ? imageUrls : [coverImage],
       video_url: studio.video_url || undefined,
       location: { city: studio.city || '', area: studio.city || '', address: studio.address || '' },
-      price_per_hour: minPrice,
-      original_price_per_hour: maxPrice > minPrice ? maxPrice : undefined,
+      price_per_hour: pricing.price,
+      original_price_per_hour: pricing.originalPrice,
       currency: '₹',
       capacity: maxCapacity,
       equipment: [],
@@ -115,7 +111,7 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
 
   const { data: studio, error } = await supabase
     .from('studios')
-    .select(`*, rooms (*), studio_amenities (amenities (name, icon)), studio_images (*), video_url`)
+    .select(`*, rooms (*), studio_amenities (amenities (name, icon)), studio_images (*), studio_packages (price_per_hour, discount_percentage, display_order), video_url`)
     .eq('slug', slug)
     .single();
 
@@ -128,6 +124,7 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
     .filter(Boolean);
   const ratingMap = await fetchRatingMap([studio.id]);
   const ratings = ratingMap[studio.id];
+  const pricing = resolveBasePricing(studio.studio_packages, studio.rooms);
 
   return {
     id: studio.id,
@@ -137,7 +134,8 @@ export async function getStudioBySlug(slug: string): Promise<Studio | null> {
     image_urls: imageUrls.length > 0 ? imageUrls : [coverImage],
     video_url: studio.video_url || undefined,
     location: { city: studio.city || '', area: '', address: studio.address || '' },
-    price_per_hour: studio.rooms?.[0]?.price_per_hour || 0,
+    price_per_hour: pricing.price,
+    original_price_per_hour: pricing.originalPrice,
     currency: '₹',
     capacity: studio.rooms?.[0]?.capacity || 0,
     equipment: [],
@@ -154,7 +152,7 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
 
   const { data: studios, error } = await supabase
     .from('studios')
-    .select(`*, rooms (id, price_per_hour, capacity), studio_images (image_url, display_order), video_url`)
+    .select(`*, rooms (id, price_per_hour, capacity), studio_images (image_url, display_order), studio_packages (price_per_hour, discount_percentage, display_order), video_url`)
     .eq('city', city)
     .eq('is_active', true);
 
@@ -165,7 +163,7 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
 
   return studios.map((studio: any) => {
     const rooms = studio.rooms || [];
-    const minPrice = rooms.length > 0 ? Math.min(...rooms.map((r: any) => r.price_per_hour)) : 0;
+    const pricing = resolveBasePricing(studio.studio_packages, rooms);
     const coverImage = studio.studio_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90';
     const imageUrls = (studio.studio_images || [])
       .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
@@ -181,7 +179,8 @@ export async function getStudiosByCity(city: string): Promise<Studio[]> {
       image_urls: imageUrls.length > 0 ? imageUrls : [coverImage],
       video_url: studio.video_url || undefined,
       location: { city: studio.city || '', area: '', address: studio.address || '' },
-      price_per_hour: minPrice,
+      price_per_hour: pricing.price,
+      original_price_per_hour: pricing.originalPrice,
       currency: '₹',
       capacity: studio.capacity || 2,
       equipment: [],

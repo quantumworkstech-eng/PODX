@@ -97,7 +97,7 @@ export async function GET(
   try {
     const { data: pkgRows } = await supabase
       .from('studio_packages')
-      .select('id, name, description, price_per_hour, features, is_popular, display_order')
+      .select('id, name, description, price_per_hour, discount_percentage, features, is_popular, display_order')
       .eq('studio_id', id)
       .order('display_order');
     studioPackages = pkgRows ?? [];

@@ -15,8 +15,9 @@ export interface Studio {
     area: string;
     address: string;
   };
+  /** Canonical customer-facing per-hour price: cheapest package's price after its discount (fallback: cheapest room). */
   price_per_hour: number;
-  /** Highest package rate — shown struck-through as the original price when it exceeds price_per_hour */
+  /** Original base price, present only when a discount applies — shown struck-through beside price_per_hour. */
   original_price_per_hour?: number;
   currency: string;
   capacity: number;

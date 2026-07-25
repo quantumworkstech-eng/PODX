@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { resolveBasePricing } from "@/lib/pricing";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,10 +33,22 @@ export async function GET(
       id, name, slug, description, short_description, city, address,
       featured_image_url, video_url, is_active, is_verified,
       studio_images(image_url, display_order),
-      rooms(id, name, capacity, price_per_hour, min_booking_hours, max_booking_hours, is_active)
+      rooms(id, name, capacity, price_per_hour, min_booking_hours, max_booking_hours, is_active),
+      studio_packages(price_per_hour, discount_percentage, display_order)
     `)
     .eq("owner_id", branding.partner_id)
     .eq("is_active", true);
+
+  // Attach a single canonical base price (cheapest package after discount) to each studio
+  const studiosWithPricing = (studios || []).map((s: any) => {
+    const activeRooms = (s.rooms || []).filter((r: any) => r.is_active !== false);
+    const pricing = resolveBasePricing(s.studio_packages, activeRooms);
+    return {
+      ...s,
+      price_per_hour: pricing.price,
+      original_price_per_hour: pricing.originalPrice ?? null,
+    };
+  });
 
   // Fetch landing page config + sections (null if not set up yet)
   const { data: landingPage } = await supabase
@@ -77,7 +90,7 @@ export async function GET(
       contact_address: branding.contact_address,
       partner_id: branding.partner_id,
     },
-    studios: studios || [],
+    studios: studiosWithPricing,
     sections: sections || [],
     landingPage: landingPage || null,
   });

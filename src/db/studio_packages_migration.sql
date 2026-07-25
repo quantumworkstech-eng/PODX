@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS studio_packages (
   name        TEXT        NOT NULL,
   description TEXT,
   price_per_hour  INTEGER NOT NULL DEFAULT 0,
+  discount_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0 CHECK (discount_percentage >= 0 AND discount_percentage <= 100),
   features    JSONB       NOT NULL DEFAULT '[]',
   is_popular  BOOLEAN     NOT NULL DEFAULT false,
   display_order INTEGER   NOT NULL DEFAULT 0,

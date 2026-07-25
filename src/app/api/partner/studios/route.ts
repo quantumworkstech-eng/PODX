@@ -273,6 +273,7 @@ export async function POST(request: NextRequest) {
             name: String(pkg.name).trim(),
             description: pkg.description || null,
             price_per_hour: Math.max(0, parseInt(pkg.price_per_hour) || 0),
+            discount_percentage: Math.max(0, Math.min(100, Number(pkg.discount_percentage) || 0)),
             features: Array.isArray(pkg.features) ? pkg.features : [],
             is_popular: !!pkg.is_popular,
             display_order: idx,

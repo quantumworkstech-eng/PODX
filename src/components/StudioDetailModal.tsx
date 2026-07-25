@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getVideoInfo } from "@/components/StudioCardMedia";
+import { resolveBasePricing } from "@/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ interface StudioPackage {
   name: string;
   description?: string;
   price_per_hour: number;
+  discount_percentage?: number;
   features?: string[];
   is_popular?: boolean;
   display_order?: number;
@@ -295,12 +297,10 @@ export function StudioDetailModal({
   const tourVideo = details?.video_url
     ? getVideoInfo(details.video_url, { controls: true, muted: false, loop: false })
     : null;
+  const basePricing = resolveBasePricing(activePackages, activeRooms);
   const minPrice =
-    activePackages.length > 0
-      ? Math.min(...activePackages.map((pkg) => Number(pkg.price_per_hour) || 0))
-      : activeRooms.length > 0
-      ? Math.min(...activeRooms.map((r) => Number(r.price_per_hour) || 0))
-      : null;
+    activePackages.length > 0 || activeRooms.length > 0 ? basePricing.price : null;
+  const originalPrice = basePricing.originalPrice;
 
   return (
     <div
@@ -526,9 +526,16 @@ export function StudioDetailModal({
               {minPrice !== null && (
                 <div className="text-right flex-shrink-0">
                   <p className="text-xs text-white/40 mb-0.5">Starting from</p>
-                  <p className="text-xl font-bold" style={{ color: primaryColor }}>
-                    ₹{minPrice.toLocaleString("en-IN")}
-                    <span className="text-sm font-normal text-white/40">/hr</span>
+                  <p className="text-xl font-bold flex items-baseline justify-end gap-2" style={{ color: primaryColor }}>
+                    {originalPrice != null && (
+                      <span className="text-sm font-normal text-white/30 line-through">
+                        ₹{originalPrice.toLocaleString("en-IN")}
+                      </span>
+                    )}
+                    <span>
+                      ₹{minPrice.toLocaleString("en-IN")}
+                      <span className="text-sm font-normal text-white/40">/hr</span>
+                    </span>
                   </p>
                 </div>
               )}
@@ -768,9 +775,16 @@ export function StudioDetailModal({
             {minPrice !== null && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-white/40">Starting from</p>
-                <p className="text-lg font-bold" style={{ color: primaryColor }}>
-                  ₹{minPrice.toLocaleString("en-IN")}
-                  <span className="text-sm font-normal text-white/40">/hr</span>
+                <p className="text-lg font-bold flex items-baseline gap-2" style={{ color: primaryColor }}>
+                  {originalPrice != null && (
+                    <span className="text-sm font-normal text-white/30 line-through">
+                      ₹{originalPrice.toLocaleString("en-IN")}
+                    </span>
+                  )}
+                  <span>
+                    ₹{minPrice.toLocaleString("en-IN")}
+                    <span className="text-sm font-normal text-white/40">/hr</span>
+                  </span>
                 </p>
               </div>
             )}
