@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { getMergedStudioEquipmentLabels } from '@/lib/partner-studio-inventory';
 import { fetchMergedStudioAddons } from '@/lib/studio-addons-public';
 import { buildStudioBookingInventory } from '@/lib/studio-booking-inventory';
+import { resolveBasePricing } from '@/lib/pricing';
 
 export async function GET(
   _request: NextRequest,
@@ -25,6 +26,7 @@ export async function GET(
         featured_image_url, is_active,
         room_images (image_url, display_order)
       ),
+      studio_packages (id, name, description, price_per_hour, discount_percentage, features, is_popular, display_order),
       studio_amenities (amenities (id, name, icon, category))
     `)
     .eq('id', id)
@@ -92,16 +94,14 @@ export async function GET(
     })
     .filter((setup: any) => setup.image_url);
 
-  // Fetch studio-specific packages
-  let studioPackages: any[] = [];
-  try {
-    const { data: pkgRows } = await supabase
-      .from('studio_packages')
-      .select('id, name, description, price_per_hour, discount_percentage, features, is_popular, display_order')
-      .eq('studio_id', id)
-      .order('display_order');
-    studioPackages = pkgRows ?? [];
-  } catch { /* table may not exist yet */ }
+  // Studio-specific packages (embedded in the studios query above — the same
+  // mechanism the studios list uses, so the price is guaranteed consistent).
+  const studioPackages: any[] = [...((studio as any).studio_packages ?? [])].sort(
+    (a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)
+  );
+
+  // Canonical "starting from" price, computed the same way everywhere.
+  const pricing = resolveBasePricing(studioPackages, rooms);
 
   return NextResponse.json({
     id: (studio as any).id,
@@ -127,5 +127,7 @@ export async function GET(
     addons,
     booking_inventory,
     packages: studioPackages,
+    price_per_hour: pricing.price,
+    original_price_per_hour: pricing.originalPrice ?? null,
   });
 }

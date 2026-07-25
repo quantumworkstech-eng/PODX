@@ -104,6 +104,9 @@ interface StudioDetails {
   amenities: Amenity[];
   addons: Addon[];
   packages?: StudioPackage[];
+  /** Canonical base price computed server-side (cheapest package after discount). */
+  price_per_hour?: number;
+  original_price_per_hour?: number | null;
 }
 
 export interface StudioDetailModalProps {
@@ -297,10 +300,19 @@ export function StudioDetailModal({
   const tourVideo = details?.video_url
     ? getVideoInfo(details.video_url, { controls: true, muted: false, loop: false })
     : null;
+  // Prefer the server-computed canonical price (identical to the studios list);
+  // fall back to local computation for older API responses.
   const basePricing = resolveBasePricing(activePackages, activeRooms);
   const minPrice =
-    activePackages.length > 0 || activeRooms.length > 0 ? basePricing.price : null;
-  const originalPrice = basePricing.originalPrice;
+    details?.price_per_hour != null
+      ? details.price_per_hour
+      : activePackages.length > 0 || activeRooms.length > 0
+      ? basePricing.price
+      : null;
+  const originalPrice =
+    details?.price_per_hour != null
+      ? details.original_price_per_hour ?? undefined
+      : basePricing.originalPrice;
 
   return (
     <div
