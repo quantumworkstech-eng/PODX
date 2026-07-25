@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { jwtVerify } from "jose";
 import { AdminSidebar } from "./AdminSidebar";
 
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "admin-fallback-secret");
+// Must match the secret used to sign the admin_session cookie (login/actions.ts)
+// and verify it in middleware.ts — NextAuth v5 uses AUTH_SECRET.
+const secret = new TextEncoder().encode(
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "admin-fallback-secret"
+);
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();

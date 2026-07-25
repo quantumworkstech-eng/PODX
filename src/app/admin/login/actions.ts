@@ -6,7 +6,11 @@ import { SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "admin-fallback-secret");
+// Must match the resolution used to verify the admin_session cookie in
+// middleware.ts and admin/layout.tsx — NextAuth v5 uses AUTH_SECRET.
+const secret = new TextEncoder().encode(
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "admin-fallback-secret"
+);
 
 export async function adminSetPassword(email: string, password: string): Promise<{ error: string } | { success: true }> {
   if (!supabaseAdmin) return { error: "DB not configured." };
