@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 import {
   DollarSign,
   TrendingUp,
@@ -201,7 +202,7 @@ export default function PartnerEarningsPage() {
                     <p className={cn("font-semibold", booking.status === "completed" ? "text-green-400" : "text-yellow-400")}>
                       {booking.status === "completed" ? "+" : ""}₹{booking.totalPrice.toLocaleString()}
                     </p>
-                    <p className="text-white/40 text-xs">{new Date(booking.date).toLocaleDateString()}</p>
+                    <p className="text-white/40 text-xs">{formatBookingDate(booking.date)}</p>
                   </div>
                 </div>
               ))

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 import {
   ArrowLeft, Mail, Phone, Building2, Calendar, DollarSign,
   FileText, CheckCircle, Clock, XCircle, Edit2, Save, X, Loader2,
@@ -244,7 +245,7 @@ export default function ClientDetailPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-medium text-sm">{booking.booking_number || booking.id.slice(0, 8)}</p>
                     <p className="text-white/40 text-xs">
-                      {booking.studios?.name} · {new Date(booking.start_time).toLocaleDateString()}
+                      {booking.studios?.name} · {formatBookingDate(booking.start_time)}
                     </p>
                   </div>
                   <div className="text-right">

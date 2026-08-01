@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 import {
   Building2,
   Calendar,
@@ -254,7 +255,7 @@ export default function PartnerDashboardOverview() {
                   </div>
                   <div className="text-right">
                     <p className="text-white text-sm">
-                      {new Date(booking.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {formatBookingDate(booking.date)}
                     </p>
                     <p className="text-white/40 text-xs">
                       {booking.timeSlot} • {booking.duration}h
@@ -408,7 +409,7 @@ export default function PartnerDashboardOverview() {
                       <span className="text-[#D9FC67]">{booking.studio.name}</span>
                     </p>
                     <p className="text-white/30 text-xs">
-                      {new Date(booking.date).toLocaleDateString()} • ₹
+                      {formatBookingDate(booking.date)} • ₹
                       {booking.totalPrice.toLocaleString()}
                     </p>
                   </div>

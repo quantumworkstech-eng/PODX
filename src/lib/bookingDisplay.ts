@@ -18,7 +18,7 @@ const IST_TZ = "Asia/Kolkata";
  * Format a UTC ISO string as a short display date in IST.
  * @example "2026-04-11T03:30:00Z" → "Sat, Apr 11, 2026"
  */
-export function formatBookingDate(isoString: string): string {
+export function formatBookingDate(isoString: string | null | undefined): string {
   if (!isoString) return "";
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return "";
@@ -35,7 +35,7 @@ export function formatBookingDate(isoString: string): string {
  * Format a UTC ISO string as a long display date in IST (for detail views).
  * @example "2026-04-11T03:30:00Z" → "Saturday, April 11, 2026"
  */
-export function formatBookingDateLong(isoString: string): string {
+export function formatBookingDateLong(isoString: string | null | undefined): string {
   if (!isoString) return "";
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return "";
@@ -53,7 +53,7 @@ export function formatBookingDateLong(isoString: string): string {
  * always including minutes (zero-padded).
  * @example "2026-04-11T04:00:00Z" → "09:30 AM"
  */
-export function formatBookingTime(isoString: string): string {
+export function formatBookingTime(isoString: string | null | undefined): string {
   if (!isoString) return "";
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return "";
@@ -75,7 +75,7 @@ export function formatBookingTime(isoString: string): string {
  * Format a start + end UTC ISO pair as a time range in IST.
  * @example start="…04:00Z", end="…07:00Z" → "09:30 AM – 12:30 PM"
  */
-export function formatBookingTimeRange(startISO: string, endISO: string): string {
+export function formatBookingTimeRange(startISO: string | null | undefined, endISO: string | null | undefined): string {
   const start = formatBookingTime(startISO);
   const end = formatBookingTime(endISO);
   if (!start && !end) return "";

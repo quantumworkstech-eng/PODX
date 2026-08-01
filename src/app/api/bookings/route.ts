@@ -266,21 +266,18 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     const bufferMinutes: number = studioMeta?.buffer_minutes ?? 0;
+    const bufferMs = bufferMinutes * 60 * 1000;
 
-    // The effective start for conflict detection is pushed back by the buffer
-    // so that a booking inside another booking's cleanup window is also caught.
-    const conflictCheckStart = new Date(
-      startTime.getTime() - bufferMinutes * 60 * 1000
-    );
-
-    // Double-booking check (includes buffer enforcement)
+    // Double-booking check with buffer enforced SYMMETRICALLY: keep a cleanup
+    // gap of buffer_minutes on both sides so neither booking starts inside the
+    // other's cleanup window (matches the slots-availability logic).
     const { data: conflicts } = await supabaseAdmin
       .from("bookings")
       .select("id")
       .eq("studio_id", studioId)
       .neq("status", "cancelled")
-      .lt("start_time", endTime.toISOString())
-      .gt("end_time", conflictCheckStart.toISOString());
+      .lt("start_time", new Date(endTime.getTime() + bufferMs).toISOString())
+      .gt("end_time", new Date(startTime.getTime() - bufferMs).toISOString());
 
     if (conflicts && conflicts.length > 0) {
       return NextResponse.json(

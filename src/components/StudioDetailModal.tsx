@@ -31,6 +31,7 @@ import {
   Pause,
   Volume2,
   VolumeX,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getVideoInfo } from "@/components/StudioCardMedia";
@@ -186,6 +187,7 @@ export function StudioDetailModal({
   const [details, setDetails] = useState<StudioDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [slideIdx, setSlideIdx] = useState(0);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
@@ -217,6 +219,24 @@ export function StudioDetailModal({
     : coverImage
     ? [coverImage]
     : [];
+
+  // Studio tour video (if any) — defined here so it's available to the
+  // lightbox media list and the keyboard handler (both above the early return).
+  const tourVideo = details?.video_url
+    ? getVideoInfo(details.video_url, { controls: true, muted: false, loop: false })
+    : null;
+
+  // Combined media for the fullscreen lightbox: every image, then the video.
+  const lightboxItems: Array<{ type: "image"; url: string } | { type: "video" }> = [
+    ...slides.map((url) => ({ type: "image" as const, url })),
+    ...(tourVideo ? [{ type: "video" as const }] : []),
+  ];
+  const lightboxGo = (dir: 1 | -1) =>
+    setLightboxIdx((i) =>
+      i === null || lightboxItems.length === 0
+        ? i
+        : (i + dir + lightboxItems.length) % lightboxItems.length
+    );
 
   // Auto-advance banner slides
   const startAutoSlide = useCallback(() => {
@@ -281,14 +301,24 @@ export function StudioDetailModal({
     };
   }, [studioId]);
 
-  // Close on Escape
+  // Keyboard: when the lightbox is open, Esc closes it and arrows navigate;
+  // otherwise Esc closes the whole modal.
   useEffect(() => {
+    const count = lightboxItems.length;
     const handler = (e: KeyboardEvent) => {
+      if (lightboxIdx !== null) {
+        if (e.key === "Escape") setLightboxIdx(null);
+        else if (e.key === "ArrowLeft")
+          setLightboxIdx((i) => (i === null || count === 0 ? i : (i - 1 + count) % count));
+        else if (e.key === "ArrowRight")
+          setLightboxIdx((i) => (i === null || count === 0 ? i : (i + 1) % count));
+        return;
+      }
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, lightboxIdx, lightboxItems.length]);
 
   if (!studioId) return null;
 
@@ -297,9 +327,6 @@ export function StudioDetailModal({
   const displayAddress = details?.address ?? "";
   const activeRooms = details?.rooms ?? [];
   const activePackages = details?.packages ?? [];
-  const tourVideo = details?.video_url
-    ? getVideoInfo(details.video_url, { controls: true, muted: false, loop: false })
-    : null;
   // Prefer the server-computed canonical price (identical to the studios list);
   // fall back to local computation for older API responses.
   const basePricing = resolveBasePricing(activePackages, activeRooms);
@@ -315,6 +342,7 @@ export function StudioDetailModal({
       : basePricing.originalPrice;
 
   return (
+    <>
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -331,7 +359,12 @@ export function StudioDetailModal({
         {/* ── Banner / Image Slider ─────────────────────────── */}
         <div className="relative w-full aspect-video bg-black">
           {slides.length > 0 ? (
-            <>
+            <button
+              type="button"
+              onClick={() => setLightboxIdx(slideIdx)}
+              className="group/banner absolute inset-0 w-full h-full cursor-zoom-in"
+              aria-label="Open full-size image"
+            >
               <Image
                 key={slides[slideIdx]}
                 src={slides[slideIdx]}
@@ -341,7 +374,10 @@ export function StudioDetailModal({
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
-            </>
+              <span className="absolute bottom-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-sm text-white/85 text-xs opacity-0 group-hover/banner:opacity-100 transition-opacity">
+                <Maximize2 className="w-3.5 h-3.5" /> View
+              </span>
+            </button>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a1a]">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-black text-white/10 border border-white/5">
@@ -427,7 +463,7 @@ export function StudioDetailModal({
           <div className="border-b border-white/5">
             {!showVideo ? (
               <button
-                onClick={() => setShowVideo(true)}
+                onClick={() => setLightboxIdx(slides.length)}
                 className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/[0.03] transition-colors"
               >
                 <div
@@ -815,5 +851,88 @@ export function StudioDetailModal({
         </div>
       </div>
     </div>
+
+    {/* ── Fullscreen media lightbox ──────────────────────────── */}
+    {lightboxIdx !== null && lightboxItems[lightboxIdx] && (
+      <div
+        className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-sm flex items-center justify-center"
+        onClick={() => setLightboxIdx(null)}
+      >
+        {/* Close */}
+        <button
+          onClick={() => setLightboxIdx(null)}
+          className="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Counter */}
+        {lightboxItems.length > 1 && (
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-white/10 text-white/80 text-sm">
+            {lightboxIdx + 1} / {lightboxItems.length}
+          </div>
+        )}
+
+        {/* Prev / Next */}
+        {lightboxItems.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); lightboxGo(-1); }}
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); lightboxGo(1); }}
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              aria-label="Next"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </>
+        )}
+
+        {/* Media */}
+        <div
+          className="relative w-full max-w-6xl h-[85vh] mx-4 flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {lightboxItems[lightboxIdx].type === "image" ? (
+            <Image
+              key={(lightboxItems[lightboxIdx] as { url: string }).url}
+              src={(lightboxItems[lightboxIdx] as { url: string }).url}
+              alt={displayName}
+              fill
+              className="object-contain"
+              sizes="100vw"
+              priority
+            />
+          ) : tourVideo ? (
+            tourVideo.isEmbedded ? (
+              <div className="relative w-full aspect-video max-h-full">
+                <iframe
+                  src={tourVideo.embedUrl}
+                  title={`${displayName} studio tour`}
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                />
+              </div>
+            ) : (
+              <video
+                src={tourVideo.embedUrl}
+                className="max-w-full max-h-full rounded-lg"
+                controls
+                autoPlay
+                playsInline
+              />
+            )
+          ) : null}
+        </div>
+      </div>
+    )}
+    </>
   );
 }

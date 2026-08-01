@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { SelectWithCustom } from "@/components/ui/SelectWithCustom";
 import { FeatureGate } from "@/components/partner/FeatureGate";
 
 type EquipmentRow = {
@@ -110,7 +111,7 @@ export default function PartnerEquipmentPage() {
   const [savingNew, setSavingNew] = useState(false);
   const [newError, setNewError] = useState("");
   const [newCategory, setNewCategory] = useState<"equipment" | "service">("service");
-  const [newType, setNewType] = useState<(typeof ADDON_TYPE_OPTIONS)[number]>(ADDON_TYPE_OPTIONS[0]);
+  const [newType, setNewType] = useState<string>(ADDON_TYPE_OPTIONS[0]);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newQty, setNewQty] = useState(1);
@@ -592,15 +593,14 @@ export default function PartnerEquipmentPage() {
               </div>
               <div>
                 <label className="text-white/70 text-sm font-medium mb-2 block">Type</label>
-                <select
+                <SelectWithCustom
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value as any)}
+                  onChange={setNewType}
+                  options={ADDON_TYPE_OPTIONS}
+                  customPlaceholder="Enter custom type"
+                  optionClassName="bg-[#141414]"
                   className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white focus:border-[#D9FC67]/60 focus:outline-none"
-                >
-                  {ADDON_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t} className="bg-[#141414]">{t}</option>
-                  ))}
-                </select>
+                />
               </div>
             </div>
 

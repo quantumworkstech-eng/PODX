@@ -15,6 +15,7 @@ import {
   computeCancellationRefundBreakdown,
   MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT,
 } from "@/lib/cancellationRefund";
+import { formatBookingDate, formatBookingTimeRange } from "@/lib/bookingDisplay";
 
 interface CancelBookingModalProps {
   booking: BookingData;
@@ -45,13 +46,7 @@ export function CancelBookingModal({
   const [result, setResult] = useState<DoneState | null>(null);
 
   useEffect(() => {
-    const sessionStartMs = booking.start_time
-      ? new Date(booking.start_time).getTime()
-      : (() => {
-          const sessionDate = new Date(booking.date);
-          sessionDate.setHours(parseInt(booking.timeSlot.split(":")[0]), 0, 0, 0);
-          return sessionDate.getTime();
-        })();
+    const sessionStartMs = new Date(booking.start_time || booking.date).getTime();
     const now = Date.now();
     const hours = Math.max(0, (sessionStartMs - now) / (1000 * 60 * 60));
     const hoursFloor = Math.floor(hours);
@@ -165,16 +160,8 @@ export function CancelBookingModal({
               <div className="bg-white/5 rounded-xl p-4 mb-6">
                 <p className="text-white font-medium mb-1">{booking.studio.name}</p>
                 <p className="text-white/50 text-sm">
-                  {new Date(booking.start_time || booking.date).toLocaleDateString(
-                    "en-IN",
-                    {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      timeZone: "Asia/Kolkata",
-                    }
-                  )}{" "}
-                  ({booking.timeSlot})
+                  {formatBookingDate(booking.start_time || booking.date)}{" "}
+                  ({formatBookingTimeRange(booking.start_time, booking.end_time)})
                 </p>
               </div>
 

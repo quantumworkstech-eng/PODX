@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const SUBS = new Set(["editing", "production", "content_services"]);
-
 async function getPartnerId(): Promise<string | null> {
   const session = await auth();
   return (session?.user as { id?: string })?.id ?? null;
@@ -15,7 +13,8 @@ export async function POST(request: NextRequest) {
   if (!supabaseAdmin) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
   const body = await request.json();
-  const subcategory = String(body.subcategory || "").toLowerCase();
+  // Allow custom subcategories (UI offers a "Custom…" option).
+  const subcategory = String(body.subcategory || "").trim().toLowerCase();
   const name = String(body.name || "").trim();
   const description = body.description != null ? String(body.description).trim() : null;
   const basePrice =
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
       ? Number(body.base_price)
       : null;
 
-  if (!SUBS.has(subcategory) || !name) {
+  if (!subcategory || !name) {
     return NextResponse.json({ error: "subcategory and name are required" }, { status: 400 });
   }
 

@@ -124,7 +124,7 @@ export async function PUT(
     name, description, short_description, address, city, state, country,
     owner_email, price_per_hour, capacity, video_url,
     images, available_days, working_hours, cancellation_rules, packages,
-    addon_ids,
+    addon_ids, buffer_minutes, reschedule_cutoff_hours, amenity_ids, equipment,
   } = body;
 
   // Optionally update owner
@@ -148,6 +148,9 @@ export async function PUT(
   if (state !== undefined) studioUpdate.state = state;
   if (country) studioUpdate.country = country;
   if (video_url !== undefined) studioUpdate.video_url = video_url;
+  if (buffer_minutes !== undefined) studioUpdate.buffer_minutes = Number(buffer_minutes) || 0;
+  if (reschedule_cutoff_hours !== undefined) studioUpdate.reschedule_cutoff_hours = Number(reschedule_cutoff_hours) || 0;
+  if (Array.isArray(equipment)) studioUpdate.equipment = equipment;
   await supabaseAdmin.from('studios').update(studioUpdate).eq('id', id);
 
   // Update room price/capacity
@@ -227,6 +230,16 @@ export async function PUT(
     if (addon_ids.length > 0) {
       await supabaseAdmin.from('studio_addons').insert(
         addon_ids.map((addon_id: string) => ({ studio_id: id, addon_id }))
+      );
+    }
+  }
+
+  // Replace amenities
+  if (Array.isArray(amenity_ids)) {
+    await supabaseAdmin.from('studio_amenities').delete().eq('studio_id', id);
+    if (amenity_ids.length > 0) {
+      await supabaseAdmin.from('studio_amenities').insert(
+        amenity_ids.map((amenity_id: string) => ({ studio_id: id, amenity_id }))
       );
     }
   }

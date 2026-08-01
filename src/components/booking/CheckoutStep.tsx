@@ -124,6 +124,7 @@ export function CheckoutStep() {
   const formatDate = () => {
     if (!date) return "";
     return date.toLocaleDateString("en-US", {
+      timeZone: "Asia/Kolkata",
       weekday: "long",
       year: "numeric",
       month: "long",

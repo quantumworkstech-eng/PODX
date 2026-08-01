@@ -187,8 +187,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   // Update studios table
   const studioUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
   if (name !== undefined) studioUpdates.name = name;
-  if (fullDescription !== undefined) studioUpdates.description = fullDescription;
-  if (description !== undefined) studioUpdates.description = description;
+  if (fullDescription !== undefined || shortDescription !== undefined) {
+    studioUpdates.description = fullDescription ?? shortDescription;
+  } else if (description !== undefined) {
+    studioUpdates.description = description;
+  }
   if (shortDescription !== undefined) studioUpdates.short_description = shortDescription;
   else if (description !== undefined) studioUpdates.short_description = description.slice(0, 150);
   if (address !== undefined) studioUpdates.address = address;

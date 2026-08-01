@@ -32,6 +32,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { StudioFullDetailModal } from "@/components/StudioFullDetailModal";
 import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
 import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartnerInventoryPicker";
 import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddonPicker";
@@ -148,6 +149,7 @@ export default function PartnerStudiosPage() {
   const [isFormHydrating, setIsFormHydrating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -168,10 +170,20 @@ export default function PartnerStudiosPage() {
       workingHours?: { start: string; end: string };
       packages?: StudioPackage[];
       setups?: StudioSetup[];
+      state?: string;
+      country?: string;
+      video_url?: string;
+      short_description?: string;
+      full_description?: string;
     }
   >({
     name: "",
     description: "",
+    state: "",
+    country: "India",
+    video_url: "",
+    short_description: "",
+    full_description: "",
     address: "",
     city: "",
     price_per_hour: 0,
@@ -253,6 +265,11 @@ export default function PartnerStudiosPage() {
           setFormData((prev) => ({
             ...prev,
             ...fresh,
+            state: fresh.state ?? "",
+            country: fresh.country ?? "India",
+            video_url: fresh.video_url ?? "",
+            short_description: fresh.short_description ?? "",
+            full_description: fresh.full_description ?? "",
             addonIds: fresh.addon_ids || [],
             availableDays: fresh.availableDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
             workingHours: fresh.workingHours || { start: "09:00", end: "21:00" },
@@ -358,8 +375,13 @@ export default function PartnerStudiosPage() {
           body: JSON.stringify({
             name: formData.name,
             description: formData.description,
+            shortDescription: formData.short_description,
+            fullDescription: formData.full_description,
             address: formData.address,
             city: formData.city,
+            state: formData.state,
+            country: formData.country,
+            videoUrl: formData.video_url,
             pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
             availableDays: formData.availableDays || [],
@@ -394,8 +416,13 @@ export default function PartnerStudiosPage() {
           body: JSON.stringify({
             name: formData.name,
             description: formData.description,
+            shortDescription: formData.short_description,
+            fullDescription: formData.full_description,
             address: formData.address,
             city: formData.city,
+            state: formData.state,
+            country: formData.country,
+            videoUrl: formData.video_url,
             pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
             availableDays: formData.availableDays || [],
@@ -600,7 +627,12 @@ export default function PartnerStudiosPage() {
               <div className="relative h-48 bg-white/5">
                 {studio.images && studio.images.length > 0 ? (
                   <>
-                    <img src={studio.images[currentImageIndex[studio.id] || 0]} alt={studio.name} className="w-full h-full object-cover" />
+                    <img
+                      src={studio.images[currentImageIndex[studio.id] || 0]}
+                      alt={studio.name}
+                      onClick={() => setDetailStudioId(studio.id)}
+                      className="w-full h-full object-cover cursor-pointer"
+                    />
                     {studio.images.length > 1 && (
                       <>
                         <button onClick={() => prevImage(studio.id, studio.images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -633,7 +665,14 @@ export default function PartnerStudiosPage() {
 
               <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-white">{studio.name}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setDetailStudioId(studio.id)}
+                    className="text-lg font-semibold text-white text-left hover:text-[#D9FC67] transition-colors"
+                    title="View studio details"
+                  >
+                    {studio.name}
+                  </button>
                   {studio.review_status === "draft" ? (
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
                       Draft
@@ -677,6 +716,15 @@ export default function PartnerStudiosPage() {
                 </div>
 
                 <div className="flex gap-2">
+                  <Button
+                    onClick={() => setDetailStudioId(studio.id)}
+                    variant="outline"
+                    size="sm"
+                    className="border-white/10 text-white hover:bg-white/5"
+                    title="View studio details"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
                   {studio.review_status === "draft" ? (
                     <Link
                       href={`/partner/studios/create?draftId=${studio.id}`}
@@ -732,8 +780,18 @@ export default function PartnerStudiosPage() {
               </div>
 
               <div>
-                <label className="text-white/60 text-sm mb-2 block">Description</label>
-                <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe your studio..." className="w-full h-24 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none" />
+                <label className="text-white/60 text-sm mb-2 block">Short Description</label>
+                <textarea value={formData.short_description} onChange={(e) => setFormData({ ...formData, short_description: e.target.value })} placeholder="A brief one-line summary of your studio..." className="w-full h-24 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none" />
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Full Description</label>
+                <textarea value={formData.full_description} onChange={(e) => setFormData({ ...formData, full_description: e.target.value })} placeholder="Describe your studio in detail..." className="w-full h-24 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none" />
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Studio Video URL</label>
+                <Input type="url" value={formData.video_url} onChange={(e) => setFormData({ ...formData, video_url: e.target.value })} placeholder="YouTube, Vimeo, Google Drive, or MP4 link" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -744,6 +802,17 @@ export default function PartnerStudiosPage() {
                 <div>
                   <label className="text-white/60 text-sm mb-2 block">Address</label>
                   <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">State</label>
+                  <Input value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} placeholder="e.g., Maharashtra" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                </div>
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Country</label>
+                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="India" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
                 </div>
               </div>
 
@@ -1181,6 +1250,13 @@ export default function PartnerStudiosPage() {
           setInventoryDrawerOpen(false);
           refreshInventory();
         }}
+      />
+
+      {/* Studio detail popup */}
+      <StudioFullDetailModal
+        studioId={detailStudioId}
+        source="partner"
+        onClose={() => setDetailStudioId(null)}
       />
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

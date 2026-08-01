@@ -20,7 +20,7 @@ const secret = new TextEncoder().encode(
  */
 type AdminLookup =
   | { ok: true; email: string }
-  | { ok: false; reason: "no_client" | "query_error" | "not_found" | "inactive"; detail?: string; seen?: string[] };
+  | { ok: false; reason: "no_client" | "query_error" | "not_found" | "inactive"; detail?: string };
 
 /**
  * Resolve an admin from the `admins` roster. Compares email in JS (trimmed +
@@ -40,13 +40,7 @@ async function lookupAdmin(email: string): Promise<AdminLookup> {
   const row = (data ?? []).find(
     (r: any) => String(r.email ?? "").trim().toLowerCase() === normalized
   );
-  if (!row) {
-    return {
-      ok: false,
-      reason: "not_found",
-      seen: (data ?? []).map((r: any) => String(r.email ?? "")),
-    };
-  }
+  if (!row) return { ok: false, reason: "not_found" };
   if (row.is_active === false) return { ok: false, reason: "inactive" };
   return { ok: true, email: normalized };
 }
@@ -105,12 +99,7 @@ export async function adminCheckEmail(email: string): Promise<{ error: string } 
   const lookup = await lookupAdmin(email);
   if (!lookup.ok) {
     if (lookup.reason === "inactive") return { error: "Your admin account is inactive. Contact an administrator." };
-    if (lookup.reason === "query_error") return { error: `Admin lookup failed: ${lookup.detail || "database error"}` };
-    // TEMP DIAGNOSTIC: show what the server actually sees in the admins table
-    const seen = lookup.seen ?? [];
-    return {
-      error: `Not authorized. Server sees ${seen.length} admin row(s): [${seen.join(", ") || "none"}]`,
-    };
+    return { error: "Not authorized. This email is not registered as admin." };
   }
 
   const cred = await ensureCredentials(lookup.email);

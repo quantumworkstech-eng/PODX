@@ -365,9 +365,9 @@ export default function StudiosPage() {
                     </div>
 
                     {/* Address */}
-                    <p className="flex items-start gap-1.5 text-white/50 text-sm leading-relaxed line-clamp-2 mb-4">
+                    <p className="flex items-start gap-1.5 text-white/50 text-sm leading-relaxed mb-4">
                       <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-white/30" />
-                      <span>
+                      <span className="line-clamp-2">
                         {studio.location?.address || studio.location?.city || "Mumbai"}
                       </span>
                     </p>

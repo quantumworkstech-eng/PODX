@@ -180,15 +180,18 @@ export async function PATCH(
         oldDuration
       );
 
-      // Conflict check (exclude current booking)
+      // Conflict check (buffer-aware, exclude current booking)
+      const { data: bufRow } = await supabaseAdmin
+        .from("studios").select("buffer_minutes").eq("id", booking.studio_id).maybeSingle();
+      const bufferMs = (Number(bufRow?.buffer_minutes) || 0) * 60 * 1000;
       const { data: conflicts } = await supabaseAdmin
         .from("bookings")
         .select("id")
         .eq("studio_id", booking.studio_id)
         .neq("status", "cancelled")
         .neq("id", booking.id)
-        .lt("start_time", newEnd.toISOString())
-        .gt("end_time", newStart.toISOString());
+        .lt("start_time", new Date(newEnd.getTime() + bufferMs).toISOString())
+        .gt("end_time", new Date(newStart.getTime() - bufferMs).toISOString());
 
       if (conflicts && conflicts.length > 0) {
         return NextResponse.json(

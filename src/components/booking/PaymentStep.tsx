@@ -134,6 +134,7 @@ export function PaymentStep() {
   const formatDate = () => {
     if (!date) return "";
     return date.toLocaleDateString("en-US", {
+      timeZone: "Asia/Kolkata",
       weekday: "long",
       year: "numeric",
       month: "long",

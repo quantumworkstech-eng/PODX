@@ -330,9 +330,9 @@ export function StudioStep() {
                         )}
                       </div>
 
-                      <p className="flex items-start gap-1.5 text-white/40 text-sm mb-4 line-clamp-2">
+                      <p className="flex items-start gap-1.5 text-white/40 text-sm mb-4">
                         <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-white/30" />
-                        <span>{studio.location.address || studio.location.city}</span>
+                        <span className="line-clamp-2">{studio.location.address || studio.location.city}</span>
                       </p>
 
                       {/* ── Availability time pills ─────────────────────────────── */}

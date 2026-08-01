@@ -176,7 +176,7 @@ export function DashboardOverview({ upcomingBookings, pastBookings, onNavigate, 
                     <p className="text-white font-medium truncate">{booking.studio.name}</p>
                     <p className="text-white/40 text-sm">
                        {formatBookingDate(booking.start_time || booking.date)}{" "}
-                       • {booking.start_time ? formatBookingTime(booking.start_time) : booking.timeSlot}
+                       • {formatBookingTime(booking.start_time)}
                     </p>
                   </div>
                   <span

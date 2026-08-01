@@ -144,9 +144,9 @@ export function StudiosSection({ content, branding, studios, onBookNow, onViewDe
                   <div className="p-5">
                     <h3 className="text-lg font-bold mb-1">{studio.name}</h3>
                     {(studio.address || studio.city) && (
-                      <p className="flex items-start gap-1.5 text-sm mb-4 line-clamp-2" style={{ opacity: 0.5 }}>
+                      <p className="flex items-start gap-1.5 text-sm mb-4" style={{ opacity: 0.5 }}>
                         <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ opacity: 0.7 }} />
-                        <span>{studio.address || studio.city}</span>
+                        <span className="line-clamp-2">{studio.address || studio.city}</span>
                       </p>
                     )}
 

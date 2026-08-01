@@ -35,6 +35,7 @@ interface Booking {
   studioId?: string;
   studio: { id: string; name: string; city: string; address: string };
   customer: { name: string; email: string; phone: string };
+  guests?: { name: string; email: string; phone: string }[];
   /** Raw UTC ISO — preferred for display */
   start_time?: string;
   end_time?: string;
@@ -392,22 +393,13 @@ export default function PartnerBookingsPage() {
                       <td className="p-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
                           {booking.status === "pending" && (
-                            <>
-                              <button
-                                onClick={() => updateBookingStatus(booking.dbId, "confirmed", booking.id)}
-                                className="p-1.5 rounded-lg text-green-400 hover:bg-green-400/10 transition-colors"
-                                title="Approve"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => updateBookingStatus(booking.dbId, "cancelled", booking.id)}
-                                className="p-1.5 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
-                                title="Reject"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => updateBookingStatus(booking.dbId, "confirmed", booking.id)}
+                              className="p-1.5 rounded-lg text-green-400 hover:bg-green-400/10 transition-colors"
+                              title="Approve"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
                           )}
                           {(booking.status === "confirmed" || booking.status === "pending" || booking.status === "rescheduled") && (
                             <>
@@ -515,6 +507,27 @@ export default function PartnerBookingsPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Guests */}
+                  {selectedBooking.guests && selectedBooking.guests.length > 0 && (
+                    <div className="bg-[#1a1a1a] rounded-xl border border-white/5 p-4 sm:col-span-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <User className="w-4 h-4 text-purple-400" />
+                        </div>
+                        <h3 className="text-white font-semibold text-sm">Guests ({selectedBooking.guests.length})</h3>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {selectedBooking.guests.map((g, i) => (
+                          <div key={i} className="bg-white/[0.03] rounded-lg border border-white/5 px-3 py-2">
+                            <p className="text-white text-sm font-medium">{g.name || `Guest ${i + 1}`}</p>
+                            {g.email && <p className="text-white/40 text-xs flex items-center gap-1.5 mt-0.5"><Mail className="w-3 h-3 shrink-0" />{g.email}</p>}
+                            {g.phone && <p className="text-white/30 text-xs flex items-center gap-1.5 mt-0.5"><Phone className="w-3 h-3 shrink-0" />{g.phone}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Studio */}
                   <div className="bg-[#1a1a1a] rounded-xl border border-white/5 p-4">

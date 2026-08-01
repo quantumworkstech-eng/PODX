@@ -55,6 +55,17 @@ interface AdminStudioFormData {
   cancellationRules: CancellationRule[];
   packages: StudioPackage[];
   addonIds: string[];
+  bufferMinutes: number;
+  rescheduleCutoffHours: number;
+  amenityIds: string[];
+  equipment: string[];
+}
+
+interface AmenityOption {
+  id: string;
+  name: string;
+  icon?: string;
+  category?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -141,6 +152,14 @@ const DEFAULT_PKG_FEATURES: PkgFeature[][] = [
 
 const EMPTY_PKG: StudioPackage = { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false };
 
+const BUFFER_OPTIONS = [0, 15, 30, 45, 60, 90, 120];
+
+const EQUIPMENT_OPTIONS = [
+  "Microphones", "Headphones", "Audio Interface", "Mixer", "Pop Filters",
+  "Boom Arm", "Acoustic Panels", "Video Camera", "Lighting Kit", "Green Screen",
+  "Teleprompter", "Monitor",
+];
+
 const DEFAULT_CANCELLATION_RULES: CancellationRule[] = [
   { id: "1", type: "days", value: 7, refundPercent: 100, deductionPercent: 0 },
   { id: "2", type: "days", value: 3, refundPercent: 80, deductionPercent: 20 },
@@ -175,6 +194,10 @@ function AdminEditStudioPageInner() {
     cancellationRules: DEFAULT_CANCELLATION_RULES,
     packages: [EMPTY_PKG, EMPTY_PKG, EMPTY_PKG],
     addonIds: [],
+    bufferMinutes: 0,
+    rescheduleCutoffHours: 48,
+    amenityIds: [],
+    equipment: [],
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -187,6 +210,7 @@ function AdminEditStudioPageInner() {
   const [cities, setCities] = useState<City[]>([]);
   const [partners, setPartners] = useState<{ id: string; email: string; name: string }[]>([]);
   const [partnersLoading, setPartnersLoading] = useState(true);
+  const [allAmenities, setAllAmenities] = useState<AmenityOption[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -209,6 +233,8 @@ function AdminEditStudioPageInner() {
       .then((data) => {
         const s = data.studio;
         if (!s) { setDataError("Studio not found."); return; }
+
+        setAllAmenities(data.allAmenities || []);
 
         // Map DB hours to working hours + available days
         const hoursArr: { day_of_week: string; open_time: string; close_time: string; is_closed: boolean }[] = data.hours || [];
@@ -262,6 +288,10 @@ function AdminEditStudioPageInner() {
           cancellationRules,
           packages,
           addonIds: data.studioAddonIds || [],
+          bufferMinutes: s.buffer_minutes ?? 0,
+          rescheduleCutoffHours: s.reschedule_cutoff_hours ?? 48,
+          amenityIds: (data.studioAmenities || []).map((a: AmenityOption) => a.id),
+          equipment: s.equipment || [],
         });
       })
       .catch(() => setDataError("Failed to load studio data."))
@@ -416,6 +446,10 @@ function AdminEditStudioPageInner() {
           cancellation_rules: formData.useCustomPolicies ? formData.cancellationRules : [],
           packages: formData.packages.filter((p) => p.name.trim()),
           addon_ids: formData.addonIds,
+          buffer_minutes: formData.bufferMinutes,
+          reschedule_cutoff_hours: formData.rescheduleCutoffHours,
+          amenity_ids: formData.amenityIds,
+          equipment: formData.equipment,
         }),
       });
       if (!res.ok) {
@@ -682,6 +716,61 @@ function AdminEditStudioPageInner() {
                   onClick={() => updateFormData({ availableDays: selected ? formData.availableDays.filter((d) => d !== day) : [...formData.availableDays, day] })}
                   className={cn("w-12 h-12 rounded-xl text-sm font-medium transition-all", selected ? "bg-[#D9FC67] text-black" : "bg-white/5 text-white/50 hover:bg-white/10 border border-white/10")}>
                   {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <label className="text-white/80 text-sm font-medium mb-3 block">Buffer time (minutes)</label>
+          <div className="flex flex-wrap gap-2">
+            {BUFFER_OPTIONS.map((mins) => {
+              const selected = formData.bufferMinutes === mins;
+              return (
+                <button key={mins} type="button"
+                  onClick={() => updateFormData({ bufferMinutes: mins })}
+                  className={cn("h-12 px-4 rounded-xl text-sm font-medium transition-all", selected ? "bg-[#D9FC67] text-black" : "bg-white/5 text-white/50 hover:bg-white/10 border border-white/10")}>
+                  {mins}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <label className="text-white/80 text-sm font-medium mb-2 block">Reschedule cutoff (hours before session)</label>
+          <input type="number" min={0} value={formData.rescheduleCutoffHours}
+            onChange={(e) => updateFormData({ rescheduleCutoffHours: Math.max(0, parseInt(e.target.value) || 0) })}
+            className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-5 text-white placeholder:text-white/30 focus:border-[#D9FC67] focus:outline-none transition-colors" />
+        </div>
+        <div>
+          <label className="text-white/80 text-sm font-medium mb-3 block">Amenities</label>
+          {allAmenities.length === 0 ? (
+            <p className="text-white/40 text-sm">No amenities available.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {allAmenities.map((amenity) => {
+                const selected = formData.amenityIds.includes(amenity.id);
+                return (
+                  <button key={amenity.id} type="button"
+                    onClick={() => updateFormData({ amenityIds: selected ? formData.amenityIds.filter((a) => a !== amenity.id) : [...formData.amenityIds, amenity.id] })}
+                    className={cn("h-11 px-4 rounded-xl text-sm font-medium transition-all", selected ? "bg-[#D9FC67] text-black" : "bg-white/5 text-white/50 hover:bg-white/10 border border-white/10")}>
+                    {amenity.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div>
+          <label className="text-white/80 text-sm font-medium mb-3 block">Equipment</label>
+          <div className="flex flex-wrap gap-2">
+            {EQUIPMENT_OPTIONS.map((item) => {
+              const selected = formData.equipment.includes(item);
+              return (
+                <button key={item} type="button"
+                  onClick={() => updateFormData({ equipment: selected ? formData.equipment.filter((e) => e !== item) : [...formData.equipment, item] })}
+                  className={cn("h-11 px-4 rounded-xl text-sm font-medium transition-all", selected ? "bg-[#D9FC67] text-black" : "bg-white/5 text-white/50 hover:bg-white/10 border border-white/10")}>
+                  {item}
                 </button>
               );
             })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 import {
   X, User, Mail, Phone, Calendar, Shield, Building2, Ban, CheckCircle,
   RefreshCw, Save, ExternalLink, Clock, ChevronRight, AlertCircle,
@@ -327,7 +328,7 @@ export function UserEditDrawer({ userId, onClose, onSaved }: Props) {
                             <p className="text-white text-sm font-medium truncate">{b.studios?.name || "Studio"}</p>
                             <p className="text-white/40 text-xs mt-0.5">
                               {b.booking_number && <span className="mr-2">#{b.booking_number}</span>}
-                              {b.start_time ? new Date(b.start_time).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                              {b.start_time ? formatBookingDate(b.start_time) : "—"}
                             </p>
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">

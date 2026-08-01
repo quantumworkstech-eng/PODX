@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Plus, Search, Pencil, Trash2, Power, RefreshCw, X, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SelectWithCustom } from "@/components/ui/SelectWithCustom";
 
 const ADMIN_ADDON_TYPES = [
   "Full podcast edit (cuts, audio cleanup)",
@@ -390,27 +391,25 @@ export default function AdminAddonsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-white/60 text-xs uppercase tracking-wider mb-1.5 block">Type</label>
-                  <select
+                  <SelectWithCustom
                     value={form.addon_type}
-                    onChange={(e) => setForm((f) => ({ ...f, addon_type: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, addon_type: v }))}
+                    options={ADMIN_ADDON_TYPES}
+                    customPlaceholder="Enter custom type"
+                    optionClassName="bg-[#18181b]"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20"
-                  >
-                    {ADMIN_ADDON_TYPES.map((t) => (
-                      <option key={t} value={t} className="bg-[#18181b]">{t}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="text-white/60 text-xs uppercase tracking-wider mb-1.5 block">Category</label>
-                  <select
+                  <SelectWithCustom
                     value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, category: v }))}
+                    options={CATEGORIES}
+                    customPlaceholder="Enter custom category"
+                    optionClassName="bg-[#18181b] capitalize"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-white/20"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c} className="bg-[#18181b] capitalize">{c}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 

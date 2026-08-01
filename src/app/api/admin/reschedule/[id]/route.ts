@@ -39,11 +39,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   if (action === 'approve') {
     // Update the booking with new time
+    // start_time/end_time are the only source of truth (there is no booking_date
+    // column). The request's new_start_time/new_end_time must already be absolute
+    // UTC ISO timestamps produced via startEndFromCalendarAndSlot when the request
+    // was created.
     const bookingUpdates: Record<string, unknown> = {
       status: 'rescheduled',
       updated_at: new Date().toISOString(),
     };
-    if (req.new_date) bookingUpdates.booking_date = req.new_date;
     if (req.new_start_time) bookingUpdates.start_time = req.new_start_time;
     if (req.new_end_time) bookingUpdates.end_time = req.new_end_time;
 

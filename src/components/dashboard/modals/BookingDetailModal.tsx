@@ -50,23 +50,8 @@ export function BookingDetailModal({
     return formatBookingDateLong(src);
   };
 
-  const formatTime = (booking: BookingData) => {
-    if (booking.start_time && booking.end_time) {
-      return formatBookingTimeRange(booking.start_time, booking.end_time);
-    }
-    // Fallback from timeSlot + duration
-    const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
-    const hour = parseInt(hoursStr, 10);
-    const minute = parseInt(minutesStr, 10);
-    const totalStartMinutes = hour * 60 + minute;
-    const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
-    const fmt = (total: number) => {
-      const h = Math.floor(total / 60);
-      const m = total % 60;
-      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
-    };
-    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
-  };
+  const formatTime = (booking: BookingData) =>
+    formatBookingTimeRange(booking.start_time, booking.end_time);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
