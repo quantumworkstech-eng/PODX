@@ -109,5 +109,30 @@ Set the three `NEXT_PUBLIC_*` variables to **Build Variable** and **Runtime Vari
 | Supabase requests fail | Verify the URL is the Supabase **Kong/API** HTTPS URL, not Studio, and recopy both Supabase keys. |
 | Google callback error | `NEXTAUTH_URL` and the Google redirect URI must exactly match the app’s HTTPS domain. |
 | Browser still uses an old public URL/key | Redeploy after changing any `NEXT_PUBLIC_*` variable; those values are compiled into the browser bundle. |
+| "Something went wrong. Please try again." on admin login / any Server Action | The proxy origin isn't whitelisted. Add the domain to `experimental.serverActions.allowedOrigins` in `next.config.ts` **and** to `MAIN_HOSTS` in `src/middleware.ts`, then rebuild + redeploy. See below. |
+
+## Server Actions behind the reverse proxy
+
+Next.js protects Server Actions with a CSRF check: the browser's `Origin` must
+match the host the app sees. Behind Coolify's Traefik proxy the app sees an
+internal host, not `https://yanisastudios.com`, so unlisted origins are rejected
+with `Invalid Server Actions request.` — which the UI shows as
+**"Something went wrong. Please try again."** (e.g. admin login and admin
+creation, which are Server Actions).
+
+Two things keep this working whenever you add or change a domain:
+
+1. **Whitelist the origin.** Add every domain that serves the app (apex + `www`)
+   to `experimental.serverActions.allowedOrigins` in `next.config.ts`, and to
+   `MAIN_HOSTS` in `src/middleware.ts`. Keep the two lists in sync. A rebuild +
+   redeploy is required (config is compiled at build time).
+
+2. **Forward the proxy headers.** Coolify's built-in Traefik proxy forwards
+   `X-Forwarded-Host` and `X-Forwarded-Proto` automatically, so no extra config
+   is normally needed. If you front the app with your own Nginx/Caddy/other
+   proxy instead, make sure it forwards both headers unchanged — otherwise the
+   origin check (and generated absolute URLs) will break. The `allowedOrigins`
+   whitelist makes Server Actions work regardless, but correct forwarding is the
+   cleaner setup.
 
 Official references: [Coolify Next.js](https://coolify.io/docs/applications/nextjs), [Coolify Supabase](https://coolify.io/docs/services/supabase), and [Coolify environment variables](https://coolify.io/docs/knowledge-base/environment-variables).
