@@ -12,11 +12,18 @@ export async function POST(req: NextRequest) {
   const { email, password, action } = await req.json();
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-  const { data: admin } = await supabaseAdmin
+  const { data: admin, error: lookupErr } = await supabaseAdmin
     .from("admin_credentials")
     .select("id, email, password_hash")
     .eq("email", email.toLowerCase().trim())
     .maybeSingle();
+
+  // Surface DB/connection errors instead of masking them as "not authorized"
+  // (e.g. an invalid SUPABASE_SERVICE_ROLE_KEY returns a 401 here).
+  if (lookupErr) {
+    console.error("admin/login lookup error:", lookupErr.message);
+    return NextResponse.json({ error: `Admin lookup failed: ${lookupErr.message}` }, { status: 500 });
+  }
 
   if (!admin) {
     return NextResponse.json({ error: "Not authorized. This email is not registered as admin." }, { status: 403 });

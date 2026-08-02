@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 const supabase = supabaseAdmin!;
 import { getPartnerSubscription, isSubscriptionActive, checkFeature } from "@/lib/subscription-gates";
 import { isFeatureEnabled } from "@/lib/feature-access";
+import { getHourInIST } from "@/lib/bookingTime";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
   // ── Peak booking hours ──
   const hourMap: Record<number, number> = {};
   for (const b of allBookings) {
-    const hour = new Date(b.start_time).getHours();
+    const hour = getHourInIST(new Date(b.start_time));
     hourMap[hour] = (hourMap[hour] || 0) + 1;
   }
   const peakHours = Array.from({ length: 24 }, (_, h) => ({

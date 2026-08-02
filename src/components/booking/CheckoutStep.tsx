@@ -16,6 +16,7 @@ import {
   Shield,
   AlertCircle,
   Info,
+  MessageSquareText,
   Pencil,
   Tag,
   X,
@@ -42,8 +43,8 @@ export function CheckoutStep() {
     participants,
     selectedStudio,
     selectedPackage,
+    selectedSetup,
     getPackagePrice,
-    getAddOnsPrice,
     getSubtotal,
     getTax,
     getTotalPrice,
@@ -60,6 +61,8 @@ export function CheckoutStep() {
     setAppliedCoupon,
     gstNumber,
     setGstNumber,
+    bookingNote,
+    setBookingNote,
   } = useBooking();
 
   const { data: session } = useSession();
@@ -121,6 +124,7 @@ export function CheckoutStep() {
   const formatDate = () => {
     if (!date) return "";
     return date.toLocaleDateString("en-US", {
+      timeZone: "Asia/Kolkata",
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -259,6 +263,37 @@ export function CheckoutStep() {
             </div>
           )}
 
+          {selectedSetup && (
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
+                <span>Selected Setup</span>
+                <button
+                  onClick={() => goToStep(4)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              </h3>
+              <div className="flex gap-4">
+                <div className="relative w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/10">
+                  <Image
+                    src={selectedSetup.image_url}
+                    alt={selectedSetup.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold">{selectedSetup.name}</h4>
+                  {selectedSetup.capacity ? (
+                    <p className="text-white/50 text-sm mt-1">Up to {selectedSetup.capacity} people</p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Package */}
           {selectedPackage && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
@@ -323,6 +358,28 @@ export function CheckoutStep() {
               )}
             </div>
           )}
+
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+              <MessageSquareText className="w-4 h-4 text-[#D9FC67]" />
+              Add a note
+            </h3>
+            <p className="text-white/45 text-sm mb-4">
+              Share any setup requests, guest details, or instructions for the studio.
+            </p>
+            <textarea
+              value={bookingNote}
+              onChange={(e) => setBookingNote(e.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="Example: We need two chairs, a table mic setup, and help connecting a laptop."
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-colors focus:border-[#D9FC67]/60"
+            />
+            <div className="mt-2 flex justify-between text-xs text-white/30">
+              <span>Optional</span>
+              <span>{bookingNote.length}/500</span>
+            </div>
+          </div>
 
           {/* Cancellation policy */}
           <div className="bg-white/5 rounded-2xl border border-white/10 p-5">

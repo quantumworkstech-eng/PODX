@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { SelectWithCustom } from "@/components/ui/SelectWithCustom";
 import { FeatureGate } from "@/components/partner/FeatureGate";
 
 type EquipmentRow = {
@@ -110,7 +111,7 @@ export default function PartnerEquipmentPage() {
   const [savingNew, setSavingNew] = useState(false);
   const [newError, setNewError] = useState("");
   const [newCategory, setNewCategory] = useState<"equipment" | "service">("service");
-  const [newType, setNewType] = useState<(typeof ADDON_TYPE_OPTIONS)[number]>(ADDON_TYPE_OPTIONS[0]);
+  const [newType, setNewType] = useState<string>(ADDON_TYPE_OPTIONS[0]);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newQty, setNewQty] = useState(1);
@@ -385,59 +386,83 @@ export default function PartnerEquipmentPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredEquipment.map((it) => (
-                <div key={`eq-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-28 bg-gradient-to-r from-blue-500/15 to-transparent px-5 py-4 flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold truncate">{it.model_name}</p>
-                      <p className="text-white/40 text-xs truncate">
-                        {EQ_LABEL[it.subcategory] || it.subcategory} · qty {it.default_quantity}
-                      </p>
-                    </div>
+                <div key={`eq-${it.id}`} className="group flex flex-col h-full rounded-2xl border border-white/10 bg-[#141414] overflow-hidden transition-all duration-300 hover:border-white/25">
+                  <div className="relative h-36 shrink-0 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-500/30 backdrop-blur-sm">
+                      Equipment
+                    </span>
                     <button
                       type="button"
                       onClick={() => deleteEquipment(it.id)}
-                      className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg shrink-0"
+                      className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-lg text-white/60 hover:text-red-300 hover:bg-red-500/20 transition-colors backdrop-blur-sm"
                       title="Remove"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                    {(it.default_quantity ?? 1) > 1 && (
+                      <span className="absolute top-3 right-10 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 backdrop-blur-sm">
+                        qty {it.default_quantity}
+                      </span>
+                    )}
+                    <div className="absolute bottom-3 left-4 right-4">
+                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm line-clamp-2">{it.model_name}</h3>
+                    </div>
                   </div>
-                  <div className="px-5 py-4 flex items-center justify-between">
-                    <span className="text-white/40 text-xs">Equipment</span>
-                    <span className="text-white/60 text-xs">Reusable catalog</span>
+                  <div className="flex-1 flex flex-col gap-3 p-4 bg-[#0d0d0d]">
+                    <p className="text-white/50 text-sm line-clamp-2">{EQ_LABEL[it.subcategory] || it.subcategory}</p>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      <span className="text-white/40 text-xs">Reusable catalog</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-200 border border-blue-500/20">
+                        Equipment
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
 
               {filteredServices.map((it) => (
-                <div key={`sv-${it.id}`} className="rounded-2xl border border-white/10 bg-[#141414] overflow-hidden">
-                  <div className="h-28 bg-gradient-to-r from-purple-500/15 to-transparent px-5 py-4 flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold truncate">{it.name}</p>
-                      <p className="text-white/40 text-xs truncate">
-                        {SV_LABEL[it.subcategory] || it.subcategory}
-                        {it.base_price != null ? ` · ₹${Number(it.base_price).toLocaleString("en-IN")}` : ""}
-                      </p>
-                    </div>
+                <div key={`sv-${it.id}`} className="group flex flex-col h-full rounded-2xl border border-white/10 bg-[#141414] overflow-hidden transition-all duration-300 hover:border-white/25">
+                  <div className="relative h-36 shrink-0 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/30 backdrop-blur-sm">
+                      Service
+                    </span>
                     <button
                       type="button"
                       onClick={() => deleteService(it.id)}
-                      className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg shrink-0"
+                      className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-lg text-white/60 hover:text-red-300 hover:bg-red-500/20 transition-colors backdrop-blur-sm"
                       title="Remove"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                    <div className="absolute bottom-3 left-4 right-4">
+                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm line-clamp-2">{it.name}</h3>
+                    </div>
                   </div>
-                  <div className="px-5 py-4 flex items-center justify-between">
-                    <span className="text-white/40 text-xs">Service</span>
-                    <span className="text-white/60 text-xs">Reusable catalog</span>
+                  <div className="flex-1 flex flex-col gap-3 p-4 bg-[#0d0d0d]">
+                    <p className="text-white/50 text-sm line-clamp-2">{SV_LABEL[it.subcategory] || it.subcategory}</p>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      {it.base_price != null ? (
+                        <span className="text-xl font-bold text-white">
+                          ₹{Number(it.base_price).toLocaleString("en-IN")}
+                        </span>
+                      ) : (
+                        <span className="text-white/40 text-xs">Reusable catalog</span>
+                      )}
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-200 border border-purple-500/20">
+                        Service
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
 
               {filteredStudioAddons.map((it) => (
-                <div key={`ad-${it.id}`} className="group rounded-2xl border border-white/10 bg-[#141414] overflow-hidden transition-all duration-300 hover:border-white/25">
-                  <div className="relative h-36 overflow-hidden">
+                <div key={`ad-${it.id}`} className="group flex flex-col h-full rounded-2xl border border-white/10 bg-[#141414] overflow-hidden transition-all duration-300 hover:border-white/25">
+                  <div className="relative h-36 shrink-0 overflow-hidden">
                     {it.thumbnail_url ? (
                       <div
                         className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
@@ -475,16 +500,19 @@ export default function PartnerEquipmentPage() {
                     )}
 
                     <div className="absolute bottom-3 left-4 right-4">
-                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm">{it.name}</h3>
+                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm line-clamp-2">{it.name}</h3>
                     </div>
                   </div>
-                  <div className="p-4 bg-[#0d0d0d]">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 flex flex-col gap-3 p-4 bg-[#0d0d0d]">
+                    {it.description && (
+                      <p className="text-white/50 text-sm line-clamp-2">{it.description}</p>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-2">
                       <span className="text-xl font-bold text-white">
                         ₹{Number(it.price).toLocaleString("en-IN")}
                         <span className="text-white/40 text-sm font-normal ml-1">/ unit</span>
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
                         {it.category === "equipment" ? "Equipment" : "Service"}
                       </span>
                     </div>
@@ -493,27 +521,27 @@ export default function PartnerEquipmentPage() {
               ))}
 
               {filteredPlatformAddons.map((it) => (
-                <div key={`pa-${it.id}`} className="group rounded-2xl border border-emerald-500/20 bg-[#141414] overflow-hidden">
-                  <div className="relative h-36 overflow-hidden">
+                <div key={`pa-${it.id}`} className="group flex flex-col h-full rounded-2xl border border-emerald-500/20 bg-[#141414] overflow-hidden">
+                  <div className="relative h-36 shrink-0 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                     <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       Platform
                     </span>
                     <div className="absolute bottom-3 left-4 right-4">
-                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm">{it.name}</h3>
+                      <h3 className="text-white font-semibold text-base leading-tight drop-shadow-sm line-clamp-2">{it.name}</h3>
                     </div>
                   </div>
-                  <div className="p-4 bg-[#0d0d0d]">
+                  <div className="flex-1 flex flex-col gap-3 p-4 bg-[#0d0d0d]">
                     {it.description && (
-                      <p className="text-white/50 text-sm mb-3 line-clamp-2">{it.description}</p>
+                      <p className="text-white/50 text-sm line-clamp-2">{it.description}</p>
                     )}
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="mt-auto flex items-center justify-between gap-2">
                       <span className="text-xl font-bold text-white">
                         ₹{Number(it.price).toLocaleString("en-IN")}
                         <span className="text-white/40 text-sm font-normal ml-1">/ session</span>
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                         Auto-applied
                       </span>
                     </div>
@@ -565,15 +593,14 @@ export default function PartnerEquipmentPage() {
               </div>
               <div>
                 <label className="text-white/70 text-sm font-medium mb-2 block">Type</label>
-                <select
+                <SelectWithCustom
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value as any)}
+                  onChange={setNewType}
+                  options={ADDON_TYPE_OPTIONS}
+                  customPlaceholder="Enter custom type"
+                  optionClassName="bg-[#141414]"
                   className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white focus:border-[#D9FC67]/60 focus:outline-none"
-                >
-                  {ADDON_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t} className="bg-[#141414]">{t}</option>
-                  ))}
-                </select>
+                />
               </div>
             </div>
 

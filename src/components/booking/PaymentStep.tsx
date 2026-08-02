@@ -50,12 +50,19 @@ interface BookingRecord {
     price_per_hour: number;
   } | null;
   addOns: { id: string; name: string; price: number }[];
+  selectedSetup?: {
+    id: string;
+    name: string;
+    image_url: string;
+    capacity?: number | null;
+  } | null;
   totalPrice: number;
   subtotal: number;
   tax: number;
   discountAmount?: number;
   couponCode?: string | null;
   convenienceFee?: number;
+  bookingNote?: string;
   status: "confirmed";
   paymentId: string;
   createdAt: string;
@@ -82,8 +89,8 @@ export function PaymentStep() {
     selectedStudio,
     selectedPackage,
     selectedAddOns,
+    selectedSetup,
     getPackagePrice,
-    getAddOnsPrice,
     getSubtotal,
     getTax,
     getTotalPrice,
@@ -97,6 +104,7 @@ export function PaymentStep() {
     partnerBranding,
     partnerSlug,
     gstNumber,
+    bookingNote,
   } = useBooking();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -126,6 +134,7 @@ export function PaymentStep() {
   const formatDate = () => {
     if (!date) return "";
     return date.toLocaleDateString("en-US", {
+      timeZone: "Asia/Kolkata",
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -205,6 +214,7 @@ export function PaymentStep() {
             price: a.price,
             qty: a.qty ?? 1,
           })),
+          selectedSetup,
           totalPrice: total,
           subtotal,
           tax,
@@ -214,6 +224,7 @@ export function PaymentStep() {
           paymentId,
           orderId,
           gstNumber: gstNumber || null,
+          bookingNote: bookingNote.trim() || null,
           participantName: participantName || null,
           participantEmail: participantEmail || null,
           participantPhone: participantPhone || null,
@@ -264,12 +275,14 @@ export function PaymentStep() {
           name: a.name,
           price: a.price,
         })),
+        selectedSetup,
         totalPrice: total,
         subtotal,
         tax,
         discountAmount: discountApplied > 0 ? discountApplied : undefined,
         couponCode: appliedCoupon?.code || null,
         convenienceFee: convenienceFee > 0 ? convenienceFee : undefined,
+        bookingNote: bookingNote.trim() || undefined,
         status: "confirmed",
         paymentId,
         createdAt: new Date().toISOString(),
@@ -363,7 +376,7 @@ export function PaymentStep() {
         );
       });
       rzp.open();
-    } catch (error: any) {
+    } catch {
       paymentInFlight.current = false;
       setIsProcessing(false);
       setPaymentError("Something went wrong. Please try again.");
@@ -432,6 +445,28 @@ export function PaymentStep() {
                     </span>
                   </div>
                   <p className="text-white/40 text-xs mt-2">{selectedStudio.description}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedSetup && (
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+              <h3 className="text-base font-semibold text-white mb-4">Selected Setup</h3>
+              <div className="flex gap-4">
+                <div className="relative w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/10">
+                  <Image
+                    src={selectedSetup.image_url}
+                    alt={selectedSetup.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold">{selectedSetup.name}</h4>
+                  {selectedSetup.capacity ? (
+                    <p className="text-white/50 text-sm mt-1">Up to {selectedSetup.capacity} people</p>
+                  ) : null}
                 </div>
               </div>
             </div>

@@ -9,12 +9,16 @@ export interface Studio {
   cover_image: string;
   image_urls?: string[];
   video_url?: string;
+  setup_options?: StudioSetupOption[];
   location: {
     city: string;
     area: string;
     address: string;
   };
+  /** Canonical customer-facing per-hour price: cheapest package's price after its discount (fallback: cheapest room). */
   price_per_hour: number;
+  /** Original base price, present only when a discount applies — shown struck-through beside price_per_hour. */
+  original_price_per_hour?: number;
   currency: string;
   capacity: number;
   equipment: Equipment[];
@@ -25,6 +29,14 @@ export interface Studio {
   is_instant_bookable: boolean;
   description: string;
   amenities: string[];
+}
+
+export interface StudioSetupOption {
+  id: string;
+  name: string;
+  description?: string | null;
+  image_url: string;
+  capacity?: number | null;
 }
 
 export interface Equipment {
@@ -61,4 +73,3 @@ export interface SearchParams {
   date?: string;
   time?: string;
 }
-

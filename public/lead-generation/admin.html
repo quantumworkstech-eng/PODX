@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yanisa Studios Leads Dashboard</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --panel: #121212;
+      --panel-2: #181818;
+      --lime: #c8f53a;
+      --lime-soft: rgba(200, 245, 58, 0.14);
+      --text: #f4f4f0;
+      --muted: #a9a9a0;
+      --line: #2a2a2a;
+      --danger: #ff7676;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(200, 245, 58, 0.1), transparent 32%),
+        linear-gradient(180deg, #101010 0%, var(--bg) 58%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1180px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 28px 18px;
+    }
+
+    .brand,
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--lime);
+      color: #070707;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    a {
+      color: var(--lime);
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .status-screen {
+      min-height: calc(100vh - 56px);
+      display: grid;
+      place-items: center;
+    }
+
+    .status-card,
+    .metric,
+    .table-shell {
+      background: rgba(18, 18, 18, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .status-card {
+      width: min(520px, 100%);
+      padding: 32px;
+      display: grid;
+      gap: 18px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+    }
+
+    h2 {
+      font-size: 24px;
+    }
+
+    .muted {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .input {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0e0e0e;
+      color: var(--text);
+      padding: 0 14px;
+      outline: none;
+    }
+
+    .input:focus {
+      border-color: var(--lime);
+      box-shadow: 0 0 0 4px var(--lime-soft);
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      min-height: 48px;
+      padding: 0 18px;
+      cursor: pointer;
+      font-weight: 900;
+      background: var(--lime);
+      color: #090909;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .error {
+      min-height: 22px;
+      color: var(--danger);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .dashboard {
+      display: none;
+      gap: 22px;
+    }
+
+    .dashboard.visible {
+      display: grid;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .metric {
+      padding: 18px;
+      box-shadow: none;
+      min-height: 118px;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      color: var(--lime);
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.05;
+      word-break: break-word;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar .input {
+      max-width: 360px;
+    }
+
+    .table-shell {
+      overflow: hidden;
+      box-shadow: none;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1040px;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      color: var(--lime);
+      background: #101010;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    tbody tr.lead-row {
+      cursor: pointer;
+    }
+
+    tbody tr.lead-row:hover {
+      background: var(--lime-soft);
+    }
+
+    .details-row td {
+      background: #0f0f0f;
+      padding: 0;
+    }
+
+    .details {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .answer {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #151515;
+    }
+
+    .answer b {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 28px;
+    }
+
+    @media (max-width: 860px) {
+      .summary {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        padding: 18px 12px;
+      }
+
+      .summary,
+      .details {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar .input,
+      .btn {
+        width: 100%;
+        max-width: none;
+      }
+
+      .status-card {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="status-screen" id="statusScreen">
+      <div class="status-card">
+        <div class="logo" aria-label="Yanisa Studios">
+          <span class="logo-mark">Y</span>
+          <span>Yanisa Studios</span>
+        </div>
+        <div>
+          <h1>Leads Dashboard</h1>
+          <p class="muted" id="statusMessage">Checking your admin session...</p>
+        </div>
+        <button class="btn" id="retryLoad" type="button">Retry</button>
+        <a href="/admin/login">Admin login</a>
+        <a href="index.html">Back to form</a>
+      </div>
+    </section>
+
+    <section class="dashboard" id="dashboard">
+      <header class="topbar">
+        <div class="logo">
+          <span class="logo-mark">Y</span>
+          <span>Yanisa Studios</span>
+        </div>
+        <a href="index.html">Partner form</a>
+      </header>
+
+      <div>
+        <h1>Partner Leads</h1>
+        <p class="muted">Submissions are stored in the Yanisa Studios database.</p>
+      </div>
+
+      <section class="summary" aria-label="Lead summary">
+        <div class="metric">
+          <span>Total Leads</span>
+          <strong id="totalLeads">0</strong>
+        </div>
+        <div class="metric">
+          <span>Leads This Week</span>
+          <strong id="weekLeads">0</strong>
+        </div>
+        <div class="metric">
+          <span>Most Common City</span>
+          <strong id="commonCity">-</strong>
+        </div>
+        <div class="metric">
+          <span>Top Challenge</span>
+          <strong id="topChallenge">-</strong>
+        </div>
+      </section>
+
+      <section class="toolbar">
+        <input class="input" id="search" type="search" placeholder="Search leads">
+        <button class="btn" id="exportCsv" type="button">Export CSV</button>
+      </section>
+
+      <section class="table-shell">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-sort="index">#</th>
+                <th data-sort="contactName">Name</th>
+                <th data-sort="whatsapp">WhatsApp</th>
+                <th data-sort="studioName">Studio Name</th>
+                <th data-sort="city">City</th>
+                <th data-sort="studioType">Studio Type</th>
+                <th data-sort="monthlyBookings">Monthly Bookings</th>
+                <th data-sort="biggestChallenge">Biggest Challenge</th>
+                <th data-sort="listedPlatform">Joined Platform</th>
+                <th data-sort="timestamp">Date Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="leadRows"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="emptyState" hidden>No leads yet.</div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const statusScreen = document.getElementById("statusScreen");
+    const dashboard = document.getElementById("dashboard");
+    const statusMessage = document.getElementById("statusMessage");
+    const retryLoad = document.getElementById("retryLoad");
+    const searchInput = document.getElementById("search");
+    const rowsEl = document.getElementById("leadRows");
+    const emptyState = document.getElementById("emptyState");
+    const exportBtn = document.getElementById("exportCsv");
+    let sortKey = "timestamp";
+    let sortDirection = "desc";
+    let expandedId = null;
+    let leadsCache = [];
+
+    const answerLabels = {
+      description: "What best describes you?",
+      studioType: "What is your studio primarily set up for?",
+      city: "Which city is your studio located in?",
+      operationalAge: "How long has your studio been operational?",
+      weeklySlots: "How many recording slots can you offer per week?",
+      monthlyBookings: "How many bookings do you currently get per month?",
+      pricing: "What is your current pricing per session?",
+      equipment: "What equipment does your studio have?",
+      equipmentDetails: "Equipment Details",
+      addonServices: "Add-on Services details",
+      biggestChallenge: "What is your biggest challenge right now?",
+      listedPlatform: "Are you currently listed on any other platform?",
+      joinReason: "What would make you join a platform like Yanisa Studios?",
+      studioName: "What is your studio's name?",
+      contactName: "Your name",
+      whatsapp: "WhatsApp number",
+      websiteOrInstagram: "Studio Instagram or website"
+    };
+
+    function getAnswer(lead, key) {
+      return lead.answers && lead.answers[key] ? lead.answers[key] : "";
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      return new Intl.DateTimeFormat("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(new Date(value));
+    }
+
+    function mostCommon(leads, key) {
+      const counts = leads.reduce((map, lead) => {
+        const value = getAnswer(lead, key);
+        if (!value) return map;
+        map[value] = (map[value] || 0) + 1;
+        return map;
+      }, {});
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      return top ? top[0] : "-";
+    }
+
+    function updateSummary(leads) {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      document.getElementById("totalLeads").textContent = leads.length;
+      document.getElementById("weekLeads").textContent = leads.filter((lead) => new Date(lead.timestamp || lead.submittedAt) >= weekAgo).length;
+      document.getElementById("commonCity").textContent = mostCommon(leads, "city");
+      document.getElementById("topChallenge").textContent = mostCommon(leads, "biggestChallenge");
+    }
+
+    function filteredAndSortedLeads() {
+      const search = searchInput.value.trim().toLowerCase();
+      return leadsCache
+        .filter((lead) => {
+          const haystack = JSON.stringify(lead.answers || {}).toLowerCase();
+          return haystack.includes(search);
+        })
+        .sort((a, b) => {
+          let aValue = sortKey === "timestamp" ? (a.timestamp || a.submittedAt) : getAnswer(a, sortKey);
+          let bValue = sortKey === "timestamp" ? (b.timestamp || b.submittedAt) : getAnswer(b, sortKey);
+          if (sortKey === "index") {
+            aValue = leadsCache.indexOf(a);
+            bValue = leadsCache.indexOf(b);
+          }
+          return String(aValue || "").localeCompare(String(bValue || ""), undefined, { numeric: true }) * (sortDirection === "asc" ? 1 : -1);
+        });
+    }
+
+    function renderTable() {
+      const leads = filteredAndSortedLeads();
+      updateSummary(leadsCache);
+      rowsEl.innerHTML = "";
+      emptyState.hidden = leads.length !== 0;
+
+      leads.forEach((lead, index) => {
+        const row = document.createElement("tr");
+        row.className = "lead-row";
+        row.tabIndex = 0;
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${escapeHtml(getAnswer(lead, "contactName"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "whatsapp"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "studioName"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "city"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "studioType"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "monthlyBookings"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "biggestChallenge"))}</td>
+          <td>${escapeHtml(getAnswer(lead, "listedPlatform"))}</td>
+          <td>${escapeHtml(formatDate(lead.timestamp || lead.submittedAt))}</td>
+        `;
+        row.addEventListener("click", () => {
+          expandedId = expandedId === lead.id ? null : lead.id;
+          renderTable();
+        });
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            row.click();
+          }
+        });
+        rowsEl.appendChild(row);
+
+        if (expandedId === lead.id) {
+          const detailRow = document.createElement("tr");
+          detailRow.className = "details-row";
+          const answers = Object.entries(answerLabels).map(([key, label]) => {
+            const answer = getAnswer(lead, key);
+            const value = Array.isArray(answer) ? answer.join(", ") : answer || "-";
+            return `<div class="answer"><b>${escapeHtml(label)}</b>${escapeHtml(value)}</div>`;
+          }).join("");
+          detailRow.innerHTML = `<td colspan="10"><div class="details">${answers}</div></td>`;
+          rowsEl.appendChild(detailRow);
+        }
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function exportCsv() {
+      const headers = ["id", "timestamp", ...Object.keys(answerLabels)];
+      const rows = leadsCache.map((lead) => headers.map((header) => {
+        const value = header === "id" || header === "timestamp" ? lead[header] : getAnswer(lead, header);
+        const text = Array.isArray(value) ? value.join("; ") : value || "";
+        return `"${String(text).replaceAll('"', '""')}"`;
+      }).join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `yanisa-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadLeads() {
+      statusScreen.style.display = "grid";
+      dashboard.classList.remove("visible");
+      statusMessage.textContent = "Checking your admin session...";
+      retryLoad.disabled = true;
+
+      try {
+        const response = await fetch("/api/admin/lead-generation", {
+          headers: { "Accept": "application/json" }
+        });
+
+        if (response.status === 401) {
+          statusMessage.textContent = "Please log in with an existing admin account to view partner leads.";
+          retryLoad.disabled = false;
+          return;
+        }
+
+        if (!response.ok) {
+          statusMessage.textContent = "Could not load leads right now. Please try again.";
+          retryLoad.disabled = false;
+          return;
+        }
+
+        const data = await response.json();
+        leadsCache = Array.isArray(data.leads) ? data.leads : [];
+        statusScreen.style.display = "none";
+        dashboard.classList.add("visible");
+        retryLoad.disabled = false;
+        renderTable();
+      } catch (error) {
+        statusMessage.textContent = "Could not connect to the leads API. Please try again.";
+        retryLoad.disabled = false;
+      }
+    }
+
+    document.querySelectorAll("th[data-sort]").forEach((th) => {
+      th.addEventListener("click", () => {
+        const nextKey = th.dataset.sort;
+        if (sortKey === nextKey) {
+          sortDirection = sortDirection === "asc" ? "desc" : "asc";
+        } else {
+          sortKey = nextKey;
+          sortDirection = "asc";
+        }
+        renderTable();
+      });
+    });
+
+    searchInput.addEventListener("input", renderTable);
+    exportBtn.addEventListener("click", exportCsv);
+    retryLoad.addEventListener("click", loadLeads);
+
+    loadLeads();
+  </script>
+</body>
+</html>

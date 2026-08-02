@@ -39,9 +39,12 @@ export default function AdminLoginPage() {
     try {
       const setResult = await adminSetPassword(email, password);
       if ("error" in setResult) { setError(setResult.error); return; }
-      // Password saved — now sign in (server action sets cookie + redirects)
+      // Password saved — now sign in (server action sets the httpOnly cookie)
       const signInResult = await adminSignIn(email, password, true);
-      if (signInResult && "error" in signInResult) setError(signInResult.error);
+      if ("error" in signInResult) { setError(signInResult.error); return; }
+      // Hard navigation so the freshly-set cookie is sent on the /admin request
+      window.location.href = "/admin";
+      return;
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -55,8 +58,10 @@ export default function AdminLoginPage() {
     setError("");
     try {
       const result = await adminSignIn(email, password, true);
-      // If result returned (not redirected), it's an error
-      if (result && "error" in result) setError(result.error);
+      if ("error" in result) { setError(result.error); return; }
+      // Hard navigation so the freshly-set cookie is sent on the /admin request
+      window.location.href = "/admin";
+      return;
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

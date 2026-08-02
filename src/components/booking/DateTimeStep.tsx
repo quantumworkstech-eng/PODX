@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useBooking } from "@/context/BookingContext";
 import { ChevronLeft, ChevronRight, ChevronDown, Clock, Users, Loader2 } from "lucide-react";
-import { TIME_SLOTS, formatDuration } from "@/lib/booking-types";
+import { TIME_SLOTS } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -453,8 +453,6 @@ export function DateTimeStep() {
                         onClick={() => {
                           if (disabled) return;
                           setTimeSlot(slot.time);
-                          // Advance after state is applied; avoids next step reading stale timeSlot.
-                          window.setTimeout(() => nextStep(), 0);
                         }}
                         disabled={disabled}
                         className={cn(
@@ -500,6 +498,20 @@ export function DateTimeStep() {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={nextStep}
+          disabled={!canProceed()}
+          className={cn(
+            "w-full h-14 rounded-xl font-semibold transition-all",
+            canProceed()
+              ? "bg-[#D9FC67] text-black hover:bg-[#c8ef45] shadow-lg shadow-[#D9FC67]/15"
+              : "bg-white/10 text-white/30 cursor-not-allowed"
+          )}
+        >
+          {selectionMode === "date" ? "Continue to Studio" : "Continue to Package"}
+        </button>
       </div>
     </div>
   );

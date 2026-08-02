@@ -138,6 +138,7 @@ export default function AdminBookingsPage() {
   const [editFields, setEditFields] = useState<Record<string, any>>({});
   const [bookingFlash, setBookingFlash] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ bookingId: string; action: "force_cancel" | "force_refund"; label: string; description: string } | null>(null);
+  const [refundOnCancel, setRefundOnCancel] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
   // Admin reschedule state
@@ -235,22 +236,14 @@ export default function AdminBookingsPage() {
       .catch(() => setStudioBookingInventory(null));
   }, [detailOpen, detailData?.booking?.studio_id]);
 
-  const requestBookingAction = (bookingId: string, action: "force_cancel" | "force_refund", bookingNumber: string) => {
-    if (action === "force_cancel") {
-      setConfirmAction({
-        bookingId,
-        action,
-        label: "Cancel Booking",
-        description: `Are you sure you want to force-cancel booking ${bookingNumber}? This will notify the customer and cannot be undone.`,
-      });
-    } else {
-      setConfirmAction({
-        bookingId,
-        action,
-        label: "Issue Refund & Cancel",
-        description: `Are you sure you want to refund and cancel booking ${bookingNumber}? A refund record will be created and the booking will be cancelled.`,
-      });
-    }
+  const openCancelDialog = (bookingId: string, bookingNumber: string) => {
+    setRefundOnCancel(false);
+    setConfirmAction({
+      bookingId,
+      action: "force_cancel",
+      label: "Cancel Booking",
+      description: `Cancel booking ${bookingNumber}? This notifies the customer and cannot be undone.`,
+    });
   };
 
   const handleBookingAction = async (bookingId: string, action: string) => {
@@ -303,12 +296,19 @@ export default function AdminBookingsPage() {
         return;
       }
       setDetailData(data as BookingDetail);
+      const bnParsed = parseAdminBookingNotes(data.booking.notes);
+      const rawNotes = typeof data.booking.notes === "string" ? data.booking.notes.trim() : "";
+      const humanNote =
+        (typeof bnParsed.bookingNote === "string" && bnParsed.bookingNote) ||
+        (typeof bnParsed.booking_note === "string" && bnParsed.booking_note) ||
+        (rawNotes.startsWith("{") || rawNotes.startsWith("[") ? "" : rawNotes) ||
+        "";
       setEditFields({
         status: data.booking.status || "",
         start_time: data.booking.start_time || "",
         end_time: data.booking.end_time || "",
         booking_date: data.booking.booking_date || "",
-        notes: data.booking.notes || "",
+        notes: humanNote,
         total_price: data.booking.total_price || "",
       });
     } catch (err) {
@@ -322,10 +322,18 @@ export default function AdminBookingsPage() {
     if (!detailData) return;
     setDetailSaving(true);
     try {
+      // Merge the edited human note back into the booking's notes JSON blob so
+      // the machine metadata (package, add-ons, pricing, paymentId, …) survives.
+      const original = parseAdminBookingNotes(detailData.booking.notes);
+      const humanNote = String((editFields as Record<string, unknown>).notes ?? "");
+      const hasMeta = Object.keys(original).length > 0;
+      const mergedNotes = hasMeta
+        ? JSON.stringify({ ...original, bookingNote: humanNote })
+        : humanNote;
       const res = await fetch(`/api/admin/bookings/${detailData.booking.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingFields: editFields }),
+        body: JSON.stringify({ bookingFields: { ...editFields, notes: mergedNotes } }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -512,30 +520,17 @@ export default function AdminBookingsPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {/* Force Cancel */}
+                            {/* Cancel (refund choice handled in the dialog) */}
                             {booking.status !== "cancelled" && (
                               <button
-                                onClick={() => requestBookingAction(booking.id, "force_cancel", booking.booking_number)}
+                                onClick={() => openCancelDialog(booking.id, booking.booking_number)}
                                 disabled={!!actionLoading}
                                 className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"
                                 title="Cancel Booking"
                               >
-                                {actionLoading === `${booking.id}-force_cancel`
+                                {(actionLoading === `${booking.id}-force_cancel` || actionLoading === `${booking.id}-force_refund`)
                                   ? <RefreshCw className="w-4 h-4 animate-spin" />
                                   : <Ban className="w-4 h-4" />}
-                              </button>
-                            )}
-                            {/* Force Refund */}
-                            {booking.status !== "cancelled" && (
-                              <button
-                                onClick={() => requestBookingAction(booking.id, "force_refund", booking.booking_number)}
-                                disabled={!!actionLoading}
-                                className="p-1.5 rounded-lg hover:bg-amber-500/10 text-white/40 hover:text-amber-400 transition-colors"
-                                title="Refund & Cancel"
-                              >
-                                {actionLoading === `${booking.id}-force_refund`
-                                  ? <RefreshCw className="w-4 h-4 animate-spin" />
-                                  : <RotateCcw className="w-4 h-4" />}
                               </button>
                             )}
                           </div>
@@ -669,20 +664,29 @@ export default function AdminBookingsPage() {
               </div>
               <h3 className="text-white font-semibold text-lg">{confirmAction.label}</h3>
             </div>
-            <p className="text-white/60 text-sm mb-6 leading-relaxed">{confirmAction.description}</p>
+            <p className="text-white/60 text-sm mb-4 leading-relaxed">{confirmAction.description}</p>
+            <label className="flex items-center gap-2.5 mb-6 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={refundOnCancel}
+                onChange={(e) => setRefundOnCancel(e.target.checked)}
+                className="w-4 h-4 accent-red-500"
+              />
+              <span className="text-white/70 text-sm">Also issue a refund to the customer</span>
+            </label>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmAction(null)}
                 className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-xl text-sm font-medium transition-colors"
               >
-                Cancel
+                Keep booking
               </button>
               <button
-                onClick={() => handleBookingAction(confirmAction.bookingId, confirmAction.action)}
+                onClick={() => handleBookingAction(confirmAction.bookingId, refundOnCancel ? "force_refund" : "force_cancel")}
                 disabled={!!actionLoading}
                 className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
               >
-                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : "Confirm"}
+                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : refundOnCancel ? "Refund & Cancel" : "Cancel Booking"}
               </button>
             </div>
           </div>
@@ -902,36 +906,12 @@ export default function AdminBookingsPage() {
                           <Clock className="w-3.5 h-3.5" /> Session Time
                         </h4>
                         {editMode ? (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-white/40 text-sm block mb-1">Date</label>
-                              <input
-                                type="date"
-                                value={editFields.booking_date}
-                                onChange={(e) => setEditFields((f) => ({ ...f, booking_date: e.target.value }))}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="text-white/40 text-sm block mb-1">Start Time</label>
-                                <input
-                                  type="time"
-                                  value={editFields.start_time}
-                                  onChange={(e) => setEditFields((f) => ({ ...f, start_time: e.target.value }))}
-                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-white/40 text-sm block mb-1">End Time</label>
-                                <input
-                                  type="time"
-                                  value={editFields.end_time}
-                                  onChange={(e) => setEditFields((f) => ({ ...f, end_time: e.target.value }))}
-                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20"
-                                />
-                              </div>
-                            </div>
+                          <div className="space-y-2">
+                            <InfoRow label="Date" value={fmtDateIST(detailData.booking.start_time || detailData.booking.created_at)} />
+                            <InfoRow label="Time" value={`${fmt12h(detailData.booking.start_time)} – ${fmt12h(detailData.booking.end_time)}`} />
+                            <p className="text-white/40 text-xs bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 mt-1">
+                              To change the date or time, use the <span className="text-white/70">Reschedule</span> button — it keeps the timezone and availability correct.
+                            </p>
                           </div>
                         ) : (
                           <>
@@ -974,9 +954,16 @@ export default function AdminBookingsPage() {
                             placeholder="Add admin notes..."
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-white/20 resize-none"
                           />
-                        ) : (
-                          <p className="text-white/60 text-sm">{detailData.booking.notes || "No notes"}</p>
-                        )}
+                        ) : (() => {
+                          const bn = parseAdminBookingNotes(detailData.booking.notes);
+                          const humanNote =
+                            (typeof bn.bookingNote === "string" && bn.bookingNote.trim()) ||
+                            (typeof bn.booking_note === "string" && bn.booking_note.trim()) || "";
+                          const raw = typeof detailData.booking.notes === "string" ? detailData.booking.notes.trim() : "";
+                          const isBlob = raw.startsWith("{") || raw.startsWith("[");
+                          const display = humanNote || (!isBlob ? raw : "");
+                          return <p className="text-white/60 text-sm whitespace-pre-line">{display || "No notes"}</p>;
+                        })()}
                       </div>
 
                       {detailData.booking.cancellation_reason && (
@@ -1143,13 +1130,18 @@ export default function AdminBookingsPage() {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {detailData.guests.map((guest: any, idx: number) => (
-                            <div key={guest.id || idx} className="bg-white/[0.03] rounded-xl px-4 py-3 border border-white/5">
-                              <p className="text-white text-sm font-medium">{guest.name || `Guest ${idx + 1}`}</p>
-                              {guest.email && <p className="text-white/40 text-xs">{guest.email}</p>}
-                              {guest.phone && <p className="text-white/30 text-xs">{guest.phone}</p>}
-                            </div>
-                          ))}
+                          {detailData.guests.map((guest: any, idx: number) => {
+                            const gName = guest.guest_name || guest.name;
+                            const gEmail = guest.guest_email || guest.email;
+                            const gPhone = guest.guest_phone || guest.phone;
+                            return (
+                              <div key={guest.id || idx} className="bg-white/[0.03] rounded-xl px-4 py-3 border border-white/5">
+                                <p className="text-white text-sm font-medium">{gName || `Guest ${idx + 1}`}</p>
+                                {gEmail && <p className="text-white/40 text-xs">{gEmail}</p>}
+                                {gPhone && <p className="text-white/30 text-xs">{gPhone}</p>}
+                              </div>
+                            );
+                          })}
                           <p className="text-white/40 text-xs px-4">{detailData.guests.length} guest{detailData.guests.length !== 1 ? "s" : ""} total</p>
                         </div>
                       )}

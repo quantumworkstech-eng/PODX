@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const KINDS = new Set(["studio", "service", "outsource"]);
 const CATEGORIES = new Set(["equipment", "service"]);
 
 async function getPartnerId(): Promise<string | null> {
@@ -16,7 +15,8 @@ export async function POST(request: NextRequest) {
   if (!supabaseAdmin) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
   const body = await request.json();
-  const addonKind = String(body.addon_kind || body.type || "").toLowerCase();
+  // Allow custom addon kinds (UI offers a "Custom…" option).
+  const addonKind = String(body.addon_kind || body.type || "").trim().toLowerCase();
   const category = body.category != null ? String(body.category).toLowerCase() : null;
   const addonType = body.addon_type != null ? String(body.addon_type).trim() : null;
   const name = String(body.name || "").trim();
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const thumbnailUrl = body.thumbnail_url != null ? String(body.thumbnail_url).trim() : null;
   const isActive = body.is_active !== false;
 
-  if (!KINDS.has(addonKind) || !name) {
+  if (!addonKind || !name) {
     return NextResponse.json({ error: "addon_kind and name are required" }, { status: 400 });
   }
   if (category != null && !CATEGORIES.has(category)) {

@@ -48,7 +48,7 @@ export interface BookingData {
     name: string;
     price_per_hour: number;
   } | null;
-  addOns: { id: string; name: string; price: number }[];
+  addOns: { id: string; name: string; price: number; qty?: number }[];
   totalPrice: number;
   /** Pre-tax package + addons (before coupon), from booking notes when available */
   subtotal?: number | null;
@@ -56,6 +56,7 @@ export interface BookingData {
   discountAmount?: number | null;
   couponCode?: string | null;
   convenienceFee?: number | null;
+  bookingNote?: string | null;
   status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
@@ -220,6 +221,9 @@ export function UpcomingBookings({
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const anchorRefs = useRef<Record<string, HTMLButtonElement>>({});
 
+  const getAddonUnitCount = (booking: BookingData) =>
+    booking.addOns.reduce((sum, addon) => sum + (Number(addon.qty) || 1), 0);
+
   useEffect(() => {
     if (!showDetailModal && !showRescheduleModal) return;
     setSelectedBooking((prev) => {
@@ -244,23 +248,8 @@ export function UpcomingBookings({
   const formatDate = (b: BookingData) =>
     formatBookingDate(b.start_time || b.date);
 
-  const formatTimeRange = (b: BookingData) => {
-    if (b.start_time && b.end_time) {
-      return formatBookingTimeRange(b.start_time, b.end_time);
-    }
-    // Fallback: derive from timeSlot + duration (minute-accurate)
-    const [hoursStr, minutesStr = "00"] = b.timeSlot.split(":");
-    const hour = parseInt(hoursStr, 10);
-    const minute = parseInt(minutesStr, 10);
-    const totalStartMinutes = hour * 60 + minute;
-    const totalEndMinutes = totalStartMinutes + Math.round(b.duration * 60);
-    const fmt = (total: number) => {
-      const h = Math.floor(total / 60);
-      const m = total % 60;
-      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
-    };
-    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
-  };
+  const formatTimeRange = (b: BookingData) =>
+    formatBookingTimeRange(b.start_time, b.end_time);
 
   const handleViewDetails = (booking: BookingData) => {
     setSelectedBooking(booking);
@@ -358,7 +347,7 @@ export function UpcomingBookings({
                         )}
                         {booking.addOns.length > 0 && (
                           <span className="px-3 py-1.5 rounded-lg bg-[#D9FC67]/10 text-[#D9FC67] text-xs font-medium ring-1 ring-[#D9FC67]/20">
-                            +{booking.addOns.length} add-on{booking.addOns.length > 1 ? "s" : ""}
+                            +{getAddonUnitCount(booking)} add-on{getAddonUnitCount(booking) > 1 ? "s" : ""}
                           </span>
                         )}
                       </div>
@@ -372,26 +361,60 @@ export function UpcomingBookings({
                         </p>
                       </div>
 
-                      <Button
-                        ref={(el) => { if (el) anchorRefs.current[booking.id] = el }}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActiveDropdownId(activeDropdownId === booking.id ? null : booking.id)}
-                        className={cn(
-                          "gap-1 transition-all duration-200",
-                          activeDropdownId === booking.id
-                            ? "bg-white/10 border-white/30 text-white"
-                            : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReschedule(booking)}
+                          className="gap-1 bg-white/5 border-white/10 text-white/75 hover:bg-white/10 hover:text-white"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Reschedule
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCancel(booking)}
+                          className="gap-1 bg-red-500/10 border-red-500/25 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Cancel
+                        </Button>
+                        {onRefreshBookings && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setShowAddAddonsModal(true);
+                            }}
+                            className="gap-1 bg-[#D9FC67]/10 border-[#D9FC67]/25 text-[#D9FC67] hover:bg-[#D9FC67]/15 hover:text-[#E8FF8A]"
+                          >
+                            <PackagePlus className="w-3.5 h-3.5" />
+                            Add-ons
+                          </Button>
                         )}
-                      >
-                        Actions
-                        <ChevronDown
+                        <Button
+                          ref={(el) => { if (el) anchorRefs.current[booking.id] = el }}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActiveDropdownId(activeDropdownId === booking.id ? null : booking.id)}
                           className={cn(
-                            "w-4 h-4 transition-transform duration-200",
-                            activeDropdownId === booking.id && "rotate-180"
+                            "gap-1 transition-all duration-200",
+                            activeDropdownId === booking.id
+                              ? "bg-white/10 border-white/30 text-white"
+                              : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
                           )}
-                        />
-                      </Button>
+                        >
+                          More
+                          <ChevronDown
+                            className={cn(
+                              "w-4 h-4 transition-transform duration-200",
+                              activeDropdownId === booking.id && "rotate-180"
+                            )}
+                          />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

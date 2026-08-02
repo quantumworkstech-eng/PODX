@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yanisa Studios Partner Questionnaire</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --panel: #121212;
+      --panel-2: #181818;
+      --lime: #c8f53a;
+      --lime-soft: rgba(200, 245, 58, 0.14);
+      --text: #f4f4f0;
+      --muted: #a9a9a0;
+      --line: #2a2a2a;
+      --danger: #ff7676;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(200, 245, 58, 0.1), transparent 32%),
+        linear-gradient(180deg, #101010 0%, var(--bg) 58%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .page {
+      width: min(920px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 28px 18px;
+      display: grid;
+      align-content: center;
+      gap: 26px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--lime);
+      color: #070707;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .admin-link {
+      color: var(--lime);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .shell {
+      background: rgba(18, 18, 18, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .progress-wrap {
+      height: 8px;
+      background: #242424;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background: var(--lime);
+      transition: width 220ms ease;
+    }
+
+    .form-stage {
+      padding: clamp(28px, 6vw, 56px);
+      min-height: 520px;
+      display: grid;
+      align-content: center;
+      gap: 28px;
+    }
+
+    .step-meta {
+      color: var(--lime);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(30px, 5vw, 54px);
+      line-height: 1.02;
+      max-width: 760px;
+    }
+
+    h2 {
+      font-size: clamp(26px, 4.2vw, 44px);
+      line-height: 1.08;
+      max-width: 760px;
+    }
+
+    .intro {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 650px;
+      margin: 0;
+    }
+
+    .options {
+      display: grid;
+      gap: 12px;
+    }
+
+    .option {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 58px;
+      padding: 16px 18px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .option:hover {
+      border-color: rgba(200, 245, 58, 0.56);
+      transform: translateY(-1px);
+    }
+
+    .option input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--lime);
+      flex: 0 0 auto;
+    }
+
+    .option.selected {
+      border-color: var(--lime);
+      background: var(--lime-soft);
+    }
+
+    .field {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .text-input,
+    .other-input {
+      width: 100%;
+      min-height: 56px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0e0e0e;
+      color: var(--text);
+      padding: 0 16px;
+      outline: none;
+    }
+
+    .text-input:focus,
+    .other-input:focus {
+      border-color: var(--lime);
+      box-shadow: 0 0 0 4px var(--lime-soft);
+    }
+
+    .other-input {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .other-input.visible {
+      display: block;
+    }
+
+    .phone-field {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0e0e0e;
+      overflow: hidden;
+    }
+
+    .prefix {
+      display: grid;
+      place-items: center;
+      padding: 0 16px;
+      min-height: 56px;
+      color: #0a0a0a;
+      background: var(--lime);
+      font-weight: 900;
+    }
+
+    .phone-field input {
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 0 16px;
+      outline: none;
+      min-width: 0;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      min-height: 48px;
+      padding: 0 20px;
+      cursor: pointer;
+      font-weight: 900;
+      line-height: 1.1;
+      text-align: center;
+      text-decoration: none;
+      transition: transform 160ms ease, opacity 160ms ease, border-color 160ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: var(--lime);
+      color: #090909;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .btn[disabled] {
+      cursor: not-allowed;
+      opacity: 0.5;
+      transform: none;
+    }
+
+    .error {
+      min-height: 22px;
+      color: var(--danger);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .confirmation {
+      text-align: center;
+      min-height: 520px;
+      display: grid;
+      place-items: center;
+      padding: clamp(28px, 6vw, 56px);
+    }
+
+    .confirmation-inner {
+      display: grid;
+      justify-items: center;
+      gap: 18px;
+    }
+
+    .confirmation .logo {
+      font-size: 22px;
+    }
+
+    .success-mark {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: var(--lime);
+      color: #070707;
+      display: grid;
+      place-items: center;
+      font-size: 42px;
+      font-weight: 900;
+    }
+
+    .confirmation .btn {
+      min-width: 220px;
+      max-width: 100%;
+      padding: 0 22px;
+    }
+
+    .repeat-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .repeat-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .repeat-row .text-input {
+      min-width: 0;
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      min-height: 44px;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .icon-btn:hover {
+      color: var(--text);
+      border-color: rgba(200, 245, 58, 0.56);
+    }
+
+    .repeat-add {
+      justify-self: start;
+      min-height: 44px;
+      margin-top: 2px;
+      background: var(--lime-soft);
+      border-color: rgba(200, 245, 58, 0.34);
+      color: var(--lime);
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        padding: 18px 12px;
+        align-content: start;
+      }
+
+      .brand {
+        align-items: flex-start;
+      }
+
+      .form-stage {
+        min-height: 620px;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .repeat-add {
+        justify-self: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="brand">
+      <div class="logo" aria-label="Yanisa Studios">
+        <span class="logo-mark">Y</span>
+        <span>Yanisa Studios</span>
+      </div>
+    </header>
+
+    <section class="shell" aria-live="polite">
+      <div class="progress-wrap" aria-hidden="true">
+        <div class="progress" id="progress"></div>
+      </div>
+
+      <form id="leadForm" class="form-stage" novalidate>
+        <div>
+          <div class="step-meta" id="stepMeta"></div>
+          <h1 id="questionTitle"></h1>
+          <p class="intro" id="questionHint"></p>
+        </div>
+        <div id="answerArea"></div>
+        <div class="error" id="error" role="alert"></div>
+        <div class="actions">
+          <button class="btn btn-secondary" type="button" id="backBtn">Back</button>
+          <button class="btn btn-primary" type="submit" id="nextBtn">Next</button>
+        </div>
+      </form>
+
+      <div class="confirmation" id="confirmation" hidden>
+        <div class="confirmation-inner">
+          <div class="success-mark">Y</div>
+          <div class="logo">
+            <span class="logo-mark">Y</span>
+            <span>Yanisa Studios</span>
+          </div>
+          <h2>Thank you! We'll reach out on WhatsApp within 24 hours.</h2>
+          <p class="intro">Your partner questionnaire has been submitted.</p>
+          <a class="btn btn-primary" href="index.html">Submit another lead</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const questions = [
+      {
+        key: "description",
+        title: "What best describes you?",
+        type: "single",
+        options: ["Studio Owner", "Studio Manager", "Planning to Open Soon", "Other"]
+      },
+      {
+        key: "studioType",
+        title: "What is your studio primarily set up for?",
+        type: "single",
+        options: ["Podcast", "Audio Only", "Podcast + Video", "Video", "YouTube Production", "Music & Voice Over", "Multi-purpose Content Studio"]
+      },
+      {
+        key: "city",
+        title: "Which city is your studio located in?",
+        type: "multi",
+        hint: "Select all that apply.",
+        options: ["Mumbai", "Delhi NCR", "Bangalore", "Hyderabad", "Pune", "Chennai", "Other"],
+        other: true
+      },
+      {
+        key: "operationalAge",
+        title: "How long has your studio been operational?",
+        type: "single",
+        options: ["Just getting started", "Less than 1 year", "1–3 years", "More than 3 years"]
+      },
+      {
+        key: "weeklySlots",
+        title: "How many recording slots can you offer per week?",
+        type: "single",
+        options: ["1–5 slots", "6–10 slots", "11–20 slots", "20+ slots"]
+      },
+      {
+        key: "monthlyBookings",
+        title: "How many bookings do you currently get per month?",
+        type: "single",
+        options: ["0–5", "6–15", "16–30", "30+"]
+      },
+      {
+        key: "pricing",
+        title: "What is your current pricing per session?",
+        type: "single",
+        options: ["Under ₹1,500", "₹1,500–₹3,000", "₹3,000–₹8,000", "₹8,000+"]
+      },
+      {
+        key: "equipment",
+        title: "What equipment does your studio have?",
+        type: "multi",
+        hint: "Select all that apply.",
+        options: ["Acoustic treated room", "Professional microphones", "Camera & lighting setup", "Mixing console", "Green screen", "Editing & post-production setup", "Live streaming capability"]
+      },
+      {
+        key: "equipmentDetails",
+        title: "Equipment Details",
+        type: "repeat",
+        hint: "Add equipment names such as cameras, microphones, lights, recorders, or other gear available at your studio.",
+        label: "Equipment name",
+        placeholder: "e.g. Sony A7 III, Shure MV7, Rodecaster Pro",
+        minFields: 4,
+        addLabel: "Add more equipment"
+      },
+      {
+        key: "addonServices",
+        title: "Add-on Services details",
+        type: "repeat",
+        hint: "Add services you can provide beyond the studio booking.",
+        label: "Add-on service",
+        placeholder: "e.g. Editing, reels creation, transcription, thumbnail design",
+        minFields: 4,
+        addLabel: "Add more service"
+      },
+      {
+        key: "biggestChallenge",
+        title: "What is your biggest challenge right now?",
+        type: "multi",
+        hint: "Select all that apply.",
+        options: ["Getting discovered by new clients", "Managing bookings and scheduling", "Not earning enough revenue", "No online presence", "Marketing & social media", "All of the above"]
+      },
+      {
+        key: "listedPlatform",
+        title: "Are you currently listed on any other platform?",
+        type: "single",
+        options: ["No, only word of mouth", "Yes, on Google", "Yes, on Instagram/Social", "Yes, on another booking platform"]
+      },
+      {
+        key: "joinReason",
+        title: "What would make you join a platform like Yanisa Studios?",
+        type: "multi",
+        hint: "Select all that apply.",
+        options: ["More bookings & visibility", "Easy booking management system", "Earning more revenue", "Professional credibility", "All of the above"]
+      },
+      {
+        key: "studioName",
+        title: "What is your studio's name?",
+        type: "text",
+        label: "Studio name"
+      },
+      {
+        key: "contactName",
+        title: "Your name",
+        type: "text",
+        label: "Your name"
+      },
+      {
+        key: "whatsapp",
+        title: "WhatsApp number",
+        type: "phone",
+        label: "WhatsApp number"
+      },
+      {
+        key: "websiteOrInstagram",
+        title: "Studio Instagram or website",
+        type: "text",
+        optional: true,
+        label: "Instagram or website",
+        placeholder: "Optional"
+      }
+    ];
+
+    const state = {};
+    let currentStep = 0;
+
+    const form = document.getElementById("leadForm");
+    const progress = document.getElementById("progress");
+    const stepMeta = document.getElementById("stepMeta");
+    const questionTitle = document.getElementById("questionTitle");
+    const questionHint = document.getElementById("questionHint");
+    const answerArea = document.getElementById("answerArea");
+    const errorEl = document.getElementById("error");
+    const backBtn = document.getElementById("backBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const confirmation = document.getElementById("confirmation");
+
+    function renderStep() {
+      const question = questions[currentStep];
+      const percentage = ((currentStep + 1) / questions.length) * 100;
+      progress.style.width = `${percentage}%`;
+      stepMeta.textContent = `Question ${currentStep + 1} of ${questions.length}`;
+      questionTitle.textContent = question.title;
+      questionHint.textContent = question.hint || "";
+      answerArea.innerHTML = "";
+      errorEl.textContent = "";
+      backBtn.disabled = currentStep === 0;
+      nextBtn.textContent = currentStep === questions.length - 1 ? "Submit" : "Next";
+
+      if (question.type === "single" || question.type === "multi") {
+        const options = document.createElement("div");
+        options.className = "options";
+        const inputType = question.type === "single" ? "radio" : "checkbox";
+        const currentValue = state[question.key];
+
+        question.options.forEach((option) => {
+          const label = document.createElement("label");
+          label.className = "option";
+
+          const input = document.createElement("input");
+          input.type = inputType;
+          input.name = question.key;
+          input.value = option;
+          input.checked = Array.isArray(currentValue) ? currentValue.includes(option) : currentValue === option;
+
+          const text = document.createElement("span");
+          text.textContent = option;
+
+          input.addEventListener("change", () => {
+            if (question.type === "single") {
+              state[question.key] = option;
+              options.querySelectorAll(".option").forEach((node) => node.classList.remove("selected"));
+              label.classList.add("selected");
+              toggleOtherInput(question);
+            } else {
+              const selected = Array.from(options.querySelectorAll("input:checked")).map((node) => node.value);
+              state[question.key] = selected;
+              label.classList.toggle("selected", input.checked);
+              toggleOtherInput(question);
+            }
+            errorEl.textContent = "";
+          });
+
+          if (input.checked) {
+            label.classList.add("selected");
+          }
+
+          label.append(input, text);
+          options.appendChild(label);
+        });
+
+        answerArea.appendChild(options);
+
+        if (question.other) {
+          const other = document.createElement("input");
+          other.className = "other-input";
+          other.id = "otherCity";
+          other.type = "text";
+          other.placeholder = "Enter your city";
+          other.value = state.cityOther || "";
+          other.addEventListener("input", () => {
+            state.cityOther = other.value.trim();
+            errorEl.textContent = "";
+          });
+          answerArea.appendChild(other);
+          toggleOtherInput(question);
+        }
+      }
+
+      if (question.type === "text") {
+        answerArea.appendChild(createTextField(question));
+      }
+
+      if (question.type === "phone") {
+        const wrapper = document.createElement("div");
+        wrapper.className = "field";
+        const label = document.createElement("label");
+        label.htmlFor = question.key;
+        label.textContent = question.label;
+        const phone = document.createElement("div");
+        phone.className = "phone-field";
+        const prefix = document.createElement("span");
+        prefix.className = "prefix";
+        prefix.textContent = "+91";
+        const input = document.createElement("input");
+        input.id = question.key;
+        input.type = "number";
+        input.inputMode = "numeric";
+        input.placeholder = "9876543210";
+        input.value = state[question.key] || "";
+        input.addEventListener("input", () => {
+          state[question.key] = input.value.trim();
+          errorEl.textContent = "";
+        });
+        phone.append(prefix, input);
+        wrapper.append(label, phone);
+        answerArea.appendChild(wrapper);
+      }
+
+      if (question.type === "repeat") {
+        answerArea.appendChild(createRepeatField(question));
+      }
+    }
+
+    function createTextField(question) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+      const label = document.createElement("label");
+      label.htmlFor = question.key;
+      label.textContent = question.label;
+      const input = document.createElement("input");
+      input.className = "text-input";
+      input.id = question.key;
+      input.type = "text";
+      input.placeholder = question.placeholder || "";
+      input.value = state[question.key] || "";
+      input.addEventListener("input", () => {
+        state[question.key] = input.value.trim();
+        errorEl.textContent = "";
+      });
+      wrapper.append(label, input);
+      return wrapper;
+    }
+
+    function ensureRepeatValues(question) {
+      const current = Array.isArray(state[question.key]) ? state[question.key] : [];
+      const minFields = question.minFields || 3;
+      while (current.length < minFields) {
+        current.push("");
+      }
+      state[question.key] = current;
+      return current;
+    }
+
+    function createRepeatField(question) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+
+      const list = document.createElement("div");
+      list.className = "repeat-list";
+
+      const renderRows = () => {
+        const values = ensureRepeatValues(question);
+        list.innerHTML = "";
+
+        values.forEach((value, index) => {
+          const row = document.createElement("div");
+          row.className = "repeat-row";
+
+          const input = document.createElement("input");
+          input.className = "text-input";
+          input.type = "text";
+          input.placeholder = index === 0 ? question.placeholder || "" : question.label;
+          input.value = value || "";
+          input.setAttribute("aria-label", `${question.label} ${index + 1}`);
+          input.addEventListener("input", () => {
+            state[question.key][index] = input.value.trim();
+            errorEl.textContent = "";
+          });
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "icon-btn";
+          remove.textContent = "×";
+          remove.setAttribute("aria-label", `Remove ${question.label} ${index + 1}`);
+          remove.disabled = values.length <= (question.minFields || 3);
+          remove.addEventListener("click", () => {
+            state[question.key].splice(index, 1);
+            renderRows();
+          });
+
+          row.append(input, remove);
+          list.appendChild(row);
+        });
+      };
+
+      const label = document.createElement("label");
+      label.textContent = question.label;
+      label.className = "sr-only";
+
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "btn repeat-add";
+      add.textContent = question.addLabel || "Add more";
+      add.addEventListener("click", () => {
+        ensureRepeatValues(question).push("");
+        renderRows();
+      });
+
+      renderRows();
+      wrapper.append(list, add);
+      return wrapper;
+    }
+
+    function toggleOtherInput(question) {
+      if (!question.other) return;
+      const otherInput = document.getElementById("otherCity");
+      if (!otherInput) return;
+      const value = state[question.key];
+      const isOtherSelected = Array.isArray(value) ? value.includes("Other") : value === "Other";
+      otherInput.classList.toggle("visible", isOtherSelected);
+      if (isOtherSelected) {
+        otherInput.focus();
+      }
+    }
+
+    function validateStep() {
+      const question = questions[currentStep];
+      const value = state[question.key];
+
+      if (question.optional) return true;
+
+      if (question.type === "multi") {
+        if (!Array.isArray(value) || value.length === 0) {
+          errorEl.textContent = "Please select at least one option.";
+          return false;
+        }
+      } else if (question.type === "repeat") {
+        const filled = Array.isArray(value) ? value.map((item) => item.trim()).filter(Boolean) : [];
+        if (filled.length === 0) {
+          errorEl.textContent = "Please add at least one detail.";
+          return false;
+        }
+        state[question.key] = filled;
+      } else if (!value) {
+        errorEl.textContent = "Please answer this question.";
+        return false;
+      }
+
+      const otherSelected = Array.isArray(value) ? value.includes("Other") : value === "Other";
+      if (question.other && otherSelected && !state.cityOther) {
+        errorEl.textContent = "Please enter your city.";
+        return false;
+      }
+
+      if (question.type === "phone" && !/^[6-9]\d{9}$/.test(value)) {
+        errorEl.textContent = "Please enter a valid 10-digit Indian WhatsApp number.";
+        return false;
+      }
+
+      return true;
+    }
+
+    async function saveLead() {
+      const answers = questions.reduce((result, question) => {
+        result[question.key] = state[question.key] || (question.type === "multi" || question.type === "repeat" ? [] : "");
+        return result;
+      }, {});
+      if (Array.isArray(state.city)) {
+        answers.city = state.city
+          .map((city) => city === "Other" ? state.cityOther : city)
+          .filter(Boolean);
+      } else {
+        answers.city = state.city === "Other" ? state.cityOther : state.city;
+      }
+      answers.whatsapp = `+91${state.whatsapp}`;
+
+      const response = await fetch("/api/lead-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(answers)
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit lead");
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!validateStep()) return;
+
+      if (currentStep < questions.length - 1) {
+        currentStep += 1;
+        renderStep();
+        return;
+      }
+
+      nextBtn.disabled = true;
+      nextBtn.textContent = "Submitting";
+      try {
+        await saveLead();
+        form.hidden = true;
+        confirmation.hidden = false;
+        progress.style.width = "100%";
+      } catch (error) {
+        errorEl.textContent = "We could not submit your form. Please try again.";
+        nextBtn.disabled = false;
+        nextBtn.textContent = "Submit";
+      }
+    });
+
+    backBtn.addEventListener("click", () => {
+      if (currentStep === 0) return;
+      currentStep -= 1;
+      renderStep();
+    });
+
+    renderStep();
+  </script>
+</body>
+</html>

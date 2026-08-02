@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { calendarDateInIST, parseISTDateTime } from '@/lib/bookingTime';
 
 export async function GET(request: NextRequest) {
   const adminEmail = await getAdminEmail();
@@ -74,10 +75,30 @@ export async function POST(request: NextRequest) {
   // Get first active room for studio
   const { data: room } = await supabaseAdmin.from('rooms').select('id, price_per_hour').eq('studio_id', studio_id).eq('is_active', true).maybeSingle();
 
-  const startDt = new Date(`${date}T${start_time}:00`);
-  const endDt = new Date(`${date}T${end_time}:00`);
+  // Interpret the date + HH:MM inputs as IST wall-clock, store as absolute UTC.
+  const dateYYYYMMDD = calendarDateInIST(String(date));
+  const startDt = parseISTDateTime(dateYYYYMMDD, String(start_time));
+  const endDt = parseISTDateTime(dateYYYYMMDD, String(end_time));
+  if (Number.isNaN(startDt.getTime()) || Number.isNaN(endDt.getTime()) || endDt <= startDt) {
+    return NextResponse.json({ error: 'Invalid start/end time.' }, { status: 400 });
+  }
   const hours = (endDt.getTime() - startDt.getTime()) / 3600000;
   const price = total_price ? Number(total_price) : (room?.price_per_hour || 0) * hours;
+
+  // Buffer-aware overlap guard: keep a cleanup gap of buffer_minutes on both sides.
+  const { data: studioRow } = await supabaseAdmin.from('studios').select('buffer_minutes').eq('id', studio_id).maybeSingle();
+  const bufferMs = (Number(studioRow?.buffer_minutes) || 0) * 60 * 1000;
+  const { data: clashes } = await supabaseAdmin
+    .from('bookings')
+    .select('id')
+    .eq('studio_id', studio_id)
+    .neq('status', 'cancelled')
+    .lt('start_time', new Date(endDt.getTime() + bufferMs).toISOString())
+    .gt('end_time', new Date(startDt.getTime() - bufferMs).toISOString())
+    .limit(1);
+  if (clashes && clashes.length > 0) {
+    return NextResponse.json({ error: 'This time overlaps an existing booking (including buffer time).' }, { status: 409 });
+  }
 
   const bookingNumber = 'ADM-' + Date.now().toString().slice(-8);
 

@@ -95,6 +95,7 @@ interface StudioPackage {
   name: string;
   description: string;
   price_per_hour: number;
+  discount_percentage: number;
   features: PkgFeature[];
   is_popular: boolean;
 }
@@ -162,9 +163,9 @@ const DEFAULT_PKG_FEATURES: PkgFeature[][] = [
 ];
 
 const DEFAULT_PKG_TEMPLATES: StudioPackage[] = [
-  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
-  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
-  { name: "", description: "", price_per_hour: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
 ];
 
 const initialFormData: StudioFormData = {
@@ -1316,6 +1317,19 @@ function CreateStudioPageInner() {
                           value={pkg.price_per_hour}
                           onChange={(e) => updatePackage(i, { price_per_hour: parseInt(e.target.value) || 0 })}
                           className="w-full h-11 bg-white/5 border border-white/10 rounded-xl pl-7 pr-4 text-white focus:border-[#D9FC67] focus:outline-none text-sm transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-white/60 text-xs mb-1.5 block">Discount %</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={pkg.discount_percentage}
+                          onChange={(e) => updatePackage(i, { discount_percentage: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                          className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:border-[#D9FC67] focus:outline-none text-sm transition-colors"
                         />
                       </div>
                     </div>

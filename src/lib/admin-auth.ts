@@ -2,7 +2,11 @@ import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
 
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'admin-fallback-secret');
+// Must match how the admin_session cookie is signed (admin/login/actions.ts)
+// and verified in middleware.ts — NextAuth v5 uses AUTH_SECRET.
+const secret = new TextEncoder().encode(
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'admin-fallback-secret'
+);
 
 export async function getAdminEmail(): Promise<string | null> {
   try {

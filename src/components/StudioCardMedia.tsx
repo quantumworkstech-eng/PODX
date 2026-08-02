@@ -13,16 +13,25 @@ interface StudioCardMediaProps {
   hoverScaleClassName?: string;
 }
 
-interface VideoInfo {
+export interface VideoInfo {
   /** The URL to pass to `<video src>` or `<iframe src>` */
   embedUrl: string;
   /** True for YouTube / Vimeo / Google Drive — rendered with <iframe> */
   isEmbedded: boolean;
 }
 
+interface VideoInfoOptions {
+  controls?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+}
+
 /** Parse any video URL and return the best embeddable form. */
-function getVideoInfo(url: string): VideoInfo | null {
+export function getVideoInfo(url: string, options: VideoInfoOptions = {}): VideoInfo | null {
   if (!url) return null;
+  const controls = options.controls ?? false;
+  const muted = options.muted ?? true;
+  const loop = options.loop ?? true;
 
   // YouTube: watch, shorts, youtu.be
   const ytMatch = url.match(
@@ -30,8 +39,19 @@ function getVideoInfo(url: string): VideoInfo | null {
   );
   if (ytMatch) {
     const id = ytMatch[1];
+    const params = new URLSearchParams({
+      autoplay: "1",
+      mute: muted ? "1" : "0",
+      controls: controls ? "1" : "0",
+      playsinline: "1",
+      rel: "0",
+    });
+    if (loop) {
+      params.set("loop", "1");
+      params.set("playlist", id);
+    }
     return {
-      embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&playsinline=1&rel=0`,
+      embedUrl: `https://www.youtube.com/embed/${id}?${params.toString()}`,
       isEmbedded: true,
     };
   }
@@ -39,8 +59,14 @@ function getVideoInfo(url: string): VideoInfo | null {
   // Vimeo
   const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vimeoMatch) {
+    const params = new URLSearchParams({
+      autoplay: "1",
+      muted: muted ? "1" : "0",
+      loop: loop ? "1" : "0",
+    });
+    if (!controls) params.set("background", "1");
     return {
-      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&muted=1&loop=1&background=1`,
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?${params.toString()}`,
       isEmbedded: true,
     };
   }

@@ -43,23 +43,10 @@ export function BookingCard({ booking }: BookingCardProps) {
   };
 
   const formatTime = () => {
-    // Prefer raw UTC ISO strings for accuracy
+    // Always derive from raw UTC ISO strings via the IST-aware helper.
     const start = (booking as any).start_time;
     const end   = (booking as any).end_time;
-    if (start && end) return formatBookingTimeRange(start, end);
-    // Fallback from timeSlot + duration
-    if (!booking.timeSlot) return "";
-    const [hoursStr, minutesStr = "00"] = booking.timeSlot.split(":");
-    const hour = parseInt(hoursStr, 10);
-    const minute = parseInt(minutesStr, 10);
-    const totalStartMinutes = hour * 60 + minute;
-    const totalEndMinutes = totalStartMinutes + Math.round(booking.duration * 60);
-    const fmt = (total: number) => {
-      const h = Math.floor(total / 60);
-      const m = total % 60;
-      return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
-    };
-    return `${fmt(totalStartMinutes)} – ${fmt(totalEndMinutes)}`;
+    return formatBookingTimeRange(start, end);
   };
 
   const getStatusColor = () => {

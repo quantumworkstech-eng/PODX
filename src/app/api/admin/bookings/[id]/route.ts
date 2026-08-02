@@ -227,15 +227,18 @@ export async function PATCH(
       oldDuration
     );
 
-    // Conflict check — exclude the booking being rescheduled
+    // Conflict check (buffer-aware) — exclude the booking being rescheduled
+    const { data: bufRow } = await supabaseAdmin
+      .from('studios').select('buffer_minutes').eq('id', booking.studio_id).maybeSingle();
+    const bufferMs = (Number(bufRow?.buffer_minutes) || 0) * 60 * 1000;
     const { data: conflicts } = await supabaseAdmin
       .from('bookings')
       .select('id')
       .eq('studio_id', booking.studio_id)
       .neq('status', 'cancelled')
       .neq('id', booking.id)
-      .lt('start_time', newEnd.toISOString())
-      .gt('end_time', newStart.toISOString());
+      .lt('start_time', new Date(newEnd.getTime() + bufferMs).toISOString())
+      .gt('end_time', new Date(newStart.getTime() - bufferMs).toISOString());
 
     if (conflicts && conflicts.length > 0) {
       return NextResponse.json(
@@ -276,11 +279,14 @@ export async function PATCH(
     return NextResponse.json({ success: true });
   }
 
-  // Direct field updates
+  // Direct field updates.
+  // NOTE: start_time / end_time / booking_date are intentionally NOT editable
+  // here — time changes must go through the "reschedule" action so they are
+  // converted IST→UTC and conflict-checked. Editing raw timestamps from
+  // type="time"/"date" inputs corrupted the stored UTC values.
   if (bookingFields) {
     const allowed = [
-      'status', 'start_time', 'end_time', 'booking_date', 'notes',
-      'total_price', 'cancellation_reason',
+      'status', 'notes', 'total_price', 'cancellation_reason',
     ];
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const key of allowed) {

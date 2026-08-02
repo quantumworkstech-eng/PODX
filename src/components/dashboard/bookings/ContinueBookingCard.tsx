@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Clock, ArrowRight, X, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BOOKING_PENDING_KEY } from "@/lib/booking-flow-storage";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 
 interface PendingBookingInfo {
   date: string | null;
@@ -113,11 +114,7 @@ export function ContinueBookingCard() {
           <div className="flex items-center gap-2 text-white/70">
             <Calendar className="w-4 h-4" />
             <span className="text-sm">
-              {new Date(pendingBooking.date).toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
+              {formatBookingDate(pendingBooking.date)}
               {pendingBooking.timeSlot && ` at ${pendingBooking.timeSlot}`}
               {pendingBooking.duration && ` • ${pendingBooking.duration} hour${pendingBooking.duration > 1 ? "s" : ""}`}
             </span>

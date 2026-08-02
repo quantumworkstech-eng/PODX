@@ -87,10 +87,13 @@ export async function POST(request: NextRequest) {
     pricePerHour, capacity, equipment, services, amenities,
     addonIds, images, videoUrl, latitude, longitude,
     cancellationRules, rescheduleRules,
+    availableDays,
+    workingHours,
     partnerEquipmentSelections,
     partnerServiceIds,
     partnerAddonSelections,
     packages,
+    setups,
     saveAsDraft,
   } = body;
 
@@ -165,14 +168,38 @@ export async function POST(request: NextRequest) {
     } catch { /* column may not exist yet */ }
   }
 
-  // Create default room
-  await supabaseAdmin.from('rooms').insert({
-    studio_id: studio.id,
-    name: 'Main Room',
-    price_per_hour: pricePerHour || 0,
-    capacity: capacity || 2,
-    is_active: true,
-  });
+  // Create setup rooms
+  const setupRows = Array.isArray(setups) && setups.length > 0
+    ? setups.filter((setup: any) => String(setup.name || '').trim()).map((setup: any) => ({
+        studio_id: studio.id,
+        name: String(setup.name || 'Studio setup').trim(),
+        description: setup.description ? String(setup.description).trim() : null,
+        price_per_hour: Math.max(0, Number(setup.price_per_hour) || Number(pricePerHour) || 0),
+        capacity: Math.max(1, Math.floor(Number(setup.capacity) || Number(capacity) || 2)),
+        featured_image_url: setup.featured_image_url || null,
+        is_active: setup.is_active !== false,
+      }))
+    : [{
+        studio_id: studio.id,
+        name: 'Main Room',
+        price_per_hour: pricePerHour || 0,
+        capacity: capacity || 2,
+        is_active: true,
+      }];
+  await supabaseAdmin.from('rooms').insert(setupRows);
+
+  if (Array.isArray(availableDays) && workingHours) {
+    const dayNameToNum: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    await supabaseAdmin.from('studio_hours').insert(
+      Object.entries(dayNameToNum).map(([name, num]) => ({
+        studio_id: studio.id,
+        day_of_week: num,
+        open_time: workingHours.start || '09:00',
+        close_time: workingHours.end || '21:00',
+        is_closed: !availableDays.includes(name),
+      }))
+    );
+  }
 
   // Store images
   if (images && images.length > 0) {
@@ -246,6 +273,7 @@ export async function POST(request: NextRequest) {
             name: String(pkg.name).trim(),
             description: pkg.description || null,
             price_per_hour: Math.max(0, parseInt(pkg.price_per_hour) || 0),
+            discount_percentage: Math.max(0, Math.min(100, Number(pkg.discount_percentage) || 0)),
             features: Array.isArray(pkg.features) ? pkg.features : [],
             is_popular: !!pkg.is_popular,
             display_order: idx,

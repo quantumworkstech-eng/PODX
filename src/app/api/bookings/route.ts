@@ -83,6 +83,7 @@ export async function GET() {
           id: a.id,
           name: a.name,
           price: Number(a.price),
+          qty: Number(a.quantity) || 1,
         })),
         totalPrice: Number(b.total_price),
         subtotal: notes.subtotal ?? null,
@@ -96,6 +97,13 @@ export async function GET() {
               : null,
         convenienceFee:
           Number(notes.convenienceFee ?? notes.convenience_fee ?? 0) || null,
+        selectedSetup: notes.selectedSetup || null,
+        bookingNote:
+          typeof notes.bookingNote === "string"
+            ? notes.bookingNote
+            : typeof notes.booking_note === "string"
+              ? notes.booking_note
+              : null,
         status: b.status,
         paymentId: notes.paymentId || "",
         gstNumber: notes.gstNumber || null,
@@ -156,6 +164,8 @@ export async function POST(request: NextRequest) {
       discountAmount,
       couponCode,
       convenienceFee,
+      selectedSetup,
+      bookingNote,
     } = body;
 
     if (!studioId || !date || !timeSlot || !duration || !totalPrice) {
@@ -256,21 +266,18 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     const bufferMinutes: number = studioMeta?.buffer_minutes ?? 0;
+    const bufferMs = bufferMinutes * 60 * 1000;
 
-    // The effective start for conflict detection is pushed back by the buffer
-    // so that a booking inside another booking's cleanup window is also caught.
-    const conflictCheckStart = new Date(
-      startTime.getTime() - bufferMinutes * 60 * 1000
-    );
-
-    // Double-booking check (includes buffer enforcement)
+    // Double-booking check with buffer enforced SYMMETRICALLY: keep a cleanup
+    // gap of buffer_minutes on both sides so neither booking starts inside the
+    // other's cleanup window (matches the slots-availability logic).
     const { data: conflicts } = await supabaseAdmin
       .from("bookings")
       .select("id")
       .eq("studio_id", studioId)
       .neq("status", "cancelled")
-      .lt("start_time", endTime.toISOString())
-      .gt("end_time", conflictCheckStart.toISOString());
+      .lt("start_time", new Date(endTime.getTime() + bufferMs).toISOString())
+      .gt("end_time", new Date(startTime.getTime() - bufferMs).toISOString());
 
     if (conflicts && conflicts.length > 0) {
       return NextResponse.json(
@@ -286,11 +293,31 @@ export async function POST(request: NextRequest) {
     const notes = JSON.stringify({
       participants,
       package: packageData,
+      ...(Array.isArray(addOns) && addOns.length > 0
+        ? {
+            addOns: addOns.map((a: any) => ({
+              name: a.name,
+              price: Number(a.price) || 0,
+              qty: Number(a.qty ?? a.quantity) || 1,
+            })),
+          }
+        : {}),
       subtotal,
       tax,
       paymentId,
       orderId,
       ...(gstNumber ? { gstNumber } : {}),
+      ...(bookingNote ? { bookingNote: String(bookingNote).trim().slice(0, 500) } : {}),
+      ...(selectedSetup
+        ? {
+            selectedSetup: {
+              id: selectedSetup.id,
+              name: selectedSetup.name,
+              image_url: selectedSetup.image_url,
+              capacity: selectedSetup.capacity ?? null,
+            },
+          }
+        : {}),
       ...(Number(discountAmount) > 0
         ? { discountAmount: Number(discountAmount), couponCode: couponCode || null }
         : {}),
@@ -405,7 +432,7 @@ export async function POST(request: NextRequest) {
         booking_id: booking.id,
         name: a.name,
         price: a.price,
-        quantity: 1,
+        quantity: Number(a.qty ?? a.quantity) || 1,
       }));
       await supabaseAdmin.from("booking_addons").insert(addonRows);
     }

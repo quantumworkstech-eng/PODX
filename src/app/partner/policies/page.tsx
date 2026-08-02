@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 import {
   Shield,
   Clock,
@@ -269,7 +270,7 @@ export default function PartnerPoliciesPage() {
               {affectedBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between text-sm bg-black/20 p-2 rounded-lg">
                   <span className="text-white">{booking.id} - {booking.studioName}</span>
-                  <span className="text-white/60">{new Date(booking.date).toLocaleDateString()}</span>
+                  <span className="text-white/60">{formatBookingDate(booking.date)}</span>
                 </div>
               ))}
             </div>

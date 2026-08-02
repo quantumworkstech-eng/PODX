@@ -17,6 +17,8 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  Clock,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { StudioFullDetailModal } from "@/components/StudioFullDetailModal";
 import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
 import { StudioPartnerInventoryPicker } from "@/components/partner/StudioPartnerInventoryPicker";
 import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddonPicker";
@@ -37,6 +40,31 @@ import { StudioPartnerAddonPicker } from "@/components/partner/StudioPartnerAddo
 interface CancellationRule {
   hours_before: number;
   refund_percentage: number;
+}
+
+interface PkgFeature {
+  text: string;
+  included: boolean;
+}
+
+interface StudioPackage {
+  id?: string;
+  name: string;
+  description: string;
+  price_per_hour: number;
+  discount_percentage: number;
+  features: PkgFeature[];
+  is_popular: boolean;
+}
+
+interface StudioSetup {
+  id?: string;
+  name: string;
+  description?: string | null;
+  capacity: number;
+  price_per_hour: number;
+  featured_image_url?: string | null;
+  is_active: boolean;
 }
 
 interface PartnerInvSnapshot {
@@ -56,6 +84,10 @@ interface Studio {
   buffer_minutes: number;
   reschedule_cutoff_hours?: number;
   cancellation_rules?: CancellationRule[];
+  availableDays?: string[];
+  workingHours?: { start: string; end: string };
+  packages?: StudioPackage[];
+  setups?: StudioSetup[];
   equipment?: string[];
   addon_ids?: string[];
   partner_inventory?: PartnerInvSnapshot | null;
@@ -73,6 +105,24 @@ const BUFFER_OPTIONS = [
   { value: 90,  label: "1.5 hours" },
   { value: 120, label: "2 hours" },
 ];
+
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const TIME_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+
+const DEFAULT_PACKAGES: StudioPackage[] = [
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+  { name: "", description: "", price_per_hour: 0, discount_percentage: 0, features: [], is_popular: false },
+];
+
+const DEFAULT_SETUP = (capacity = 2, price = 0): StudioSetup => ({
+  name: "Main Room",
+  description: "",
+  capacity,
+  price_per_hour: price,
+  featured_image_url: null,
+  is_active: true,
+});
 
 const equipmentOptions = [
   "Microphones",
@@ -99,6 +149,7 @@ export default function PartnerStudiosPage() {
   const [isFormHydrating, setIsFormHydrating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [detailStudioId, setDetailStudioId] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,10 +166,24 @@ export default function PartnerStudiosPage() {
       partnerEquipmentSelections?: { id: string; quantity: number }[];
       partnerServiceIds?: string[];
       partnerAddonSelections?: { id: string; enabled_for_booking: boolean }[];
+      availableDays?: string[];
+      workingHours?: { start: string; end: string };
+      packages?: StudioPackage[];
+      setups?: StudioSetup[];
+      state?: string;
+      country?: string;
+      video_url?: string;
+      short_description?: string;
+      full_description?: string;
     }
   >({
     name: "",
     description: "",
+    state: "",
+    country: "India",
+    video_url: "",
+    short_description: "",
+    full_description: "",
     address: "",
     city: "",
     price_per_hour: 0,
@@ -126,6 +191,10 @@ export default function PartnerStudiosPage() {
     buffer_minutes: 0,
     reschedule_cutoff_hours: 48,
     cancellation_rules: DEFAULT_CANCELLATION_RULES,
+    availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    workingHours: { start: "09:00", end: "21:00" },
+    packages: DEFAULT_PACKAGES,
+    setups: [DEFAULT_SETUP(2, 0)],
     equipment: [],
     addonIds: [],
     partnerEquipmentSelections: [],
@@ -177,6 +246,10 @@ export default function PartnerStudiosPage() {
       setFormData({
         ...studio,
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
+        availableDays: studio.availableDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        workingHours: studio.workingHours || { start: "09:00", end: "21:00" },
+        packages: studio.packages?.length ? studio.packages : DEFAULT_PACKAGES,
+        setups: studio.setups?.length ? studio.setups : [DEFAULT_SETUP(studio.capacity, studio.price_per_hour)],
         addonIds: studio.addon_ids || [],
         partnerEquipmentSelections: studio.partner_inventory?.partnerEquipmentSelections ?? [],
         partnerServiceIds: studio.partner_inventory?.partnerServiceIds ?? [],
@@ -192,7 +265,16 @@ export default function PartnerStudiosPage() {
           setFormData((prev) => ({
             ...prev,
             ...fresh,
+            state: fresh.state ?? "",
+            country: fresh.country ?? "India",
+            video_url: fresh.video_url ?? "",
+            short_description: fresh.short_description ?? "",
+            full_description: fresh.full_description ?? "",
             addonIds: fresh.addon_ids || [],
+            availableDays: fresh.availableDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            workingHours: fresh.workingHours || { start: "09:00", end: "21:00" },
+            packages: fresh.packages?.length ? fresh.packages : DEFAULT_PACKAGES,
+            setups: fresh.setups?.length ? fresh.setups : [DEFAULT_SETUP(fresh.capacity, fresh.price_per_hour)],
             partnerEquipmentSelections: fresh.partner_inventory?.partnerEquipmentSelections ?? [],
             partnerServiceIds: fresh.partner_inventory?.partnerServiceIds ?? [],
             partnerAddonSelections: fresh.partner_inventory?.partnerAddonSelections ?? [],
@@ -225,6 +307,10 @@ export default function PartnerStudiosPage() {
         buffer_minutes: 0,
         reschedule_cutoff_hours: 48,
         cancellation_rules: DEFAULT_CANCELLATION_RULES,
+        availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        workingHours: { start: "09:00", end: "21:00" },
+        packages: DEFAULT_PACKAGES,
+        setups: [DEFAULT_SETUP(2, 0)],
         equipment: [],
         addonIds: [],
         partnerEquipmentSelections: [],
@@ -262,6 +348,10 @@ export default function PartnerStudiosPage() {
       buffer_minutes: 0,
       reschedule_cutoff_hours: 48,
       cancellation_rules: DEFAULT_CANCELLATION_RULES,
+      availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      workingHours: { start: "09:00", end: "21:00" },
+      packages: DEFAULT_PACKAGES,
+      setups: [DEFAULT_SETUP(2, 0)],
       equipment: [],
       addonIds: [],
       partnerEquipmentSelections: [],
@@ -285,12 +375,21 @@ export default function PartnerStudiosPage() {
           body: JSON.stringify({
             name: formData.name,
             description: formData.description,
+            shortDescription: formData.short_description,
+            fullDescription: formData.full_description,
             address: formData.address,
             city: formData.city,
-
+            state: formData.state,
+            country: formData.country,
+            videoUrl: formData.video_url,
+            pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
+            availableDays: formData.availableDays || [],
+            workingHours: formData.workingHours || { start: "09:00", end: "21:00" },
             buffer_minutes: formData.buffer_minutes ?? 0,
             reschedule_cutoff_hours: formData.reschedule_cutoff_hours ?? 48,
+            packages: (formData.packages || []).filter((p) => p.name.trim()),
+            setups: (formData.setups || []).filter((setup) => setup.name.trim()),
             images: formData.images,
             is_active: formData.status !== "inactive",
             equipment: formData.equipment || [],
@@ -317,10 +416,19 @@ export default function PartnerStudiosPage() {
           body: JSON.stringify({
             name: formData.name,
             description: formData.description,
+            shortDescription: formData.short_description,
+            fullDescription: formData.full_description,
             address: formData.address,
             city: formData.city,
-
+            state: formData.state,
+            country: formData.country,
+            videoUrl: formData.video_url,
+            pricePerHour: formData.price_per_hour,
             capacity: formData.capacity,
+            availableDays: formData.availableDays || [],
+            workingHours: formData.workingHours || { start: "09:00", end: "21:00" },
+            packages: (formData.packages || []).filter((p) => p.name.trim()),
+            setups: (formData.setups || []).filter((setup) => setup.name.trim()),
             images: formData.images,
             equipment: formData.equipment || [],
             addonIds: formData.addonIds || [],
@@ -426,6 +534,69 @@ export default function PartnerStudiosPage() {
     }));
   };
 
+  const updatePackage = (index: number, updates: Partial<StudioPackage>) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      packages[index] = { ...DEFAULT_PACKAGES[index], ...packages[index], ...updates };
+      return { ...prev, packages };
+    });
+  };
+
+  const addPackageFeature = (pkgIndex: number) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      const pkg = { ...DEFAULT_PACKAGES[pkgIndex], ...packages[pkgIndex] };
+      pkg.features = [...(pkg.features || []), { text: "", included: true }];
+      packages[pkgIndex] = pkg;
+      return { ...prev, packages };
+    });
+  };
+
+  const updatePackageFeature = (pkgIndex: number, featureIndex: number, updates: Partial<PkgFeature>) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      const pkg = { ...DEFAULT_PACKAGES[pkgIndex], ...packages[pkgIndex] };
+      pkg.features = (pkg.features || []).map((feature, index) =>
+        index === featureIndex ? { ...feature, ...updates } : feature
+      );
+      packages[pkgIndex] = pkg;
+      return { ...prev, packages };
+    });
+  };
+
+  const removePackageFeature = (pkgIndex: number, featureIndex: number) => {
+    setFormData((prev) => {
+      const packages = [...(prev.packages || DEFAULT_PACKAGES)];
+      const pkg = { ...DEFAULT_PACKAGES[pkgIndex], ...packages[pkgIndex] };
+      pkg.features = (pkg.features || []).filter((_, index) => index !== featureIndex);
+      packages[pkgIndex] = pkg;
+      return { ...prev, packages };
+    });
+  };
+
+  const addSetup = () => {
+    setFormData((prev) => ({
+      ...prev,
+      setups: [...(prev.setups || []), DEFAULT_SETUP(prev.capacity || 2, prev.price_per_hour || 0)],
+    }));
+  };
+
+  const updateSetup = (index: number, updates: Partial<StudioSetup>) => {
+    setFormData((prev) => ({
+      ...prev,
+      setups: (prev.setups || []).map((setup, idx) =>
+        idx === index ? { ...setup, ...updates } : setup
+      ),
+    }));
+  };
+
+  const removeSetup = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      setups: (prev.setups || []).filter((_, idx) => idx !== index),
+    }));
+  };
+
   const nextImage = (studioId: string, totalImages: number) => {
     setCurrentImageIndex((prev) => ({ ...prev, [studioId]: ((prev[studioId] || 0) + 1) % totalImages }));
   };
@@ -456,7 +627,12 @@ export default function PartnerStudiosPage() {
               <div className="relative h-48 bg-white/5">
                 {studio.images && studio.images.length > 0 ? (
                   <>
-                    <img src={studio.images[currentImageIndex[studio.id] || 0]} alt={studio.name} className="w-full h-full object-cover" />
+                    <img
+                      src={studio.images[currentImageIndex[studio.id] || 0]}
+                      alt={studio.name}
+                      onClick={() => setDetailStudioId(studio.id)}
+                      className="w-full h-full object-cover cursor-pointer"
+                    />
                     {studio.images.length > 1 && (
                       <>
                         <button onClick={() => prevImage(studio.id, studio.images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -489,7 +665,14 @@ export default function PartnerStudiosPage() {
 
               <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-white">{studio.name}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setDetailStudioId(studio.id)}
+                    className="text-lg font-semibold text-white text-left hover:text-[#D9FC67] transition-colors"
+                    title="View studio details"
+                  >
+                    {studio.name}
+                  </button>
                   {studio.review_status === "draft" ? (
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
                       Draft
@@ -533,6 +716,15 @@ export default function PartnerStudiosPage() {
                 </div>
 
                 <div className="flex gap-2">
+                  <Button
+                    onClick={() => setDetailStudioId(studio.id)}
+                    variant="outline"
+                    size="sm"
+                    className="border-white/10 text-white hover:bg-white/5"
+                    title="View studio details"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
                   {studio.review_status === "draft" ? (
                     <Link
                       href={`/partner/studios/create?draftId=${studio.id}`}
@@ -588,8 +780,18 @@ export default function PartnerStudiosPage() {
               </div>
 
               <div>
-                <label className="text-white/60 text-sm mb-2 block">Description</label>
-                <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe your studio..." className="w-full h-24 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none" />
+                <label className="text-white/60 text-sm mb-2 block">Short Description</label>
+                <textarea value={formData.short_description} onChange={(e) => setFormData({ ...formData, short_description: e.target.value })} placeholder="A brief one-line summary of your studio..." className="w-full h-24 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none" />
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Full Description</label>
+                <textarea value={formData.full_description} onChange={(e) => setFormData({ ...formData, full_description: e.target.value })} placeholder="Describe your studio in detail..." className="w-full h-24 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none" />
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Studio Video URL</label>
+                <Input type="url" value={formData.video_url} onChange={(e) => setFormData({ ...formData, video_url: e.target.value })} placeholder="YouTube, Vimeo, Google Drive, or MP4 link" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -605,8 +807,82 @@ export default function PartnerStudiosPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="text-white/60 text-sm mb-2 block">State</label>
+                  <Input value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} placeholder="e.g., Maharashtra" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                </div>
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Country</label>
+                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="India" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="text-white/60 text-sm mb-2 block">Capacity *</label>
                   <Input type="number" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 2 })} placeholder="4" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
+                </div>
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Base Price/hr</label>
+                  <Input type="number" min={0} value={formData.price_per_hour ?? 0} onChange={(e) => setFormData({ ...formData, price_per_hour: parseInt(e.target.value) || 0 })} placeholder="3000" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                </div>
+              </div>
+
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#D9FC67]" />
+                  <div>
+                    <p className="text-white/80 text-sm font-medium">Working Hours</p>
+                    <p className="text-white/30 text-xs">Control when clients can book this studio.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-white/50 text-xs mb-1 block">Opens at</label>
+                    <select
+                      value={formData.workingHours?.start || "09:00"}
+                      onChange={(e) => setFormData({ ...formData, workingHours: { ...(formData.workingHours || { start: "09:00", end: "21:00" }), start: e.target.value } })}
+                      className="w-full h-10 bg-white/5 border border-white/10 rounded-lg px-3 text-white text-sm"
+                    >
+                      {TIME_SLOTS.map((time) => <option key={time} value={time} className="bg-[#141414]">{time}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs mb-1 block">Closes at</label>
+                    <select
+                      value={formData.workingHours?.end || "21:00"}
+                      onChange={(e) => setFormData({ ...formData, workingHours: { ...(formData.workingHours || { start: "09:00", end: "21:00" }), end: e.target.value } })}
+                      className="w-full h-10 bg-white/5 border border-white/10 rounded-lg px-3 text-white text-sm"
+                    >
+                      {TIME_SLOTS.map((time) => <option key={time} value={time} className="bg-[#141414]">{time}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs mb-2 block">Open days</label>
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((day) => {
+                      const selected = (formData.availableDays || []).includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            const current = formData.availableDays || [];
+                            setFormData({
+                              ...formData,
+                              availableDays: selected ? current.filter((d) => d !== day) : [...current, day],
+                            });
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-sm transition-colors",
+                            selected ? "bg-[#D9FC67] text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                          )}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -628,6 +904,64 @@ export default function PartnerStudiosPage() {
                     >
                       {opt.label}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-white/80 text-sm font-medium">Studio Setups</p>
+                    <p className="text-white/30 text-xs">Add/remove bookable setup options shown to clients.</p>
+                  </div>
+                  <Button type="button" size="sm" onClick={addSetup} className="bg-[#D9FC67] hover:bg-[#E8FF8A] text-black">
+                    <Plus className="w-4 h-4 mr-1" /> Add setup
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {(formData.setups || []).map((setup, index) => (
+                    <div key={setup.id || index} className="rounded-xl bg-white/[0.03] border border-white/10 p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-white/70 text-sm font-medium">Setup {index + 1}</p>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs text-white/55">
+                            <input
+                              type="checkbox"
+                              checked={setup.is_active !== false}
+                              onChange={(e) => updateSetup(index, { is_active: e.target.checked })}
+                              className="accent-[#D9FC67]"
+                            />
+                            Active
+                          </label>
+                          {(formData.setups || []).length > 1 && (
+                            <button type="button" onClick={() => removeSetup(index)} className="text-red-400/70 hover:text-red-300">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input value={setup.name} onChange={(e) => updateSetup(index, { name: e.target.value })} placeholder="Setup name" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                        <Input type="number" min={0} value={setup.price_per_hour} onChange={(e) => updateSetup(index, { price_per_hour: parseInt(e.target.value) || 0 })} placeholder="Price/hr" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                        <Input type="number" min={1} value={setup.capacity} onChange={(e) => updateSetup(index, { capacity: parseInt(e.target.value) || 1 })} placeholder="Capacity" className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                        <select
+                          value={setup.featured_image_url || ""}
+                          onChange={(e) => updateSetup(index, { featured_image_url: e.target.value || null })}
+                          className="h-10 bg-white/5 border border-white/10 rounded-md px-3 text-white text-sm"
+                        >
+                          <option value="" className="bg-[#141414]">No setup image</option>
+                          {(formData.images || []).map((img, imgIndex) => (
+                            <option key={img} value={img} className="bg-[#141414]">Photo {imgIndex + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <textarea
+                        value={setup.description || ""}
+                        onChange={(e) => updateSetup(index, { description: e.target.value })}
+                        placeholder="Setup description"
+                        className="w-full h-16 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/40 focus:border-[#D9FC67] focus:outline-none resize-none text-sm"
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -735,8 +1069,109 @@ export default function PartnerStudiosPage() {
                 }}
               />
 
+              <div className="border border-white/10 rounded-xl p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#D9FC67]" />
+                  <div>
+                    <p className="text-white/80 text-sm font-medium">Plans / Packages</p>
+                    <p className="text-white/30 text-xs">These are the package choices clients see while booking.</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {[0, 1, 2].map((index) => {
+                    const pkg = (formData.packages || DEFAULT_PACKAGES)[index] || DEFAULT_PACKAGES[index];
+                    return (
+                      <div key={index} className="rounded-xl bg-white/[0.03] border border-white/10 p-3 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-white/70 text-sm font-medium">Package {index + 1}</p>
+                          <label className="flex items-center gap-2 text-xs text-white/55">
+                            <input
+                              type="checkbox"
+                              checked={pkg.is_popular}
+                              onChange={(e) => updatePackage(index, { is_popular: e.target.checked })}
+                              className="accent-[#D9FC67]"
+                            />
+                            Best deal
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Input
+                            value={pkg.name}
+                            onChange={(e) => updatePackage(index, { name: e.target.value })}
+                            placeholder="Basic Recording"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                          <Input
+                            type="number"
+                            min={0}
+                            value={pkg.price_per_hour}
+                            onChange={(e) => updatePackage(index, { price_per_hour: parseInt(e.target.value) || 0 })}
+                            placeholder="Price/hr"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={pkg.discount_percentage}
+                            onChange={(e) => updatePackage(index, { discount_percentage: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                            placeholder="Discount %"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                        </div>
+                        <Input
+                          value={pkg.description}
+                          onChange={(e) => updatePackage(index, { description: e.target.value })}
+                          placeholder="Short package description"
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                        />
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-white/45 text-xs">Features</p>
+                            <button type="button" onClick={() => addPackageFeature(index)} className="text-[#D9FC67] text-xs inline-flex items-center gap-1">
+                              <Plus className="w-3 h-3" /> Add feature
+                            </button>
+                          </div>
+                          {(pkg.features || []).map((feature, featureIndex) => (
+                            <div key={featureIndex} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={feature.included}
+                                onChange={(e) => updatePackageFeature(index, featureIndex, { included: e.target.checked })}
+                                className="accent-[#D9FC67]"
+                              />
+                              <Input
+                                value={feature.text}
+                                onChange={(e) => updatePackageFeature(index, featureIndex, { text: e.target.value })}
+                                placeholder="Feature text"
+                                className="h-9 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                              />
+                              <button type="button" onClick={() => removePackageFeature(index, featureIndex)} className="text-red-400/70 hover:text-red-300">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
-                <label className="text-white/60 text-sm mb-1 block">Bookable add-ons</label>
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <label className="text-white/60 text-sm block">Bookable add-ons</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInventoryDrawerTab("addons");
+                      setInventoryDrawerOpen(true);
+                    }}
+                    className="text-[#D9FC67] hover:text-[#E8FF8A] text-xs font-medium"
+                  >
+                    Manage add-on prices
+                  </button>
+                </div>
                 <p className="text-white/30 text-xs mb-3">Platform + your custom upsells for this studio</p>
                 {addonsLoading ? (
                   <div className="flex items-center justify-center py-6">
@@ -815,6 +1250,13 @@ export default function PartnerStudiosPage() {
           setInventoryDrawerOpen(false);
           refreshInventory();
         }}
+      />
+
+      {/* Studio detail popup */}
+      <StudioFullDetailModal
+        studioId={detailStudioId}
+        source="partner"
+        onClose={() => setDetailStudioId(null)}
       />
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

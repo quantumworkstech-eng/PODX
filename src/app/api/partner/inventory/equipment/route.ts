@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const SUBS = new Set(["camera", "mic", "light", "accessory"]);
-
 async function getPartnerId(): Promise<string | null> {
   const session = await auth();
   return (session?.user as { id?: string })?.id ?? null;
@@ -15,11 +13,13 @@ export async function POST(request: NextRequest) {
   if (!supabaseAdmin) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
   const body = await request.json();
-  const subcategory = String(body.subcategory || "").toLowerCase();
+  // Allow custom subcategories (UI offers a "Custom…" option) — any non-empty
+  // value is accepted, not just the predefined SUBS set.
+  const subcategory = String(body.subcategory || "").trim().toLowerCase();
   const model = String(body.model_name || "").trim();
   const defaultQty = Math.max(1, Math.floor(Number(body.default_quantity) || 1));
 
-  if (!SUBS.has(subcategory) || !model) {
+  if (!subcategory || !model) {
     return NextResponse.json({ error: "subcategory and model_name are required" }, { status: 400 });
   }
 

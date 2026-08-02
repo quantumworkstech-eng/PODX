@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Loader2, Plus, Trash2, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SelectWithCustom } from "@/components/ui/SelectWithCustom";
 
 type InvTab = "equipment" | "services" | "addons";
 
@@ -273,17 +274,13 @@ function EquipmentTab({
           <p className="text-red-400 text-xs">{formError}</p>
         )}
         <div className="grid sm:grid-cols-2 gap-3">
-          <select
+          <SelectWithCustom
             value={sub}
-            onChange={(e) => setSub(e.target.value)}
-            className="h-10 px-3 rounded-lg bg-black/40 border border-white/10 text-white text-sm"
-          >
-            {EQ_SUB.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            onChange={setSub}
+            options={EQ_SUB}
+            customPlaceholder="Custom category"
+            className="w-full h-10 px-3 rounded-lg bg-black/40 border border-white/10 text-white text-sm"
+          />
           <input
             value={model}
             onChange={(e) => setModel(e.target.value)}
@@ -424,17 +421,13 @@ function ServicesTab({
       <form onSubmit={add} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
         <p className="text-white/80 text-sm font-medium">Add service</p>
         {formError && <p className="text-red-400 text-xs">{formError}</p>}
-        <select
+        <SelectWithCustom
           value={sub}
-          onChange={(e) => setSub(e.target.value)}
+          onChange={setSub}
+          options={SV_SUB}
+          customPlaceholder="Custom category"
           className="w-full h-10 px-3 rounded-lg bg-black/40 border border-white/10 text-white text-sm"
-        >
-          {SV_SUB.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        />
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -537,25 +530,29 @@ function AddonsTab({
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("0");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  async function add(e: React.FormEvent) {
+  async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
     setFormError(null);
-    const res = await fetch("/api/partner/inventory/addons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        addon_kind: kind,
-        name: name.trim(),
-        description: desc.trim() || null,
-        price: Number(price) || 0,
-        is_active: true,
-      }),
-    });
+    const res = await fetch(
+      editingId ? `/api/partner/inventory/addons/${editingId}` : "/api/partner/inventory/addons",
+      {
+        method: editingId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          addon_kind: kind,
+          name: name.trim(),
+          description: desc.trim() || null,
+          price: Number(price) || 0,
+          is_active: true,
+        }),
+      }
+    );
     const data = await res.json().catch(() => ({}));
     setSaving(false);
     if (!res.ok) {
@@ -565,6 +562,7 @@ function AddonsTab({
     setName("");
     setDesc("");
     setPrice("0");
+    setEditingId(null);
     onRefresh();
   }
 
@@ -575,20 +573,35 @@ function AddonsTab({
 
   return (
     <div className="space-y-6">
-      <form onSubmit={add} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
-        <p className="text-white/80 text-sm font-medium">Add bookable add-on</p>
+      <form onSubmit={save} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-white/80 text-sm font-medium">
+            {editingId ? "Edit bookable add-on" : "Add bookable add-on"}
+          </p>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setName("");
+                setDesc("");
+                setPrice("0");
+                setFormError(null);
+              }}
+              className="text-white/45 hover:text-white text-xs"
+            >
+              Cancel edit
+            </button>
+          )}
+        </div>
         {formError && <p className="text-red-400 text-xs">{formError}</p>}
-        <select
+        <SelectWithCustom
           value={kind}
-          onChange={(e) => setKind(e.target.value)}
+          onChange={setKind}
+          options={AD_KIND}
+          customPlaceholder="Custom kind"
           className="w-full h-10 px-3 rounded-lg bg-black/40 border border-white/10 text-white text-sm"
-        >
-          {AD_KIND.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        />
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -616,7 +629,8 @@ function AddonsTab({
             disabled={saving}
             className="h-10 px-4 rounded-lg bg-[#D9FC67] text-black font-semibold text-sm inline-flex items-center gap-1"
           >
-            <Plus className="w-4 h-4" /> Add
+            <Plus className="w-4 h-4" />
+            {editingId ? "Save changes" : "Add"}
           </button>
         </div>
       </form>
@@ -632,6 +646,7 @@ function AddonsTab({
                 key={m.id}
                 type="button"
                 onClick={() => {
+                  setEditingId(null);
                   setKind(m.addon_kind);
                   setName(m.name);
                   setDesc(m.description || "");
@@ -665,13 +680,29 @@ function AddonsTab({
                     {Number(it.price).toLocaleString("en-IN")}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => remove(it.id)}
-                  className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(it.id);
+                      setKind(it.addon_kind);
+                      setName(it.name);
+                      setDesc(it.description || "");
+                      setPrice(String(it.price ?? 0));
+                      setFormError(null);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs text-[#D9FC67] hover:bg-[#D9FC67]/10"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(it.id)}
+                    className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { formatBookingDate } from "@/lib/bookingDisplay";
 import {
   Building2,
   Calendar,
@@ -9,7 +10,6 @@ import {
   TrendingUp,
   Clock,
   ArrowUpRight,
-  ArrowDownRight,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -33,15 +33,28 @@ interface Booking {
   id: string;
   dbId: string;
   studioId?: string;
-  studio: { id?: string; name: string; city?: string };
-  customer: { name: string; email: string };
+  studio: { id?: string; name: string; city?: string; address?: string };
+  customer: { name: string; email: string; phone?: string };
   date: string;
   endDate: string;
+  createdAt?: string;
   timeSlot: string;
   duration: number;
+  participants?: number | null;
   totalPrice: number;
-  status: "confirmed" | "pending" | "cancelled" | "completed";
+  status: "confirmed" | "pending" | "cancelled" | "completed" | "rescheduled";
   package: { name: string; pricePerHour?: number } | null;
+  addOns?: { name: string; price: number; qty?: number }[];
+  bookingNote?: string | null;
+  paymentId?: string;
+  pricing?: {
+    subtotalBeforeDiscount?: number;
+    discountAmount?: number;
+    couponCode?: string | null;
+    gst?: number;
+    convenienceFee?: number;
+    total?: number;
+  };
 }
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
@@ -70,6 +83,12 @@ function StatusBadge({ status }: { status: Booking["status"] }) {
           <CheckCircle className="w-3 h-3" /> Completed
         </span>
       );
+    case "rescheduled":
+      return (
+        <span className="flex items-center gap-1 text-xs text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-full">
+          <Calendar className="w-3 h-3" /> Rescheduled
+        </span>
+      );
   }
 }
 
@@ -77,6 +96,11 @@ export default function PartnerDashboardOverview() {
   const [studios, setStudios] = useState<Studio[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const refreshBookings = useCallback(async () => {
+    const data = await fetch("/api/partner/bookings").then((r) => r.json());
+    setBookings(data.bookings || []);
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -162,10 +186,18 @@ export default function PartnerDashboardOverview() {
           studio: b.studio,
           customer: b.customer,
           status: b.status,
-          package: b.package ? { name: b.package.name } : null,
+          package: b.package ? { name: b.package.name, pricePerHour: b.package.pricePerHour } : null,
+          addOns: b.addOns || [],
+          participants: b.participants,
+          duration: b.duration,
+          createdAt: b.createdAt,
+          bookingNote: b.bookingNote,
+          paymentId: b.paymentId,
+          pricing: b.pricing,
           totalPrice: b.totalPrice,
         }))}
         studios={studios.map((s) => ({ id: s.id, name: s.name }))}
+        onBookingCreated={refreshBookings}
       />
 
       {/* Stats */}
@@ -223,7 +255,7 @@ export default function PartnerDashboardOverview() {
                   </div>
                   <div className="text-right">
                     <p className="text-white text-sm">
-                      {new Date(booking.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {formatBookingDate(booking.date)}
                     </p>
                     <p className="text-white/40 text-xs">
                       {booking.timeSlot} • {booking.duration}h
@@ -377,7 +409,7 @@ export default function PartnerDashboardOverview() {
                       <span className="text-[#D9FC67]">{booking.studio.name}</span>
                     </p>
                     <p className="text-white/30 text-xs">
-                      {new Date(booking.date).toLocaleDateString()} • ₹
+                      {formatBookingDate(booking.date)} • ₹
                       {booking.totalPrice.toLocaleString()}
                     </p>
                   </div>

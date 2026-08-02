@@ -238,10 +238,7 @@ psql -U postgres -d podx -f src/db/schema.sql
 
 1. Set up authentication (NextAuth.js)
 2. Configure payment providers (Stripe/Razorpay)
-3. Run `storage_migration.sql` in the Supabase SQL editor to create the public
-   `studio-images` bucket used by studio, branding, equipment, and profile uploads.
-   Files live in Supabase Storage, not in the application container, so no local
-   persistent-volume directory is required.
+3. Set up file storage (AWS S3)
 4. Configure email service (Resend/SendGrid)
 5. Deploy to production
 
