@@ -21,6 +21,9 @@ const MAIN_HOSTS = [
   "localhost",
   "podx.com",
   "www.podx.com",
+  "yanisa.in",
+  "www.yanisa.in",
+  "studios.yanisa.in",
   "yanisastudios.com",
   "www.yanisastudios.com",
 ];
