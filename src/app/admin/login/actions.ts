@@ -45,9 +45,22 @@ async function lookupAdmin(email: string): Promise<AdminLookup> {
   return { ok: true, email: normalized };
 }
 
-async function findActiveAdmin(email: string): Promise<{ email: string } | null> {
+/**
+ * Resolve an active admin or return a *specific* error. Distinguishes a DB/query
+ * failure from a genuinely-missing row so a misconfigured live database (wrong
+ * Supabase URL/key, missing table, RLS) surfaces the real cause instead of being
+ * masked as "Not authorized" — which looks identical to the row simply not
+ * existing. Mirrors the hardened /api/admin/login route.
+ */
+async function resolveActiveAdmin(email: string): Promise<{ email: string } | { error: string }> {
   const result = await lookupAdmin(email);
-  return result.ok ? { email: result.email } : null;
+  if (result.ok) return { email: result.email };
+  if (result.reason === "no_client") return { error: "DB not configured." };
+  if (result.reason === "inactive") return { error: "Your admin account is inactive. Contact an administrator." };
+  if (result.reason === "query_error") {
+    return { error: `Admin lookup failed: ${result.detail || "database error"}. Check the live database configuration.` };
+  }
+  return { error: "Not authorized. This email is not registered as admin." };
 }
 
 /** Returns the admin_credentials row for this email, creating it if missing. */
@@ -76,8 +89,8 @@ export async function adminSetPassword(email: string, password: string): Promise
   if (!supabaseAdmin) return { error: "DB not configured." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
 
-  const admin = await findActiveAdmin(email);
-  if (!admin) return { error: "Not authorized. This email is not registered as admin." };
+  const admin = await resolveActiveAdmin(email);
+  if ("error" in admin) return { error: admin.error };
 
   const cred = await ensureCredentials(admin.email);
   if (!cred) return { error: "Database error. Make sure admin_credentials table exists." };
@@ -96,11 +109,8 @@ export async function adminSetPassword(email: string, password: string): Promise
 export async function adminCheckEmail(email: string): Promise<{ error: string } | { hasPassword: boolean }> {
   if (!supabaseAdmin) return { error: "DB not configured." };
 
-  const lookup = await lookupAdmin(email);
-  if (!lookup.ok) {
-    if (lookup.reason === "inactive") return { error: "Your admin account is inactive. Contact an administrator." };
-    return { error: "Not authorized. This email is not registered as admin." };
-  }
+  const lookup = await resolveActiveAdmin(email);
+  if ("error" in lookup) return { error: lookup.error };
 
   const cred = await ensureCredentials(lookup.email);
   if (!cred) return { error: "Database error. Make sure admin_credentials table exists." };
@@ -116,8 +126,8 @@ export async function adminCheckEmail(email: string): Promise<{ error: string } 
 export async function adminSignIn(email: string, password: string, rememberMe = true): Promise<{ error: string } | { success: true }> {
   if (!supabaseAdmin) return { error: "DB not configured." };
 
-  const admin = await findActiveAdmin(email);
-  if (!admin) return { error: "Not authorized. This email is not registered as admin." };
+  const admin = await resolveActiveAdmin(email);
+  if ("error" in admin) return { error: admin.error };
 
   const cred = await ensureCredentials(admin.email);
   if (!cred) return { error: "Database error." };
