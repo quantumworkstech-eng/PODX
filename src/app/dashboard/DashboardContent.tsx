@@ -16,6 +16,7 @@ import {
   CreditCard,
   Home,
   Star,
+  AlertCircle,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,9 @@ interface BookingData {
   bookingNote?: string | null;
 }
 
-const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
+/** Removed cache of booking history. Bookings are now always read from the API;
+ *  this key is only cleared so stale copies stop occupying users' storage. */
+const LEGACY_BOOKINGS_STORAGE_KEY = "yanisa_bookings";
 
 function sortBookingsList(bookings: BookingData[]): BookingData[] {
   return [...bookings].sort((a: BookingData, b: BookingData) => {
@@ -102,6 +105,7 @@ export default function DashboardContent() {
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [bookings, setBookings] = useState<BookingData[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newBooking, setNewBooking] = useState<BookingData | null>(null);
@@ -149,24 +153,19 @@ export default function DashboardContent() {
         if (Array.isArray(apiBookings)) {
           const sorted = sortBookingsList(apiBookings as BookingData[]);
           setBookings(sorted);
+          setLoadFailed(false);
           return sorted;
         }
       }
     } catch {
-      /* fall through to localStorage only on network/parse failure */
+      /* handled below */
     }
 
-    const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as BookingData[];
-        const sorted = sortBookingsList(parsed);
-        setBookings(sorted);
-        return sorted;
-      } catch {
-        /* ignore */
-      }
-    }
+    // The DB is the only source of truth: the customer, the partner and admins can
+    // all reschedule or cancel a booking. Never substitute a cached copy — doing so
+    // showed the pre-reschedule date with a blank time, because the cache was
+    // written once at payment time and never updated again.
+    setLoadFailed(true);
     return undefined;
   }, []);
 
@@ -175,6 +174,7 @@ export default function DashboardContent() {
       await refreshBookings();
     }
 
+    localStorage.removeItem(LEGACY_BOOKINGS_STORAGE_KEY);
     loadBookings();
     // Fetch which bookings the user has already reviewed
     fetch("/api/reviews?mine=true")
@@ -566,7 +566,24 @@ export default function DashboardContent() {
               </button>
             </div>
           )}
-          <div className="p-6">{renderContent()}</div>
+          <div className="p-6">
+            {loadFailed && (
+              <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+                <p className="text-sm text-amber-200/90">
+                  Couldn&apos;t load your latest bookings. What you see may be out of date.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void refreshBookings()}
+                  className="ml-auto rounded-lg border border-amber-400/40 px-3 py-1.5 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {renderContent()}
+          </div>
         </main>
       </div>
 

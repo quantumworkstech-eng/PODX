@@ -232,7 +232,11 @@ export function UpcomingBookings({
         (b) => b.id === prev.id || (!!prev.dbId && b.dbId === prev.dbId)
       );
       if (!fresh) return prev;
+      // Compare the fields the modal actually renders — start_time/end_time drive
+      // the displayed date and time range, so a reschedule must be detected there.
       if (
+        (fresh.start_time || "") === (prev.start_time || "") &&
+        (fresh.end_time || "") === (prev.end_time || "") &&
         fresh.date === prev.date &&
         fresh.timeSlot === prev.timeSlot &&
         fresh.status === prev.status &&

@@ -68,16 +68,6 @@ interface BookingRecord {
   createdAt: string;
 }
 
-const BOOKINGS_STORAGE_KEY = "yanisa_bookings";
-
-export function saveBookingToHistory(booking: BookingRecord) {
-  if (typeof window === "undefined") return;
-  const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-  const bookings: BookingRecord[] = stored ? JSON.parse(stored) : [];
-  bookings.unshift(booking);
-  localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings.slice(0, 50)));
-}
-
 export function PaymentStep() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -288,7 +278,9 @@ export function PaymentStep() {
         createdAt: new Date().toISOString(),
       };
 
-      saveBookingToHistory(booking);
+      // Handed to the dashboard success modal only. Deliberately NOT persisted as a
+      // booking list — the dashboard reads bookings from the API so reschedules and
+      // cancellations made by the partner or admin are always reflected.
       sessionStorage.setItem("yanisa_new_booking", JSON.stringify(booking));
 
       paymentInFlight.current = false;
