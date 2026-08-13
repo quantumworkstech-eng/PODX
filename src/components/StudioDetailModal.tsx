@@ -32,6 +32,8 @@ import {
   Volume2,
   VolumeX,
   Maximize2,
+  Camera,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getVideoInfo } from "@/components/StudioCardMedia";
@@ -54,6 +56,17 @@ interface Room {
   price_per_hour: number;
   min_booking_hours: number;
   max_booking_hours: number;
+  featured_image_url?: string | null;
+  room_images?: { image_url: string; display_order?: number }[];
+}
+
+/** A room's own photo — its featured image, else its first gallery shot. */
+function roomThumbnail(room: Room): string | null {
+  if (room.featured_image_url) return room.featured_image_url;
+  const gallery = [...(room.room_images ?? [])].sort(
+    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+  );
+  return gallery.find((img) => img.image_url)?.image_url ?? null;
 }
 
 interface Amenity {
@@ -69,6 +82,9 @@ interface Addon {
   description?: string;
   price: number;
   category?: string;
+  /** "equipment" | "service" — resolved server-side in studio-addons-public */
+  group?: string;
+  thumbnail_url?: string | null;
   icon?: string;
 }
 
@@ -327,6 +343,21 @@ export function StudioDetailModal({
   const displayAddress = details?.address ?? "";
   const activeRooms = details?.rooms ?? [];
   const activePackages = details?.packages ?? [];
+
+  // Customers should see the gear a studio offers before the services on top of it.
+  const allAddons = details?.addons ?? [];
+  const addonGroups = (
+    [
+      { key: "equipment", title: "Equipment" },
+      { key: "service", title: "Services" },
+    ] as const
+  )
+    .map(({ key, title }) => ({
+      key,
+      title,
+      items: allAddons.filter((a) => (a.group ?? "service") === key),
+    }))
+    .filter((group) => group.items.length > 0);
   // Prefer the server-computed canonical price (identical to the studios list);
   // fall back to local computation for older API responses.
   const basePricing = resolveBasePricing(activePackages, activeRooms);
@@ -629,11 +660,22 @@ export function StudioDetailModal({
               Rooms ({activeRooms.length})
             </h3>
               <div className="space-y-2">
-                {activeRooms.map((room) => (
+                {activeRooms.map((room) => {
+                  const thumb = roomThumbnail(room);
+                  return (
                   <div
                     key={room.id}
-                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/5"
+                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/5"
                   >
+                    <div className="relative w-11 h-11 flex-shrink-0 rounded-lg overflow-hidden bg-white/[0.06]">
+                      {thumb ? (
+                        <Image src={thumb} alt="" fill className="object-cover" sizes="44px" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-white/25">
+                          <Video className="w-5 h-5" />
+                        </span>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium text-sm">{room.name}</p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
@@ -661,7 +703,8 @@ export function StudioDetailModal({
                       <span className="text-white/40 text-xs">/hr</span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
           </div>
         )}
@@ -710,32 +753,52 @@ export function StudioDetailModal({
           </div>
         )}
 
-        {/* Add-ons */}
-        {details?.addons && details.addons.length > 0 && (
+        {/* Add-ons — equipment first, then services. Prices are shown at booking. */}
+        {addonGroups.length > 0 && (
           <div className="px-5 py-4 border-b border-white/5">
-            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
-              Add-ons ({details.addons.length})
-            </h3>
-              <div className="space-y-2">
-                {details.addons.map((addon) => (
-                  <div
-                    key={addon.id}
-                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/5"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm">{addon.name}</p>
-                      {addon.description && (
-                        <p className="text-white/40 text-xs mt-0.5 truncate">{addon.description}</p>
-                      )}
+            {addonGroups.map((group) => (
+              <div key={group.key} className="mb-5 last:mb-0">
+                <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">
+                  {group.title} ({group.items.length})
+                </h3>
+                <div className="space-y-2">
+                  {group.items.map((addon) => (
+                    <div
+                      key={addon.id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/5"
+                    >
+                      <div className="relative w-11 h-11 flex-shrink-0 rounded-lg overflow-hidden bg-white/[0.06]">
+                        {addon.thumbnail_url ? (
+                          <Image
+                            src={addon.thumbnail_url}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="44px"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-white/25">
+                            {group.key === "equipment" ? (
+                              <Camera className="w-5 h-5" />
+                            ) : (
+                              <Sparkles className="w-5 h-5" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm truncate">{addon.name}</p>
+                        {addon.description && (
+                          <p className="text-white/40 text-xs mt-0.5 line-clamp-2">
+                            {addon.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {addon.price > 0 && (
-                      <span className="flex-shrink-0 font-semibold text-sm" style={{ color: primaryColor }}>
-                        +₹{addon.price.toLocaleString("en-IN")}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
+            ))}
           </div>
         )}
 

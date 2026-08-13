@@ -8,7 +8,6 @@ import {
   BookingAddonsSection,
   AddOnsStepSearchInput,
 } from "@/components/booking/BookingAddonsSection";
-import { StudioBookingInventoryPanel } from "@/components/booking/StudioBookingInventoryPanel";
 import { formatDuration } from "@/lib/booking-types";
 
 function formatSessionWindow(date: Date | null, timeSlot: string | null, duration: number) {
@@ -57,14 +56,6 @@ export function AddOnsStep() {
           Add equipment, studio services and post-production — or skip and continue.
         </p>
       </div>
-
-      {selectedStudio && (
-        <StudioBookingInventoryPanel
-          className="mb-8"
-          inventory={selectedStudio.booking_inventory}
-          selectedAddOns={selectedAddOns}
-        />
-      )}
 
       <AddOnsStepSearchInput value={searchTerm} onChange={setSearchTerm} />
 

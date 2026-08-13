@@ -1,6 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toPartnerAddonPublicId } from "@/lib/partner-inventory-ids";
 
+/** Whether an add-on is a physical piece of gear or a service. */
+export type StudioAddonGroup = "equipment" | "service";
+
+/** Partners choose Equipment or Service when creating an add-on: that choice is
+ *  stored in `category`, and mirrored into `addon_kind` as 'studio' | 'service'.
+ *  `category` is null on rows created before it existed, hence the fallback.
+ *  Platform add-ons have no such column and are services unless labelled otherwise. */
+export function resolveAddonGroup(
+  category?: string | null,
+  addonKind?: string | null
+): StudioAddonGroup {
+  const cat = (category || "").trim().toLowerCase();
+  if (cat === "equipment") return "equipment";
+  if (cat === "service") return "service";
+  return (addonKind || "").trim().toLowerCase() === "studio" ? "equipment" : "service";
+}
+
 /** Platform + partner add-ons for a studio (public read).
  *  - ALL active platform_addons (admin-created) are auto-applied to every studio.
  *  - Partner add-ons are only included if explicitly linked to this studio.
@@ -19,6 +36,8 @@ export async function fetchMergedStudioAddons(
     is_active?: boolean;
     /** Max bookable quantity; null = unlimited */
     quantity?: number | null;
+    /** Equipment vs service, for grouping in customer-facing listings */
+    group?: StudioAddonGroup;
   }[]
 > {
   // 1. Fetch ALL active platform add-ons (admin-created, auto-applied to all studios)
@@ -29,7 +48,11 @@ export async function fetchMergedStudioAddons(
     .order("category")
     .order("name");
 
-  const platform = (platformRows ?? []).map((r: any) => ({ ...r, quantity: null })) as {
+  const platform = (platformRows ?? []).map((r: any) => ({
+    ...r,
+    quantity: null,
+    group: resolveAddonGroup(r.category),
+  })) as {
     id: string;
     name: string;
     description: string | null;
@@ -38,6 +61,7 @@ export async function fetchMergedStudioAddons(
     thumbnail_url?: string | null;
     is_active?: boolean;
     quantity: null;
+    group: StudioAddonGroup;
   }[];
 
   // 2. Fetch partner add-ons linked to this specific studio
@@ -49,6 +73,7 @@ export async function fetchMergedStudioAddons(
     category?: string | null;
     thumbnail_url?: string | null;
     is_active?: boolean;
+    group?: StudioAddonGroup;
   }[] = [];
 
   try {
@@ -61,7 +86,7 @@ export async function fetchMergedStudioAddons(
     if (ids.length > 0) {
       const { data: items } = await supabase
         .from("partner_addon_items")
-        .select("id, name, description, price, is_active, addon_kind, thumbnail_url, quantity")
+        .select("id, name, description, price, is_active, addon_kind, category, thumbnail_url, quantity")
         .in("id", ids);
 
       const byId = new Map((items || []).map((it: any) => [it.id, it]));
@@ -80,6 +105,7 @@ export async function fetchMergedStudioAddons(
             description: it.description,
             price: it.price,
             category: it.addon_kind,
+            group: resolveAddonGroup(it.category, it.addon_kind),
             thumbnail_url: it.thumbnail_url ?? null,
             is_active: true,
             quantity: it.quantity != null ? Number(it.quantity) : null,
