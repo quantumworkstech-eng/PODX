@@ -10,15 +10,13 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 export function PackageStep() {
-  const { selectedPackage, setSelectedPackage, nextStep, canProceed, duration, selectedStudio } = useBooking();
+  const { selectedPackage, setSelectedPackage, nextStep, duration, selectedStudio } = useBooking();
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!selectedStudio?.id) {
-      const pkgs = SERVICE_PACKAGES;
-      setPackages(pkgs);
-      if (!selectedPackage) setSelectedPackage(pkgs[0]);
+      setPackages(SERVICE_PACKAGES);
       setLoading(false);
       return;
     }
@@ -44,13 +42,9 @@ export function PackageStep() {
             })
           : SERVICE_PACKAGES;
         setPackages(pkgs);
-        if (!selectedPackage) setSelectedPackage(pkgs[0]);
       })
       .catch(() => {
-        if (!cancelled) {
-          setPackages(SERVICE_PACKAGES);
-          if (!selectedPackage) setSelectedPackage(SERVICE_PACKAGES[0]);
-        }
+        if (!cancelled) setPackages(SERVICE_PACKAGES);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -73,7 +67,7 @@ export function PackageStep() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Choose Your Package</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Choose Your Service</h1>
         <p className="text-white/60 text-lg">Select the level of service you need</p>
       </div>
 
@@ -183,20 +177,6 @@ export function PackageStep() {
           );
         })}
       </div>
-
-      {/* Fallback continue button if package already selected */}
-      {selectedPackage && (
-        <div className="mt-8 flex justify-center">
-          <Button
-            onClick={nextStep}
-            disabled={!canProceed()}
-            className="px-10 py-6 text-base font-semibold bg-gradient-to-r from-[#D9FC67] to-[#B8E050] hover:from-[#E8FF8A] hover:to-[#D9FC67] text-black disabled:opacity-40 rounded-xl"
-          >
-            Continue to Add-ons
-          </Button>
-        </div>
-      )}
-      
     </div>
   );
 }

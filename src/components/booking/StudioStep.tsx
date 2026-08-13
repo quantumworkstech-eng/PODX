@@ -4,25 +4,7 @@ import { useState, useEffect } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { getAllStudios } from "@/lib/data";
 import type { Studio } from "@/lib/types";
-
-async function enrichStudioForBooking(studio: Studio): Promise<Studio> {
-  try {
-    const r = await fetch(`/api/studios/${studio.id}`);
-    if (!r.ok) return studio;
-    const data = await r.json();
-    const packages: any[] = data.packages ?? [];
-    const firstPkg = packages[0];
-    return {
-      ...studio,
-      booking_inventory: data.booking_inventory ?? null,
-      image_urls: (data.images || []).map((img: any) => img.image_url).filter(Boolean),
-      setup_options: data.setup_options || [],
-      price_per_hour: firstPkg ? Number(firstPkg.price_per_hour) : studio.price_per_hour,
-    };
-  } catch {
-    return studio;
-  }
-}
+import { enrichStudioForBooking } from "@/lib/enrich-studio";
 import { Button } from "@/components/ui/button";
 import { Users, MapPin, Check, Star, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";

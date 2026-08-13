@@ -35,8 +35,13 @@ export interface StudioSetupOption {
   id: string;
   name: string;
   description?: string | null;
+  /** Primary photo — the first entry of `images` when present. */
   image_url: string;
+  /** All photos for this room/setup, primary first. */
+  images?: string[];
   capacity?: number | null;
+  /** Room rate, shown as context only — booking price comes from the package. */
+  price_per_hour?: number | null;
 }
 
 export interface Equipment {

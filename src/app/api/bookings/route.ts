@@ -7,6 +7,8 @@ import {
 } from "@/lib/bookingTime";
 import { isoToISTSlot } from "@/lib/bookingDisplay";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // ── GET /api/bookings ─────────────────────────────────────────────────────────
 // Returns the authenticated user's bookings from Supabase.
 export async function GET() {
@@ -212,16 +214,34 @@ export async function POST(request: NextRequest) {
       user = upsertedUser;
     }
 
-    // Find the first active room for the studio (room_id is required by schema)
-    const { data: room } = await supabaseAdmin
-      .from("rooms")
-      .select("id")
-      .eq("studio_id", studioId)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
+    // room_id is required by the schema. Prefer the room the customer picked in the
+    // Setup step; fall back to the studio's first room when that isn't a real room
+    // (studios without rooms fall back to gallery photos, whose ids aren't UUIDs).
+    let roomId: string | undefined;
 
-    if (!room) {
+    const setupId = typeof selectedSetup?.id === "string" ? selectedSetup.id : null;
+    if (setupId && UUID_RE.test(setupId)) {
+      const { data: setupRoom } = await supabaseAdmin
+        .from("rooms")
+        .select("id")
+        .eq("id", setupId)
+        .eq("studio_id", studioId)
+        .maybeSingle();
+      roomId = setupRoom?.id;
+    }
+
+    if (!roomId) {
+      const { data: room } = await supabaseAdmin
+        .from("rooms")
+        .select("id")
+        .eq("studio_id", studioId)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      roomId = room?.id;
+    }
+
+    if (!roomId) {
       // Fall back: try any room for this studio
       const { data: anyRoom } = await supabaseAdmin
         .from("rooms")
@@ -229,16 +249,15 @@ export async function POST(request: NextRequest) {
         .eq("studio_id", studioId)
         .limit(1)
         .maybeSingle();
-
-      if (!anyRoom) {
-        return NextResponse.json(
-          { error: "No rooms available for this studio" },
-          { status: 404 }
-        );
-      }
+      roomId = anyRoom?.id;
     }
 
-    const roomId = room?.id;
+    if (!roomId) {
+      return NextResponse.json(
+        { error: "No rooms available for this studio" },
+        { status: 404 }
+      );
+    }
 
     // Wall-clock date + slot in IST (matches calendar selection, independent of server TZ)
     let dateYYYYMMDD: string;

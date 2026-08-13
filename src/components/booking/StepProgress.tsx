@@ -4,22 +4,7 @@ import { useBooking } from "@/context/BookingContext";
 import { Check, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-const stepsDateFirst = [
-  { number: 1, title: "Date & Time" },
-  { number: 2, title: "Studio" },
-  { number: 3, title: "Package" },
-  { number: 4, title: "Add-ons" },
-  { number: 5, title: "Review" },
-];
-
-const stepsStudioFirst = [
-  { number: 1, title: "Studio" },
-  { number: 2, title: "Date & Time" },
-  { number: 3, title: "Package" },
-  { number: 4, title: "Add-ons" },
-  { number: 5, title: "Review" },
-];
+import { bookingSteps } from "@/lib/booking-flow-steps";
 
 export interface StepProgressProps {
   onBack: () => void;
@@ -31,7 +16,7 @@ export interface StepProgressProps {
 export function StepProgress({ onBack, onExit, showSteps }: StepProgressProps) {
   const { currentStep, goToStep, selectionMode } = useBooking();
 
-  const steps = selectionMode === "studio" ? stepsStudioFirst : stepsDateFirst;
+  const steps = bookingSteps(selectionMode);
 
   return (
     <div className="w-full border-b border-white/10 bg-black/40 px-3 sm:px-4 py-3 sm:py-4">

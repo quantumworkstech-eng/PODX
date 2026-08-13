@@ -75,22 +75,31 @@ export async function GET(
   );
 
   const rooms = ((studio as any).rooms ?? []).filter((r: any) => r.is_active !== false);
+  // One option per room — the booking flow's Setup step picks a room, not a photo.
   const setupOptions = rooms
-    .flatMap((room: any) => {
-      const roomImages = [
-        room.featured_image_url,
-        ...((room.room_images ?? [])
-          .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
-          .map((img: any) => img.image_url)),
-      ].filter(Boolean);
+    .map((room: any) => {
+      const roomImages: string[] = [
+        ...new Set(
+          [
+            room.featured_image_url,
+            ...((room.room_images ?? [])
+              .slice()
+              .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+              .map((img: any) => img.image_url)),
+          ].filter(Boolean) as string[]
+        ),
+      ];
 
-      return roomImages.slice(0, 3).map((imageUrl: string, idx: number) => ({
-        id: idx === 0 ? room.id : `${room.id}-${idx}`,
-        name: idx === 0 ? room.name || "Studio setup" : `${room.name || "Studio setup"} ${idx + 1}`,
+      return {
+        id: room.id,
+        name: room.name || "Studio setup",
         description: room.description || null,
-        image_url: imageUrl,
+        // Rooms without their own photos still need a card — fall back to the studio cover.
+        image_url: roomImages[0] || (studio as any).featured_image_url || images[0]?.image_url || "",
+        images: roomImages,
         capacity: room.capacity ?? null,
-      }));
+        price_per_hour: room.price_per_hour != null ? Number(room.price_per_hour) : null,
+      };
     })
     .filter((setup: any) => setup.image_url);
 

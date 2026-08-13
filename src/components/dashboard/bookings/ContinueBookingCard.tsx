@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { Clock, ArrowRight, X, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BOOKING_PENDING_KEY } from "@/lib/booking-flow-storage";
+import {
+  BOOKING_STEP_TITLES,
+  TOTAL_BOOKING_STEPS,
+  bookingStepKeyAt,
+} from "@/lib/booking-flow-steps";
 import { formatBookingDate } from "@/lib/bookingDisplay";
 
 interface PendingBookingInfo {
@@ -26,17 +31,8 @@ interface PendingBookingInfo {
   selectedAddOns: { id: string; name: string; price: number }[];
   currentStep: number;
   selectedCity: string | null;
+  selectionMode?: "studio" | "date" | null;
 }
-
-const stepNames = [
-  "City Selection",
-  "Date & Time",
-  "Select Studio",
-  "Choose Package",
-  "Add-ons",
-  "Checkout",
-  "Payment",
-];
 
 export function ContinueBookingCard() {
   const router = useRouter();
@@ -67,7 +63,12 @@ export function ContinueBookingCard() {
 
   if (!pendingBooking) return null;
 
-  const currentStepName = stepNames[pendingBooking.currentStep] || "Booking";
+  const currentStep = Math.min(
+    Math.max(pendingBooking.currentStep || 1, 1),
+    TOTAL_BOOKING_STEPS
+  );
+  const currentStepName =
+    BOOKING_STEP_TITLES[bookingStepKeyAt(pendingBooking.selectionMode ?? null, currentStep)];
   const hasStudio = !!pendingBooking.selectedStudio;
   const hasDate = !!pendingBooking.date;
   const progress = hasStudio && hasDate ? "Almost done" : "In progress";
@@ -81,7 +82,9 @@ export function ContinueBookingCard() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-white">Continue Your Booking</h3>
-            <p className="text-white/50 text-sm">{progress} • Step {pendingBooking.currentStep + 1}</p>
+            <p className="text-white/50 text-sm">
+              {progress} • Step {currentStep} of {TOTAL_BOOKING_STEPS}
+            </p>
           </div>
         </div>
         <button

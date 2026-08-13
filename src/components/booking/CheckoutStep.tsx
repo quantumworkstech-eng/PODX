@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/lib/booking-types";
+import { bookingStepNumber } from "@/lib/booking-flow-steps";
 import {
   Calendar,
   Clock,
@@ -150,9 +151,11 @@ export function CheckoutStep() {
   };
 
   // Step numbers depend on selection mode
-  const sessionStep = selectionMode === "studio" ? 2 : 1;
-  const studioStep = selectionMode === "studio" ? 1 : 2;
-  const packageStep = 3;
+  const sessionStep = bookingStepNumber(selectionMode, "datetime");
+  const studioStep = bookingStepNumber(selectionMode, "studio");
+  const setupStep = bookingStepNumber(selectionMode, "setup");
+  const packageStep = bookingStepNumber(selectionMode, "package");
+  const addonsStep = bookingStepNumber(selectionMode, "addons");
 
   const isReadyToCheckout = canProceed();
   const discount = getDiscount();
@@ -268,7 +271,7 @@ export function CheckoutStep() {
               <h3 className="text-base font-semibold text-white mb-4 flex items-center justify-between">
                 <span>Selected Setup</span>
                 <button
-                  onClick={() => goToStep(4)}
+                  onClick={() => goToStep(setupStep)}
                   className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5" />
@@ -325,9 +328,9 @@ export function CheckoutStep() {
           {selectedStudio && (
             <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
               <h3 className="text-base font-semibold text-white mb-3 flex items-center justify-between">
-                <span>Add-ons</span>
+                <span>Additional Services</span>
                 <button
-                  onClick={() => goToStep(4)}
+                  onClick={() => goToStep(addonsStep)}
                   className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#D9FC67] transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5" />

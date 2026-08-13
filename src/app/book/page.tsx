@@ -9,6 +9,7 @@ import { StepProgress } from "@/components/booking/StepProgress";
 import { DateTimeStep } from "@/components/booking/DateTimeStep";
 import { StudioStep } from "@/components/booking/StudioStep";
 import { PackageStep } from "@/components/booking/PackageStep";
+import { SetupStep } from "@/components/booking/SetupStep";
 import { AddOnsStep } from "@/components/booking/AddOnsStep";
 import { CheckoutStep } from "@/components/booking/CheckoutStep";
 import { PaymentStep } from "@/components/booking/PaymentStep";
@@ -16,6 +17,7 @@ import { AuthModal } from "@/components/booking/AuthModal";
 import { CitySelection } from "@/components/booking/CitySelection";
 import { StudioOrDatePopup } from "@/components/booking/StudioOrDatePopup";
 import { getStudioBySlug } from "@/lib/data";
+import { bookingStepKeyAt, bookingStepNumber } from "@/lib/booking-flow-steps";
 import {
   BOOKING_ONBOARDING_KEY,
   BOOKING_SELECTION_MODE_KEY,
@@ -98,7 +100,7 @@ function BookingContent() {
           }
           setSelectionMode("studio");
           localStorage.setItem(BOOKING_SELECTION_MODE_KEY, "studio");
-          goToStep(2); // jump to DateTimeStep
+          goToStep(bookingStepNumber("studio", "setup")); // studio is picked — start at Setup
         }
       }).catch(() => {/* ignore */}).finally(() => setLoadingFromUrl(false));
       // Don't show city selection while we fetch the studio
@@ -122,7 +124,7 @@ function BookingContent() {
           }
           setSelectionMode("studio");
           localStorage.setItem(BOOKING_SELECTION_MODE_KEY, "studio");
-          goToStep(2);
+          goToStep(bookingStepNumber("studio", "setup"));
           return;
         } catch {
           // fall through to normal onboarding
@@ -210,36 +212,21 @@ function BookingContent() {
       return <PaymentStep />;
     }
 
-    if (selectionMode === "studio") {
-      switch (currentStep) {
-        case 1:
-          return <StudioStep />;
-        case 2:
-          return <DateTimeStep />;
-        case 3:
-          return <PackageStep />;
-        case 4:
-          return <AddOnsStep />;
-        case 5:
-          return <CheckoutStep />;
-        default:
-          return <StudioStep />;
-      }
-    }
-
-    switch (currentStep) {
-      case 1:
-        return <DateTimeStep />;
-      case 2:
+    switch (bookingStepKeyAt(selectionMode, currentStep)) {
+      case "studio":
         return <StudioStep />;
-      case 3:
+      case "setup":
+        return <SetupStep />;
+      case "datetime":
+        return <DateTimeStep />;
+      case "package":
         return <PackageStep />;
-      case 4:
+      case "addons":
         return <AddOnsStep />;
-      case 5:
+      case "review":
         return <CheckoutStep />;
       default:
-        return <DateTimeStep />;
+        return selectionMode === "studio" ? <StudioStep /> : <DateTimeStep />;
     }
   };
 

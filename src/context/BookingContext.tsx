@@ -7,6 +7,7 @@ import {
   BOOKING_PENDING_KEY,
   clearAllBookingFlowStorage,
 } from "@/lib/booking-flow-storage";
+import { TOTAL_BOOKING_STEPS, bookingStepKeyAt } from "@/lib/booking-flow-steps";
 
 interface AppliedCoupon {
   code: string;
@@ -337,15 +338,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const nextStep = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      currentStep: Math.min(prev.currentStep + 1, 5),
+      currentStep: Math.min(prev.currentStep + 1, TOTAL_BOOKING_STEPS),
     }));
   }, []);
 
   const prevStep = useCallback(() => {
     setState((prev) => {
-      // If on payment step, go back to checkout (step 5)
+      // If on payment step, go back to the review step
       if (prev.showPayment) {
-        return { ...prev, showPayment: false, currentStep: 5 };
+        return { ...prev, showPayment: false, currentStep: TOTAL_BOOKING_STEPS };
       }
       return { ...prev, currentStep: Math.max(prev.currentStep - 1, 1) };
     });
@@ -396,22 +397,18 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, [getSubtotal, getDiscount, getTax, getConvenienceFee]);
 
   const canProceed = useCallback(() => {
-    switch (state.currentStep) {
-      case 1:
-        if (state.selectionMode === "studio") {
-          return state.selectedStudio !== null;
-        }
-        return state.date !== null && state.timeSlot !== null;
-      case 2:
-        if (state.selectionMode === "studio") {
-          return state.date !== null && state.timeSlot !== null;
-        }
+    switch (bookingStepKeyAt(state.selectionMode, state.currentStep)) {
+      case "studio":
         return state.selectedStudio !== null;
-      case 3:
+      case "datetime":
+        return state.date !== null && state.timeSlot !== null;
+      case "package":
         return state.selectedPackage !== null;
-      case 4:
+      // Setup and extras are advanced from within their own screens.
+      case "setup":
+      case "addons":
         return true;
-      case 5:
+      case "review":
         return (
           state.selectedStudio !== null &&
           state.selectedPackage !== null &&
