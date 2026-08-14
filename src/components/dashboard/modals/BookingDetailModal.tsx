@@ -134,6 +134,36 @@ export function BookingDetailModal({
             </div>
           </div>
 
+          {booking.guests && booking.guests.length > 0 && (
+            <div className="bg-white/5 rounded-xl p-4 mb-6">
+              <h4 className="text-white font-semibold flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-[#D9FC67]" />
+                Guests ({booking.guests.length})
+              </h4>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {booking.guests.map((guest, index) => (
+                  <div
+                    key={guest.id || index}
+                    className="rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2"
+                  >
+                    <p className="text-white text-sm font-medium">
+                      {guest.name || `Guest ${index + 1}`}
+                    </p>
+                    {guest.email && (
+                      <p className="text-white/40 text-xs mt-0.5 break-all">{guest.email}</p>
+                    )}
+                    {guest.phone && (
+                      <p className="text-white/30 text-xs mt-0.5">{guest.phone}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-white/30 text-xs mt-3">
+                Only you can see these details — the studio is told the headcount only.
+              </p>
+            </div>
+          )}
+
           <div className="bg-white/5 rounded-xl overflow-hidden mb-6">
             <div className="p-4 flex items-center justify-between border-b border-white/5">
               <h4 className="text-white font-semibold flex items-center gap-2">

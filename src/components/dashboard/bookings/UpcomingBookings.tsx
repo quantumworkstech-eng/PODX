@@ -29,6 +29,8 @@ export interface BookingData {
   start_time?: string;
   /** Raw UTC ISO string for session end */
   end_time?: string;
+  /** Guests the customer added to this session. Partners only see the count. */
+  guests?: { id: string; name: string; email: string; phone: string }[];
   /** @deprecated use start_time */
   date: string;
   /** @deprecated use end_time */

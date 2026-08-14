@@ -38,7 +38,8 @@ export async function GET() {
       .select(
         `id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at, updated_at, cancelled_at, cancellation_reason,
          studios!studio_id(id, name, location, cover_image, description),
-         booking_addons(id, name, price, quantity)`
+         booking_addons(id, name, price, quantity),
+         booking_guests(id, guest_name, guest_email, guest_phone)`
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -87,6 +88,21 @@ export async function GET() {
           price: Number(a.price),
           qty: Number(a.quantity) || 1,
         })),
+        // The customer added these guests, so they get the full details back.
+        // Partners only ever receive a headcount — see /api/partner/bookings.
+        guests: (b.booking_guests || []).map(
+          (g: {
+            id: string;
+            guest_name?: string | null;
+            guest_email?: string | null;
+            guest_phone?: string | null;
+          }) => ({
+            id: g.id,
+            name: g.guest_name || "",
+            email: g.guest_email || "",
+            phone: g.guest_phone || "",
+          })
+        ),
         totalPrice: Number(b.total_price),
         subtotal: notes.subtotal ?? null,
         tax: notes.tax ?? null,
