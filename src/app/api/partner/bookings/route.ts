@@ -25,7 +25,8 @@ type PartnerBookingRow = {
   studios?: { id?: string; name?: string; city?: string; address?: string } | null;
   users?: { id?: string; email?: string } | null;
   booking_addons?: BookingAddonRow[] | null;
-  booking_guests?: { guest_name?: string | null; guest_email?: string | null; guest_phone?: string | null }[] | null;
+  /** Selected as ids only — partners get a headcount, never guest identities. */
+  booking_guests?: { id?: string }[] | null;
 };
 
 async function getUserAndStudios(email: string) {
@@ -63,7 +64,7 @@ export async function GET() {
       studios!studio_id(id, name, city, address),
       users!user_id(id, email),
       booking_addons(id, name, price, quantity),
-      booking_guests(*)
+      booking_guests(id)
     `)
     .in('studio_id', studioIds)
     .order('start_time', { ascending: false });
@@ -142,11 +143,9 @@ export async function GET() {
         email: customerEmail,
         phone: notes.customerPhone || '',
       },
-      guests: (b.booking_guests || []).map((g) => ({
-        name: g.guest_name || '',
-        email: g.guest_email || '',
-        phone: g.guest_phone || '',
-      })),
+      // Headcount only. Guest names, emails and phone numbers are the customer's
+      // personal data and are deliberately never sent to the partner dashboard.
+      guest_count: (b.booking_guests || []).length,
       // Raw UTC ISO strings — use formatBookingDate/Time from bookingDisplay.ts
       start_time: b.start_time as string,
       end_time: b.end_time as string,
