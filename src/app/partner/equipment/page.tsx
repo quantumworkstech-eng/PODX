@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Trash2, Loader2, Wrench, Star, Sparkles, Search } from "lucide-react";
+import { Plus, Trash2, Loader2, Wrench, Star, Sparkles, Search, Pencil, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 import { PartnerInventoryDrawer } from "@/components/partner/PartnerInventoryDrawer";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +41,9 @@ type AddonRow = {
   price: number;
   quantity?: number | null;
   thumbnail_url?: string | null;
+  video_url?: string | null;
+  /** How many studios currently offer this add-on; 0 = invisible to customers */
+  studio_count?: number;
 };
 
 type PlatformAddonRow = {
@@ -119,6 +123,9 @@ export default function PartnerEquipmentPage() {
   const [newThumbFile, setNewThumbFile] = useState<File | null>(null);
   const [newThumbUrl, setNewThumbUrl] = useState<string>("");
   const [newVideoUrl, setNewVideoUrl] = useState<string>("");
+  /** Set while editing an existing add-on; null when creating a new one. */
+  const [editingAddon, setEditingAddon] = useState<AddonRow | null>(null);
+  const [attachingId, setAttachingId] = useState<string | null>(null);
   const newThumbPreview = useMemo(() => {
     if (!newThumbFile) return "";
     return URL.createObjectURL(newThumbFile);
@@ -184,6 +191,42 @@ export default function PartnerEquipmentPage() {
   async function deleteAddon(id: string) {
     await fetch(`/api/partner/inventory/addons/${id}`, { method: "DELETE" });
     loadInventory();
+  }
+
+  /** Link an unattached add-on to every studio the partner owns. */
+  async function offerOnAllStudios(id: string) {
+    setAttachingId(id);
+    try {
+      const res = await fetch(`/api/partner/inventory/addons/${id}/studios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const msg = await readApiError(res);
+        alert(msg);
+        return;
+      }
+      loadInventory();
+    } finally {
+      setAttachingId(null);
+    }
+  }
+
+  /** Load an existing add-on into the dialog so every field can be corrected. */
+  function openEditAddon(item: AddonRow) {
+    setEditingAddon(item);
+    setNewCategory(item.category === "equipment" ? "equipment" : "service");
+    setNewType(item.addon_type || ADDON_TYPE_OPTIONS[0]);
+    setNewName(item.name);
+    setNewDescription(item.description || "");
+    setNewQty(Math.max(1, Number(item.quantity) || 1));
+    setNewPrice(Number(item.price) || 0);
+    setNewThumbFile(null);
+    setNewThumbUrl(item.thumbnail_url || "");
+    setNewVideoUrl(item.video_url || "");
+    setNewError("");
+    setNewOpen(true);
   }
 
   const inventoryTotal = equipment.length + services.length + addons.length;
@@ -287,6 +330,7 @@ export default function PartnerEquipmentPage() {
             setNewThumbFile(null);
             setNewThumbUrl("");
             setNewVideoUrl("");
+            setEditingAddon(null);
             setNewOpen(true);
           }}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-xl transition-colors text-sm w-full sm:w-auto"
@@ -484,19 +528,29 @@ export default function PartnerEquipmentPage() {
                       {it.addon_type || AD_LABEL[it.addon_kind] || it.addon_kind}
                     </span>
 
-                    {/* Delete button */}
-                    <button
-                      type="button"
-                      onClick={() => deleteAddon(it.id)}
-                      className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-lg text-white/60 hover:text-red-300 hover:bg-red-500/20 transition-colors backdrop-blur-sm"
-                      title="Remove"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Edit + delete */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditAddon(it)}
+                        className="p-1.5 bg-black/50 rounded-lg text-white/60 hover:text-[#D9FC67] hover:bg-white/10 transition-colors backdrop-blur-sm"
+                        title="Edit"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteAddon(it.id)}
+                        className="p-1.5 bg-black/50 rounded-lg text-white/60 hover:text-red-300 hover:bg-red-500/20 transition-colors backdrop-blur-sm"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
                     {/* Qty badge */}
                     {(it.quantity ?? 1) > 1 && (
-                      <span className="absolute top-3 right-10 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 backdrop-blur-sm">
+                      <span className="absolute top-3 right-20 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 backdrop-blur-sm">
                         qty {it.quantity}
                       </span>
                     )}
@@ -518,6 +572,34 @@ export default function PartnerEquipmentPage() {
                         {it.category === "equipment" ? "Equipment" : "Service"}
                       </span>
                     </div>
+                    {(it.studio_count ?? 0) > 0 ? (
+                      <p className="text-[11px] text-emerald-300/70">
+                        Live on {it.studio_count} studio{it.studio_count === 1 ? "" : "s"}
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <p className="flex items-start gap-1.5 text-[11px] text-amber-300/80">
+                          <AlertTriangle className="mt-px w-3 h-3 shrink-0" />
+                          <span>Not offered on any studio — customers can&apos;t book it.</span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => offerOnAllStudios(it.id)}
+                            disabled={attachingId === it.id}
+                            className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                          >
+                            {attachingId === it.id ? "Adding…" : "Offer on all my studios"}
+                          </button>
+                          <Link
+                            href="/partner/studios"
+                            className="text-[11px] text-white/40 underline hover:text-white/70"
+                          >
+                            Choose studios
+                          </Link>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -574,9 +656,13 @@ export default function PartnerEquipmentPage() {
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent className="bg-[#141414] border-white/10 text-white sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-white">New Add-on</DialogTitle>
+            <DialogTitle className="text-white">
+              {editingAddon ? "Edit Add-on" : "New Add-on"}
+            </DialogTitle>
             <p className="text-white/50 text-sm">
-              Create a bookable add-on only visible to your account.
+              {editingAddon
+                ? "Changes apply to every studio offering this add-on. Existing bookings keep the price they were made at."
+                : "Create a bookable add-on only visible to your account. It is offered on all of your studios straight away."}
             </p>
           </DialogHeader>
 
@@ -743,34 +829,40 @@ export default function PartnerEquipmentPage() {
                     setNewThumbUrl(thumbUrl);
                   }
 
-                  const res = await fetch("/api/partner/inventory/addons", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      addon_kind: newCategory === "equipment" ? "studio" : "service",
-                      category: newCategory,
-                      addon_type: newType,
-                      name,
-                      description: newDescription.trim() || null,
-                      quantity: newQty,
-                      thumbnail_url: thumbUrl || null,
-                      video_url: newVideoUrl.trim() || null,
-                      price: newPrice,
-                      is_active: true,
-                    }),
-                  });
+                  const payload = {
+                    addon_kind: newCategory === "equipment" ? "studio" : "service",
+                    category: newCategory,
+                    addon_type: newType,
+                    name,
+                    description: newDescription.trim() || null,
+                    quantity: newQty,
+                    thumbnail_url: thumbUrl || null,
+                    video_url: newVideoUrl.trim() || null,
+                    price: newPrice,
+                    is_active: true,
+                  };
+                  const res = await fetch(
+                    editingAddon
+                      ? `/api/partner/inventory/addons/${editingAddon.id}`
+                      : "/api/partner/inventory/addons",
+                    {
+                      method: editingAddon ? "PATCH" : "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    }
+                  );
                   if (!res.ok) throw new Error(await readApiError(res));
 
                   setNewOpen(false);
                   refreshAll();
                 } catch (e) {
-                  setNewError(e instanceof Error ? e.message : "Failed to create add-on");
+                  setNewError(e instanceof Error ? e.message : `Failed to ${editingAddon ? "update" : "create"} add-on`);
                 } finally {
                   setSavingNew(false);
                 }
               }}
             >
-              {savingNew ? "Saving…" : "Submit"}
+              {savingNew ? "Saving…" : editingAddon ? "Save Changes" : "Submit"}
             </Button>
           </DialogFooter>
         </DialogContent>

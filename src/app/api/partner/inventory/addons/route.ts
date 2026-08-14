@@ -54,5 +54,41 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ item: data }, { status: 201 });
+
+  // Offer it on the partner's studios straight away. Without this link the add-on
+  // exists in the library but is invisible to customers, and nothing in the UI
+  // explained that a separate trip to My Studios was required. Partners can still
+  // turn it off per studio from the studio editor.
+  let studioCount = 0;
+  try {
+    const { data: studios } = await supabaseAdmin
+      .from("studios")
+      .select("id")
+      .eq("owner_id", partnerId);
+
+    const requested: string[] | null = Array.isArray(body.studio_ids)
+      ? body.studio_ids.map((s: unknown) => String(s))
+      : null;
+    const targets = (studios || [])
+      .map((s: { id: string }) => s.id)
+      .filter((id: string) => !requested || requested.includes(id));
+
+    if (targets.length > 0) {
+      const { error: linkError } = await supabaseAdmin
+        .from("studio_partner_addon_items")
+        .upsert(
+          targets.map((studioId: string) => ({
+            studio_id: studioId,
+            partner_addon_id: data.id,
+            enabled_for_booking: true,
+          })),
+          { onConflict: "studio_id,partner_addon_id" }
+        );
+      if (!linkError) studioCount = targets.length;
+    }
+  } catch {
+    /* the add-on was created; linking is best-effort and reported below */
+  }
+
+  return NextResponse.json({ item: { ...data, studio_count: studioCount } }, { status: 201 });
 }
