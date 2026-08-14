@@ -51,6 +51,9 @@ export async function PATCH(
   if (body.thumbnail_url !== undefined) {
     updates.thumbnail_url = body.thumbnail_url != null ? String(body.thumbnail_url).trim() : null;
   }
+  if (body.video_url !== undefined) {
+    updates.video_url = body.video_url != null ? String(body.video_url).trim() : null;
+  }
   if (body.price != null) {
     const p = Number(body.price);
     if (!Number.isFinite(p) || p < 0) return NextResponse.json({ error: "Invalid price" }, { status: 400 });

@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
   const quantityRaw = body.quantity ?? body.default_quantity ?? 1;
   const quantity = Math.max(1, Math.floor(Number(quantityRaw) || 1));
   const thumbnailUrl = body.thumbnail_url != null ? String(body.thumbnail_url).trim() : null;
+  const videoUrl = body.video_url != null ? String(body.video_url).trim() : null;
   const isActive = body.is_active !== false;
 
   if (!addonKind || !name) {
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       price: Number.isFinite(price) && price >= 0 ? price : 0,
       quantity,
       thumbnail_url: thumbnailUrl || null,
+      video_url: videoUrl || null,
       is_active: isActive,
     })
     .select()

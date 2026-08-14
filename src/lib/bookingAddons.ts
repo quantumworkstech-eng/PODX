@@ -12,6 +12,7 @@ export type PlatformAddonRow = {
   price: number | string;
   category?: string | null;
   thumbnail_url?: string | null;
+  video_url?: string | null;
   /** Maximum bookable quantity (null / undefined = unlimited) */
   quantity?: number | null;
 };
@@ -26,6 +27,7 @@ export function platformAddonToService(row: PlatformAddonRow): AddOnService {
     description: row.description?.trim() || "",
     price: Number(row.price),
     thumbnail: row.thumbnail_url || ADDON_PLACEHOLDER_IMAGE,
+    videoUrl: row.video_url || undefined,
     category: row.category ?? undefined,
     maxQty,
   };

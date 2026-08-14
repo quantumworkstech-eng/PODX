@@ -118,6 +118,7 @@ export default function PartnerEquipmentPage() {
   const [newPrice, setNewPrice] = useState<number>(0);
   const [newThumbFile, setNewThumbFile] = useState<File | null>(null);
   const [newThumbUrl, setNewThumbUrl] = useState<string>("");
+  const [newVideoUrl, setNewVideoUrl] = useState<string>("");
   const newThumbPreview = useMemo(() => {
     if (!newThumbFile) return "";
     return URL.createObjectURL(newThumbFile);
@@ -285,6 +286,7 @@ export default function PartnerEquipmentPage() {
             setNewPrice(0);
             setNewThumbFile(null);
             setNewThumbUrl("");
+            setNewVideoUrl("");
             setNewOpen(true);
           }}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#D9FC67] hover:bg-[#E8FF8A] text-black font-semibold rounded-xl transition-colors text-sm w-full sm:w-auto"
@@ -678,8 +680,25 @@ export default function PartnerEquipmentPage() {
                   </button>
                 </div>
               )}
-              <p className="text-white/35 text-xs">
-                Recommended: 1:1 or 16:9 image under 10MB.
+              <p className="text-white/35 text-xs leading-relaxed">
+                Recommended: <span className="text-white/55">1200 × 750 px (16:10)</span>, JPG, PNG
+                or WebP under 10MB. Customers always see the full image — it is never cropped — so
+                other shapes get bars on the sides. Centre the item and leave a little space around it.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-white/70 text-sm font-medium block">Video URL (optional)</label>
+              <input
+                type="url"
+                value={newVideoUrl}
+                onChange={(e) => setNewVideoUrl(e.target.value)}
+                placeholder="https://youtube.com/watch?v=… or a direct .mp4 link"
+                className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-3 text-white placeholder:text-white/30 focus:border-[#D9FC67]/60 focus:outline-none"
+              />
+              <p className="text-white/35 text-xs leading-relaxed">
+                Plays automatically when a customer hovers this add-on while booking. YouTube,
+                Vimeo, Google Drive or a direct .mp4 / .webm link. The thumbnail stays the resting image.
               </p>
             </div>
 
@@ -735,6 +754,7 @@ export default function PartnerEquipmentPage() {
                       description: newDescription.trim() || null,
                       quantity: newQty,
                       thumbnail_url: thumbUrl || null,
+                      video_url: newVideoUrl.trim() || null,
                       price: newPrice,
                       is_active: true,
                     }),

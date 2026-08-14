@@ -23,6 +23,7 @@ interface Addon {
   category: string;
   addon_type: string | null;
   thumbnail_url: string | null;
+  video_url: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -35,6 +36,7 @@ interface FormState {
   addon_type: string;
   thumbFile: File | null;
   thumbUrl: string;
+  video_url: string;
 }
 
 const emptyForm: FormState = {
@@ -45,6 +47,7 @@ const emptyForm: FormState = {
   addon_type: ADMIN_ADDON_TYPES[0],
   thumbFile: null,
   thumbUrl: "",
+  video_url: "",
 };
 
 export default function AdminAddonsPage() {
@@ -138,6 +141,7 @@ export default function AdminAddonsPage() {
       addon_type: addon.addon_type || ADMIN_ADDON_TYPES[0],
       thumbFile: null,
       thumbUrl: addon.thumbnail_url || "",
+      video_url: addon.video_url || "",
     });
     setThumbPreview(addon.thumbnail_url || "");
     setFormError("");
@@ -169,6 +173,7 @@ export default function AdminAddonsPage() {
         category: form.category,
         addon_type: form.addon_type || null,
         thumbnail_url: thumbUrl || null,
+        video_url: form.video_url.trim() || null,
       };
 
       const url = editingAddon ? `/api/admin/addons/${editingAddon.id}` : "/api/admin/addons";
@@ -484,7 +489,29 @@ export default function AdminAddonsPage() {
                     </button>
                   </div>
                 )}
-                <p className="text-white/35 text-xs">Recommended: 1:1 or 16:9 image under 10MB.</p>
+                <p className="text-white/35 text-xs leading-relaxed">
+                  Recommended: <span className="text-white/55">1200 × 750 px (16:10)</span>, JPG,
+                  PNG or WebP under 10MB. The full image is always shown — never cropped — so
+                  anything other than 16:10 gets bars on the sides. Centre the product and leave a
+                  little space around it.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-white/60 text-xs uppercase tracking-wider block">
+                  Video URL (optional)
+                </label>
+                <input
+                  type="url"
+                  value={form.video_url}
+                  onChange={(e) => setForm((f) => ({ ...f, video_url: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                  placeholder="https://youtube.com/watch?v=… or a direct .mp4 link"
+                />
+                <p className="text-white/35 text-xs leading-relaxed">
+                  Plays automatically when a customer hovers this add-on. YouTube, Vimeo, Google
+                  Drive or a direct .mp4 / .webm link. The thumbnail above stays the resting image.
+                </p>
               </div>
 
               {formError && <p className="text-red-400 text-sm">{formError}</p>}

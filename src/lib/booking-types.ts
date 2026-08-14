@@ -19,6 +19,8 @@ export interface AddOnService {
   price: number;
   /** Optional image URL; booking UI falls back to a placeholder when missing */
   thumbnail?: string;
+  /** Optional video (YouTube / Vimeo / Drive / direct file) played on card hover */
+  videoUrl?: string;
   /** Used for admin / Recommended badge (e.g. category `popular`) */
   category?: string;
   /** Selected quantity (default 1 when in cart) */

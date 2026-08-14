@@ -38,18 +38,30 @@ export async function fetchMergedStudioAddons(
     quantity?: number | null;
     /** Equipment vs service, for grouping in customer-facing listings */
     group?: StudioAddonGroup;
+    /** Plays on hover in the booking flow; thumbnail_url stays the resting state */
+    video_url?: string | null;
   }[]
 > {
-  // 1. Fetch ALL active platform add-ons (admin-created, auto-applied to all studios)
+  // 1. Fetch ALL active platform add-ons (admin-created, auto-applied to all studios).
+  //    `select("*")` on purpose: newer columns (video_url) live in a migration that
+  //    may not have been applied yet, and naming them explicitly would fail the whole
+  //    query — dropping every add-on from the booking flow — until it is.
   const { data: platformRows } = await supabase
     .from("platform_addons")
-    .select("id, name, description, price, category, is_active, thumbnail_url")
+    .select("*")
     .eq("is_active", true)
     .order("category")
     .order("name");
 
   const platform = (platformRows ?? []).map((r: any) => ({
-    ...r,
+    id: r.id,
+    name: r.name,
+    description: r.description ?? null,
+    price: r.price,
+    category: r.category ?? null,
+    thumbnail_url: r.thumbnail_url ?? null,
+    video_url: r.video_url ?? null,
+    is_active: r.is_active,
     quantity: null,
     group: resolveAddonGroup(r.category),
   })) as {
@@ -59,6 +71,7 @@ export async function fetchMergedStudioAddons(
     price: number | string;
     category?: string | null;
     thumbnail_url?: string | null;
+    video_url?: string | null;
     is_active?: boolean;
     quantity: null;
     group: StudioAddonGroup;
@@ -72,6 +85,7 @@ export async function fetchMergedStudioAddons(
     price: number | string;
     category?: string | null;
     thumbnail_url?: string | null;
+    video_url?: string | null;
     is_active?: boolean;
     group?: StudioAddonGroup;
   }[] = [];
@@ -86,7 +100,7 @@ export async function fetchMergedStudioAddons(
     if (ids.length > 0) {
       const { data: items } = await supabase
         .from("partner_addon_items")
-        .select("id, name, description, price, is_active, addon_kind, category, thumbnail_url, quantity")
+        .select("*")
         .in("id", ids);
 
       const byId = new Map((items || []).map((it: any) => [it.id, it]));
@@ -107,6 +121,7 @@ export async function fetchMergedStudioAddons(
             category: it.addon_kind,
             group: resolveAddonGroup(it.category, it.addon_kind),
             thumbnail_url: it.thumbnail_url ?? null,
+            video_url: it.video_url ?? null,
             is_active: true,
             quantity: it.quantity != null ? Number(it.quantity) : null,
           };

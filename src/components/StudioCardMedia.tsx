@@ -10,7 +10,11 @@ interface StudioCardMediaProps {
   videoUrl?: string;
   className?: string;
   imageClassName?: string;
+  /** Fit for the video layer — pass "object-contain" to letterbox instead of crop */
+  videoClassName?: string;
   hoverScaleClassName?: string;
+  /** The "Video" pill shown before hover. Hide it when the parent draws its own badges. */
+  showVideoBadge?: boolean;
 }
 
 export interface VideoInfo {
@@ -91,7 +95,9 @@ export function StudioCardMedia({
   videoUrl,
   className,
   imageClassName = "object-cover",
+  videoClassName = "object-cover",
   hoverScaleClassName = "",
+  showVideoBadge = true,
 }: StudioCardMediaProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageIdx, setImageIdx] = useState(0);
@@ -163,7 +169,7 @@ export function StudioCardMedia({
       />
 
       {/* ── Video badge — visible when video is available but not yet playing ── */}
-      {showVideo && !isHovered && (
+      {showVideo && showVideoBadge && !isHovered && (
         <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white/80 text-[10px] font-semibold pointer-events-none">
           <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
@@ -183,7 +189,7 @@ export function StudioCardMedia({
           preload="metadata"
           onError={() => setVideoError(true)}
           className={`
-            absolute inset-0 w-full h-full object-cover
+            absolute inset-0 w-full h-full ${videoClassName}
             transition-opacity duration-500
             ${isHovered ? "opacity-100" : "opacity-0"}
           `}

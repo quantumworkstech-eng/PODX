@@ -9,7 +9,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const body = await request.json();
-  const { name, description, price, category, addon_type, thumbnail_url, is_active } = body;
+  const { name, description, price, category, addon_type, thumbnail_url, video_url, is_active } = body;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (name !== undefined) updates.name = name;
@@ -18,6 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (category !== undefined) updates.category = category;
   if (addon_type !== undefined) updates.addon_type = addon_type;
   if (thumbnail_url !== undefined) updates.thumbnail_url = thumbnail_url;
+  if (video_url !== undefined) updates.video_url = video_url;
   if (is_active !== undefined) updates.is_active = is_active;
 
   const { data, error } = await supabaseAdmin

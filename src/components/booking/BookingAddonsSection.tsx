@@ -11,9 +11,9 @@ import {
 } from "@/lib/bookingAddons";
 import type { AddOnService } from "@/lib/booking-types";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
-import { Loader2, Check, Plus, Minus, Search, Trash2 } from "lucide-react";
+import { Loader2, Check, Plus, Minus, Search, Trash2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioCardMedia } from "@/components/StudioCardMedia";
 
 function AddonCard({ addon }: { addon: AddOnService }) {
   const { selectedAddOns, toggleAddOn, updateAddOnQty, removeAddOn } = useBooking();
@@ -36,17 +36,22 @@ function AddonCard({ addon }: { addon: AddOnService }) {
           : "border-white/10 hover:border-white/30"
       )}
     >
-      <div className="relative aspect-[16/10] overflow-hidden bg-white/5">
-        <Image
-          src={thumb}
+      {/* Fixed 16:10 frame with the whole image contained — product shots are all
+          different shapes, and cropping them to fill cut the subject off. */}
+      <div className="relative aspect-[16/10] overflow-hidden bg-black/40">
+        <StudioCardMedia
           alt={addon.name}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-          sizes="(min-width: 1280px) 300px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          coverImage={thumb}
+          videoUrl={addon.videoUrl}
+          className="absolute inset-0"
+          imageClassName="object-contain p-2"
+          videoClassName="object-contain"
+          showVideoBadge={false}
         />
-        {isRecommendedAddon(addon) && (
-          <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-[#D9FC67]/20 text-[#D9FC67] border border-[#D9FC67]/30 backdrop-blur-sm">
-            Recommended
+        {addon.videoUrl && (
+          <span className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/65 px-2 py-0.5 text-[10px] font-semibold text-white/75 backdrop-blur-sm">
+            <Play className="h-2.5 w-2.5 fill-current" />
+            Video
           </span>
         )}
         {outOfStock ? (
@@ -65,7 +70,14 @@ function AddonCard({ addon }: { addon: AddOnService }) {
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h4 className="text-[15px] font-semibold text-white leading-snug">{addon.name}</h4>
+        <div className="flex items-start gap-2">
+          <h4 className="text-[15px] font-semibold text-white leading-snug">{addon.name}</h4>
+          {isRecommendedAddon(addon) && (
+            <span className="mt-0.5 shrink-0 rounded-full border border-[#D9FC67]/30 bg-[#D9FC67]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#D9FC67]">
+              Popular
+            </span>
+          )}
+        </div>
         {addon.description ? (
           <p className="mt-1.5 text-sm text-white/45 leading-relaxed line-clamp-3">
             {addon.description}

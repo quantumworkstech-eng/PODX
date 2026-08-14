@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const body = await request.json();
-  const { name, description, price, category, addon_type, thumbnail_url } = body;
+  const { name, description, price, category, addon_type, thumbnail_url, video_url } = body;
 
   if (!name || price === undefined) {
     return NextResponse.json({ error: 'Name and price are required' }, { status: 400 });
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       category: category || 'general',
       addon_type: addon_type || null,
       thumbnail_url: thumbnail_url || null,
+      video_url: video_url || null,
       is_active: true,
     })
     .select()
