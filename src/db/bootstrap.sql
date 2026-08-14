@@ -2168,3 +2168,13 @@ CREATE TRIGGER update_partner_invoices_updated_at
     BEFORE UPDATE ON partner_invoices
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 -- ===== END whitelabel_migration.sql =====
+
+-- ===== BEGIN addon_video_url_migration.sql =====
+-- Optional video for an add-on. Plays on hover in the booking flow; the
+-- thumbnail image stays the resting state and the fallback.
+ALTER TABLE platform_addons
+ADD COLUMN IF NOT EXISTS video_url TEXT;
+
+ALTER TABLE partner_addon_items
+ADD COLUMN IF NOT EXISTS video_url TEXT;
+-- ===== END addon_video_url_migration.sql =====
