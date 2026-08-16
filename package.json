@@ -11,7 +11,8 @@
     "db:migrate-coupons": "node scripts/run-sql-file.mjs src/db/coupon_migration.sql",
     "db:migrate-feature-access": "node scripts/run-sql-file.mjs src/db/feature_access_migration.sql",
     "db:migrate-partner-leads": "node scripts/run-sql-file.mjs src/db/partner_leads_migration.sql",
-    "db:migrate-addon-video": "node scripts/run-sql-file.mjs src/db/addon_video_url_migration.sql"
+    "db:migrate-addon-video": "node scripts/run-sql-file.mjs src/db/addon_video_url_migration.sql",
+    "db:migrate-cms": "node scripts/run-sql-file.mjs src/db/cms_migration.sql"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

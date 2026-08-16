@@ -21,7 +21,7 @@ const menuItems = [
   { id: "reviews", label: "Reviews", icon: Star, href: "/admin/reviews" },
   { id: "addons", label: "Add-ons", icon: Package, href: "/admin/addons" },
   { id: "equipment", label: "Equipment & Services", icon: Package, href: "/admin/equipment" },
-  { id: "landing", label: "Landing Page", icon: Layout, href: "/admin/landing" },
+  { id: "landing", label: "Landing Pages", icon: Layout, href: "/admin/landing" },
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { id: "notifications", label: "Notifications", icon: Bell, href: "/admin/notifications" },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard, href: "/admin/subscriptions" },
