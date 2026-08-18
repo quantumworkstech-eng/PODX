@@ -107,10 +107,11 @@ export async function POST(request: NextRequest) {
     if (!studioCheck.allowed) {
       return NextResponse.json(
         {
-          error: studioCheck.max === 0
-            ? 'An active subscription is required to list studios. Visit Billing & Plans to subscribe.'
+          error: studioCheck.reason === 'free_allowance'
+            ? `Your first studio is free and is already listed. Subscribe to a plan in Billing & Plans to list another one.`
             : `Studio limit reached. Your plan allows ${studioCheck.max} studio${studioCheck.max === 1 ? '' : 's'} (you have ${studioCheck.current}). Upgrade your plan to add more.`,
           code: 'STUDIO_LIMIT_REACHED',
+          reason: studioCheck.reason,
           current: studioCheck.current,
           max: studioCheck.max,
         },

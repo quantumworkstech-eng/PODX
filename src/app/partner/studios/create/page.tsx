@@ -245,7 +245,14 @@ function CreateStudioPageInner() {
   const [cities, setCities] = useState<City[]>([]);
   const [platformAddons, setPlatformAddons] = useState<any[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<"active" | "no_plan" | "loading" | null>(null);
+  // Whether this studio may be listed. The first studio is free, so this cannot be
+  // inferred from subscription status alone — the server decides and we mirror it.
+  const [listingGate, setListingGate] = useState<
+    | { status: "loading" }
+    | { status: "allowed" }
+    | { status: "blocked"; reason: "free_allowance" | "plan_limit"; current: number; max: number | null }
+    | null
+  >(null);
 
   const [inventoryLibrary, setInventoryLibrary] = useState<{
     equipment: { id: string; subcategory: string; model_name: string; default_quantity: number }[];
@@ -346,19 +353,30 @@ function CreateStudioPageInner() {
     }
   }, [currentStep]);
 
-  // Check subscription when reaching review step
+  // Check the listing allowance when reaching the review step
   useEffect(() => {
-    if (currentStep === TOTAL_STEPS && subscriptionStatus === null) {
-      setSubscriptionStatus("loading");
+    if (currentStep === TOTAL_STEPS && listingGate === null) {
+      setListingGate({ status: "loading" });
       fetch("/api/partner/subscription")
         .then((r) => r.json())
         .then((d) => {
-          const status = d?.subscription?.status;
-          setSubscriptionStatus(status === "active" || status === "grace_period" ? "active" : "no_plan");
+          const a = d?.studioAllowance;
+          if (!a || a.allowed) {
+            setListingGate({ status: "allowed" });
+            return;
+          }
+          setListingGate({
+            status: "blocked",
+            reason: a.reason === "plan_limit" ? "plan_limit" : "free_allowance",
+            current: Number(a.current) || 0,
+            max: a.max === null ? null : Number(a.max),
+          });
         })
-        .catch(() => setSubscriptionStatus("no_plan"));
+        // Fail open: the POST/PUT gate is authoritative and returns a clear 403,
+        // so a hiccup here must not block a partner's free first studio.
+        .catch(() => setListingGate({ status: "allowed" }));
     }
-  }, [currentStep]);
+  }, [currentStep, listingGate]);
 
   // ─── Server-side auto-save (debounced, 3s) ──────────────────────────────────
   // Automatically saves the form as a draft on the server when the user has entered
@@ -728,8 +746,15 @@ function CreateStudioPageInner() {
       }
       if (!res.ok) {
         const err = await res.json();
-        if (err.code === "STUDIO_LIMIT_REACHED" && err.max === 0) {
-          setSubscriptionStatus("no_plan");
+        // The server is the authority on the listing allowance — if it blocks the
+        // submission, swap the review step for the matching upgrade panel.
+        if (err.code === "STUDIO_LIMIT_REACHED") {
+          setListingGate({
+            status: "blocked",
+            reason: err.reason === "plan_limit" ? "plan_limit" : "free_allowance",
+            current: Number(err.current) || 0,
+            max: err.max === null ? null : Number(err.max),
+          });
         } else {
           setSubmitError(err.error || "Failed to submit studio. Please try again.");
         }
@@ -1679,7 +1704,7 @@ function CreateStudioPageInner() {
   // ─── Step 9: Review ──────────────────────────────────────────────────────────
 
   const renderStep9 = () => {
-    if (subscriptionStatus === "loading") {
+    if (listingGate?.status === "loading") {
       return (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-[#D9FC67] animate-spin" />
@@ -1687,20 +1712,33 @@ function CreateStudioPageInner() {
       );
     }
 
-    if (subscriptionStatus === "no_plan") {
+    if (listingGate?.status === "blocked") {
+      const usedFreeStudio = listingGate.reason === "free_allowance";
       return (
         <div className="space-y-6 animate-fade-in">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Subscription Required</h2>
-            <p className="text-white/60">You need an active plan to list studios on Yanisa Studios</p>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {usedFreeStudio ? "Subscription Required" : "Studio Limit Reached"}
+            </h2>
+            <p className="text-white/60">
+              {usedFreeStudio
+                ? "Your first studio is free — listing another one needs a plan"
+                : "Your current plan is full — upgrade to list another studio"}
+            </p>
           </div>
           <div className="p-8 bg-white/5 border border-white/10 rounded-2xl text-center">
             <div className="w-16 h-16 rounded-full bg-yellow-400/10 flex items-center justify-center mx-auto mb-5">
               <CreditCard className="w-8 h-8 text-yellow-400" />
             </div>
-            <p className="text-white text-lg font-semibold mb-2">No Active Subscription Plan</p>
+            <p className="text-white text-lg font-semibold mb-2">
+              {usedFreeStudio
+                ? "Your free studio is already listed"
+                : `You have ${listingGate.current} of ${listingGate.max} studios`}
+            </p>
             <p className="text-white/50 text-sm mb-6 max-w-sm mx-auto">
-              Your studio details have been saved as a draft. Subscribe to a plan to publish your studio and start receiving bookings.
+              {usedFreeStudio
+                ? "Your studio details have been saved as a draft. Subscribe to a plan to publish this second studio and start receiving bookings for it."
+                : "Your studio details have been saved as a draft. Upgrade your plan to publish it and start receiving bookings."}
             </p>
             <Link
               href="/partner/billing"
@@ -1906,7 +1944,7 @@ function CreateStudioPageInner() {
     }
   };
 
-  const isSubmitDisabled = subscriptionStatus === "no_plan" || subscriptionStatus === "loading" || uploadingImages;
+  const isSubmitDisabled = listingGate?.status === "blocked" || listingGate?.status === "loading" || uploadingImages;
   const isLastStep = currentStep === TOTAL_STEPS;
 
   if (draftLoading) {
@@ -1994,7 +2032,7 @@ function CreateStudioPageInner() {
                     <AlertCircle className="w-4 h-4" /> {submitError}
                   </p>
                 )}
-                {subscriptionStatus !== "no_plan" && (
+                {listingGate?.status !== "blocked" && (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"

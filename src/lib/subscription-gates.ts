@@ -110,31 +110,90 @@ export function isSubscriptionActive(sub: PartnerSubscription | null): boolean {
 // ─── Feature Gates ────────────────────────────────────────────────────────────
 
 /**
- * Checks if a partner can add another studio based on their plan limit.
+ * Studios a partner may list before any subscription is required. The first
+ * listing is free — partners get onto the marketplace and start earning before
+ * they pay — and it is the second studio that triggers the paywall.
  */
-export async function checkStudioLimit(
-  partnerId: string
-): Promise<{ allowed: boolean; current: number; max: number | null }> {
-  if (!supabaseAdmin) return { allowed: true, current: 0, max: null };
+export const FREE_STUDIO_ALLOWANCE = 1;
 
-  const sub = await getPartnerSubscription(partnerId);
+/**
+ * review_status values that don't occupy a listing slot. Drafts are private and
+ * never reach the marketplace; 'deleted' marks a soft-deleted row. Neither should
+ * burn a partner's free studio.
+ */
+const UNLISTED_REVIEW_STATUSES = new Set(['draft', 'deleted']);
 
+export function isUnlistedReviewStatus(reviewStatus: string | null | undefined): boolean {
+  return UNLISTED_REVIEW_STATUSES.has(reviewStatus ?? '');
+}
+
+/**
+ * How many studios a partner has actually put on the marketplace. Counted in JS
+ * rather than with a `not.in` filter so a NULL review_status counts as listed
+ * instead of silently vanishing from the total.
+ */
+export async function countListedStudios(partnerId: string): Promise<number> {
+  if (!supabaseAdmin) return 0;
+
+  const { data } = await supabaseAdmin
+    .from('studios')
+    .select('review_status')
+    .eq('owner_id', partnerId);
+
+  return (data ?? []).filter(
+    (s) => !isUnlistedReviewStatus((s as { review_status?: string | null }).review_status)
+  ).length;
+}
+
+export interface StudioLimitCheck {
+  allowed: boolean;
+  /** Studios already listed (drafts and deleted rows excluded). */
+  current: number;
+  /** Ceiling that applies right now: the free allowance, or the plan's limit. */
+  max: number | null;
+  /** Why a blocked partner is blocked — drives the message they are shown. */
+  reason: 'free_allowance' | 'plan_limit' | null;
+  /** True while the partner is listing on the free allowance rather than a plan. */
+  onFreeAllowance: boolean;
+}
+
+/**
+ * Checks whether a partner may list another studio.
+ *
+ * Without a subscription they get FREE_STUDIO_ALLOWANCE listings; beyond that a
+ * plan is required, and the plan's own max_studios then applies.
+ */
+export async function checkStudioLimit(partnerId: string): Promise<StudioLimitCheck> {
+  if (!supabaseAdmin) {
+    return { allowed: true, current: 0, max: null, reason: null, onFreeAllowance: false };
+  }
+
+  const [current, sub] = await Promise.all([
+    countListedStudios(partnerId),
+    getPartnerSubscription(partnerId),
+  ]);
+
+  // No active plan — the free allowance is the only thing standing in for one.
   if (!isSubscriptionActive(sub)) {
-    return { allowed: false, current: 0, max: 0 };
+    const allowed = current < FREE_STUDIO_ALLOWANCE;
+    return {
+      allowed,
+      current,
+      max: FREE_STUDIO_ALLOWANCE,
+      reason: allowed ? null : 'free_allowance',
+      onFreeAllowance: true,
+    };
   }
 
   const max = sub!.plan.max_studios;
 
   // Unlimited studios (enterprise)
-  if (max === null) return { allowed: true, current: 0, max: null };
+  if (max === null) {
+    return { allowed: true, current, max: null, reason: null, onFreeAllowance: false };
+  }
 
-  const { count } = await supabaseAdmin
-    .from('studios')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', partnerId);
-
-  const current = count ?? 0;
-  return { allowed: current < max, current, max };
+  const allowed = current < max;
+  return { allowed, current, max, reason: allowed ? null : 'plan_limit', onFreeAllowance: false };
 }
 
 /**

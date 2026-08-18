@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { checkStudioLimit, isUnlistedReviewStatus } from '@/lib/subscription-gates';
 import { fetchStudioPartnerInventorySnapshot, saveStudioPartnerInventory } from '@/lib/partner-studio-inventory';
 
 async function getPartnerId(email: string): Promise<string | null> {
@@ -205,6 +206,35 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (reschedule_cutoff_hours !== undefined) studioUpdates.reschedule_cutoff_hours = Math.max(0, parseInt(reschedule_cutoff_hours) || 48);
   if (equipment !== undefined && Array.isArray(equipment)) studioUpdates.equipment = equipment;
   if (review_status !== undefined && ['draft', 'pending_review', 'approved', 'rejected'].includes(review_status)) {
+    // Publishing a draft is how most studios reach the marketplace — the wizard
+    // auto-saves a draft and finalises it through this route — so the listing
+    // allowance has to be enforced here too, not just on POST. Editing a studio
+    // that is already listed re-sends its status and must not be blocked.
+    if (!isUnlistedReviewStatus(review_status)) {
+      const { data: currentRow } = await supabaseAdmin
+        .from('studios')
+        .select('review_status')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (isUnlistedReviewStatus(currentRow?.review_status)) {
+        const studioCheck = await checkStudioLimit(partnerId);
+        if (!studioCheck.allowed) {
+          return NextResponse.json(
+            {
+              error: studioCheck.reason === 'free_allowance'
+                ? `Your first studio is free and is already listed. Subscribe to a plan in Billing & Plans to list another one. This studio stays saved as a draft.`
+                : `Studio limit reached. Your plan allows ${studioCheck.max} studio${studioCheck.max === 1 ? '' : 's'} (you have ${studioCheck.current}). Upgrade your plan to add more. This studio stays saved as a draft.`,
+              code: 'STUDIO_LIMIT_REACHED',
+              reason: studioCheck.reason,
+              current: studioCheck.current,
+              max: studioCheck.max,
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
     studioUpdates.review_status = review_status;
   }
   if (videoUrl !== undefined) studioUpdates.video_url = videoUrl;
