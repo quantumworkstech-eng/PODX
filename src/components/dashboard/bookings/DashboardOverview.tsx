@@ -35,8 +35,15 @@ export interface BookingData {
     name: string;
     price_per_hour: number;
   } | null;
-  addOns: { id: string; name: string; price: number }[];
+  addOns: { id: string; name: string; price: number; qty?: number }[];
   totalPrice: number;
+  /** Pre-tax package + add-ons (before coupon), from the booking notes */
+  subtotal?: number | null;
+  tax?: number | null;
+  discountAmount?: number | null;
+  couponCode?: string | null;
+  convenienceFee?: number | null;
+  bookingNote?: string | null;
   status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
@@ -50,23 +57,49 @@ interface DashboardOverviewProps {
 }
 
 function toCalendarBooking(b: BookingData): PartnerCalendarBooking {
+  const start = b.start_time || b.date;
   const end =
+    b.end_time ||
     b.endDate ||
-    new Date(new Date(b.date).getTime() + (b.duration || 1) * 3600000).toISOString();
+    new Date(new Date(start).getTime() + (b.duration || 1) * 3600000).toISOString();
+  // Carry the whole booking across: the calendar's detail dialog renders duration,
+  // participants, add-ons, the price breakdown and the studio note, and each one is
+  // hidden when the field is missing. Dropping them left the dialog nearly empty.
   return {
     id: b.id,
     dbId: b.dbId,
-    date: b.date,
+    date: start,
     endDate: end,
+    createdAt: b.createdAt,
     studioId: b.studioId || b.studio.id,
     studio: {
       id: b.studio.id,
       name: b.studio.name,
       city: b.studio.location.city,
+      address: b.studio.location.area,
     },
     customer: { name: "You" },
     status: b.status,
-    package: b.package ? { name: b.package.name } : null,
+    package: b.package
+      ? { name: b.package.name, pricePerHour: b.package.price_per_hour }
+      : null,
+    addOns: (b.addOns || []).map((a) => ({
+      name: a.name,
+      price: Number(a.price) || 0,
+      qty: Number(a.qty) || 1,
+    })),
+    participants: b.participants ?? null,
+    duration: b.duration,
+    paymentId: b.paymentId,
+    bookingNote: b.bookingNote ?? null,
+    pricing: {
+      subtotalBeforeDiscount: b.subtotal ?? undefined,
+      discountAmount: b.discountAmount ?? undefined,
+      couponCode: b.couponCode ?? null,
+      gst: b.tax ?? undefined,
+      convenienceFee: b.convenienceFee ?? undefined,
+      total: b.totalPrice,
+    },
     totalPrice: b.totalPrice,
   };
 }

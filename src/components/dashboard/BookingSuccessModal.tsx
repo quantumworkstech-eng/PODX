@@ -31,11 +31,12 @@ interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number }[];
   totalPrice: number;
-  subtotal?: number;
-  tax?: number;
-  discountAmount?: number;
+  // Null when the booking predates the itemised notes — treat it like absent.
+  subtotal?: number | null;
+  tax?: number | null;
+  discountAmount?: number | null;
   couponCode?: string | null;
-  convenienceFee?: number;
+  convenienceFee?: number | null;
   status: string;
   paymentId: string;
   createdAt: string;
@@ -161,7 +162,7 @@ export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalPro
 
               {/* Payment summary */}
               <div className="bg-white/5 rounded-xl p-4 mb-5 space-y-2">
-                {booking.subtotal !== undefined && (
+                {booking.subtotal != null && (
                   <div className="flex justify-between text-sm">
                     <span className="text-white/50">Subtotal</span>
                     <span className="text-white">₹{booking.subtotal.toLocaleString()}</span>
@@ -178,7 +179,7 @@ export function BookingSuccessModal({ booking, onClose }: BookingSuccessModalPro
                     </span>
                   </div>
                 )}
-                {booking.tax !== undefined && (
+                {booking.tax != null && (
                   <div className="flex justify-between text-sm">
                     <span className="text-white/50">GST (18%)</span>
                     <span className="text-white">₹{booking.tax.toLocaleString()}</span>

@@ -9,6 +9,39 @@ import { isoToISTSlot } from "@/lib/bookingDisplay";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const FALLBACK_STUDIO_IMAGE =
+  "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1600&q=90";
+
+type StudioJoinRow = {
+  id?: string;
+  name?: string | null;
+  city?: string | null;
+  address?: string | null;
+  description?: string | null;
+  featured_image_url?: string | null;
+  studio_images?: { image_url?: string | null; display_order?: number | null }[] | null;
+};
+
+/** Shape a joined studio row into the { location, cover_image } form the dashboard
+ *  renders. Mirrors getAllStudios() in src/lib/data.ts so both agree on the cover
+ *  image precedence: gallery first, then the featured image, then the placeholder. */
+function toBookingStudio(row: StudioJoinRow | null | undefined, studioId: string) {
+  const images = [...(row?.studio_images || [])].sort(
+    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+  );
+  return {
+    id: row?.id || studioId,
+    name: row?.name || "",
+    location: {
+      area: row?.address || row?.city || "",
+      city: row?.city || "",
+    },
+    cover_image:
+      images[0]?.image_url || row?.featured_image_url || FALLBACK_STUDIO_IMAGE,
+    description: row?.description || undefined,
+  };
+}
+
 // ── GET /api/bookings ─────────────────────────────────────────────────────────
 // Returns the authenticated user's bookings from Supabase.
 export async function GET() {
@@ -33,11 +66,16 @@ export async function GET() {
       return NextResponse.json({ bookings: [] });
     }
 
+    // `studios` stores city/address/featured_image_url — there is no `location` or
+    // `cover_image` column. Selecting those made PostgREST reject the whole query,
+    // so the dashboard got a 500 and showed no bookings at all. Select what exists
+    // and shape it below, the same way src/lib/data.ts does for studio listings.
     const { data: rows, error } = await supabaseAdmin
       .from("bookings")
       .select(
         `id, studio_id, booking_number, start_time, end_time, status, total_price, notes, created_at, updated_at, cancelled_at, cancellation_reason,
-         studios!studio_id(id, name, location, cover_image, description),
+         studios!studio_id(id, name, city, address, description, featured_image_url,
+                           studio_images(image_url, display_order)),
          booking_addons(id, name, price, quantity),
          booking_guests(id, guest_name, guest_email, guest_phone)`
       )
@@ -80,7 +118,7 @@ export async function GET() {
         timeSlot,
         duration,
         participants: notes.participants || 1,
-        studio: b.studios,
+        studio: toBookingStudio(b.studios, b.studio_id),
         package: notes.package || null,
         addOns: (b.booking_addons || []).map((a: any) => ({
           id: a.id,

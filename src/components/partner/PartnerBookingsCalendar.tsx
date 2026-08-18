@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
@@ -287,6 +287,24 @@ export function PartnerBookingsCalendar({
 
   const weekMonday = useMemo(() => mondayOfWeekIST(selectedDay), [selectedDay]);
   const weekDays = useMemo(() => weekDayStringsFromMonday(weekMonday), [weekMonday]);
+
+  // Customers book days or weeks ahead, so their calendar opens on an empty
+  // "today" and the session they just paid for looks like it never saved. Once
+  // their bookings land, jump to the nearest day that actually has one. Only the
+  // first load moves — after that the date picker and "Today" stay in the user's
+  // hands, and refreshes/polling never yank the view back.
+  const autoFocusedRef = useRef(false);
+  useEffect(() => {
+    if (audience !== "client" || autoFocusedRef.current) return;
+    if (partnerOrClientBookings.length === 0) return;
+    autoFocusedRef.current = true;
+    const days = Array.from(
+      new Set(partnerOrClientBookings.map((b) => calendarDateInIST(b.date)))
+    ).sort();
+    if (days.includes(todayIst)) return;
+    const nextUp = days.find((d) => d > todayIst);
+    setSelectedDay(nextUp || days[days.length - 1]);
+  }, [audience, partnerOrClientBookings, todayIst]);
 
   useEffect(() => {
     if (audience !== "admin") return;

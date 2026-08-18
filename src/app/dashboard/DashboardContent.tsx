@@ -64,6 +64,13 @@ interface BookingData {
   } | null;
   addOns: { id: string; name: string; price: number; qty?: number }[];
   totalPrice: number;
+  // Price breakdown from the booking notes — passed straight through to the
+  // dashboard calendar and detail views, so keep them on the way in.
+  subtotal?: number | null;
+  tax?: number | null;
+  discountAmount?: number | null;
+  couponCode?: string | null;
+  convenienceFee?: number | null;
   status: "confirmed" | "pending" | "completed" | "cancelled" | "rescheduled";
   paymentId: string;
   createdAt: string;
