@@ -8,5 +8,5 @@ export {
   humanizeAction,
 } from './actions';
 export type { AuditAction, AuditModule, AuditStatus } from './actions';
-export { diffValues, redactObject, redactText } from './redact';
+export { diffValues, redactObject, redactText, changedFields, describeChangedFields } from './redact';
 export { getRequestContext, requestContextFrom, parseUserAgent } from './request-context';

@@ -18,7 +18,6 @@ export type AuditLogRow = {
   record_id: string | null;
   record_name: string | null;
   status: string;
-  ip_address: string | null;
   old_values?: Record<string, unknown> | null;
   new_values?: Record<string, unknown> | null;
   browser?: string | null;
@@ -150,10 +149,18 @@ export function AuditLogDetail({ id, onClose }: { id: string; onClose: () => voi
                 <Field label="Record type" value={log.record_type} />
                 <Field label="Record name" value={log.record_name} />
                 <Field label="Record ID" value={log.record_id} mono />
-                <Field label="IP address" value={log.ip_address} mono />
                 <Field label="Browser" value={log.browser} />
                 <Field label="Device" value={log.device} />
               </section>
+
+              {changedKeys.length === 0 && /_(UPDATED|CHANGED)$/.test(log.action) && (
+                <section className="pt-4 border-t border-white/5">
+                  <h3 className="text-xs uppercase tracking-wide text-white/30 mb-3">Changes</h3>
+                  <p className="text-sm text-white/40 bg-[#0f0f11] border border-white/5 rounded-xl p-3.5">
+                    No field values were different — the record was saved without changes.
+                  </p>
+                </section>
+              )}
 
               {changedKeys.length > 0 && (
                 <section className="pt-4 border-t border-white/5">

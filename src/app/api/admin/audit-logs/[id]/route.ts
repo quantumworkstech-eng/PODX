@@ -13,9 +13,14 @@ export async function GET(
 
   const { id } = await params;
 
+  // Explicit column list rather than '*' so ip_address is never serialised to
+  // the browser, even though it stays in the table.
   const { data, error } = await supabaseAdmin
     .from('audit_logs')
-    .select('*')
+    .select(
+      'id, created_at, user_id, user_name, user_email, user_role, action, module, description, ' +
+      'record_type, record_id, record_name, old_values, new_values, browser, device, status, error_message, metadata'
+    )
     .eq('id', id)
     .maybeSingle();
 

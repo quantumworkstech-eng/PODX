@@ -34,8 +34,10 @@ export function parseAuditFilters(searchParams: URLSearchParams): AuditFilters {
   };
 }
 
+// ip_address is deliberately absent: it is recorded for security
+// investigations but never sent to the browser or included in an export.
 export const AUDIT_LIST_COLUMNS =
-  'id, created_at, user_id, user_name, user_email, user_role, action, module, description, record_type, record_id, record_name, status, ip_address';
+  'id, created_at, user_id, user_name, user_email, user_role, action, module, description, record_type, record_id, record_name, status';
 
 /**
  * Apply filters to a PostgREST builder. Kept generic over the builder type
@@ -73,7 +75,6 @@ export function applyAuditFilters<T extends {
           `user_name.ilike.%${safe}%`,
           `user_email.ilike.%${safe}%`,
           `description.ilike.%${safe}%`,
-          `ip_address.ilike.%${safe}%`,
           `record_id.ilike.%${safe}%`,
           `record_name.ilike.%${safe}%`,
         ].join(',')

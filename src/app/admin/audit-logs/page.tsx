@@ -187,7 +187,7 @@ export default function AdminAuditLogsPage() {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search user, email, description, IP address or record ID"
+            placeholder="Search user, email, description or record ID"
             className="w-full bg-[#0f0f11] border border-white/10 rounded-xl pl-10 pr-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-red-500/40"
           />
         </div>

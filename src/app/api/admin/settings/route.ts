@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { createAuditLog } from '@/lib/audit';
+import { createAuditLog, describeChangedFields } from '@/lib/audit';
 
 export async function GET() {
   const email = await getAdminEmail();
@@ -58,7 +58,10 @@ export async function PATCH(request: NextRequest) {
   await createAuditLog({
     action: 'SETTINGS_UPDATED',
     module: 'Settings',
-    description: `Updated ${Object.keys(settings).length} platform setting${Object.keys(settings).length === 1 ? '' : 's'}`,
+    description: (() => {
+      const changed = describeChangedFields(previous, settings);
+      return changed ? `Updated platform ${changed}` : 'Saved platform settings with no changes';
+    })(),
     recordType: 'platform_settings',
     oldValues: previous,
     newValues: settings,

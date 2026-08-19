@@ -3,7 +3,7 @@ import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mergeAdminRoleSelection, parseRoleColumn, roleColumnHas } from '@/lib/user-role-column';
 import { emitNotification } from '@/lib/notifications';
-import { createAuditLog } from '@/lib/audit';
+import { createAuditLog, describeChangedFields } from '@/lib/audit';
 
 export async function PATCH(
   request: NextRequest,
@@ -149,15 +149,23 @@ export async function PATCH(
       await supabaseAdmin.from('profiles').insert({ user_id: id, full_name: full_name ?? null, phone: phone ?? null });
     }
 
+    const before = existing ? { full_name: existing.full_name ?? null, phone: existing.phone ?? null } : null;
+    const after = { full_name: full_name ?? null, phone: phone ?? null };
+    const changed = describeChangedFields(before, after);
+    const who = full_name || existing?.full_name || id;
+
     await createAuditLog({
       action: 'USER_UPDATED',
       module: 'Users',
-      description: `Updated profile for user ${id}`,
+      // Name the person and the fields, not just the row id.
+      description: changed
+        ? `Updated ${changed} for ${who}`
+        : `Saved profile for ${who} with no field changes`,
       recordType: 'user',
       recordId: id,
-      recordName: full_name ?? null,
-      oldValues: existing ? { full_name: existing.full_name ?? null, phone: existing.phone ?? null } : null,
-      newValues: { full_name: full_name ?? null, phone: phone ?? null },
+      recordName: full_name ?? existing?.full_name ?? null,
+      oldValues: before,
+      newValues: after,
     });
 
     return NextResponse.json({ success: true, message: 'Profile updated' });

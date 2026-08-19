@@ -86,9 +86,22 @@ export function redactText(text: string): string {
     .slice(0, 1_000);
 }
 
-function isEqual(a: unknown, b: unknown): boolean {
+/**
+ * A form that submits "" for an untouched optional field must not read as a
+ * change from null. Treat null, undefined and blank strings as the same
+ * absence, so no-op saves produce no Changes section at all.
+ */
+function normalizeEmpty(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  return value;
+}
+
+function isEqual(rawA: unknown, rawB: unknown): boolean {
+  const a = normalizeEmpty(rawA);
+  const b = normalizeEmpty(rawB);
   if (a === b) return true;
-  if (a === null || b === null || a === undefined || b === undefined) return false;
+  if (a === null || b === null) return false;
   if (typeof a !== typeof b) return false;
   if (typeof a === 'object') {
     try {
@@ -135,4 +148,20 @@ export function diffValues(
     old: Object.keys(oldChanged).length ? oldChanged : null,
     new: Object.keys(newChanged).length ? newChanged : null,
   };
+}
+
+/** Field names that actually changed — used to write a description that says so. */
+export function changedFields(diff: ValueDiff): string[] {
+  return Array.from(new Set([...Object.keys(diff.old || {}), ...Object.keys(diff.new || {})])).sort();
+}
+
+/** "name and phone" / "name, phone and city" — for human-readable descriptions. */
+export function describeChangedFields(
+  before: Record<string, unknown> | null | undefined,
+  after: Record<string, unknown> | null | undefined
+): string | null {
+  const fields = changedFields(diffValues(before, after)).map((f) => f.replace(/_/g, ' '));
+  if (fields.length === 0) return null;
+  if (fields.length === 1) return fields[0];
+  return `${fields.slice(0, -1).join(', ')} and ${fields[fields.length - 1]}`;
 }

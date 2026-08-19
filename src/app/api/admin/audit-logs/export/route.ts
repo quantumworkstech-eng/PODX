@@ -9,7 +9,7 @@ const EXPORT_LIMIT = 10_000;
 
 const HEADERS = [
   'Date & Time', 'User', 'Email', 'Role', 'Action', 'Module',
-  'Description', 'Record Type', 'Record ID', 'Record Name', 'Status', 'IP Address',
+  'Description', 'Record Type', 'Record ID', 'Record Name', 'Status',
 ];
 
 /**
@@ -30,8 +30,8 @@ function csvCell(value: unknown): string {
  * GET /api/admin/audit-logs/export
  *
  * Streams the current filter selection as CSV. Deliberately excludes
- * old_values, new_values, metadata, browser and device — the export leaves the
- * building, so it carries only the columns specified for it.
+ * old_values, new_values, metadata, browser, device and ip_address — the export
+ * leaves the building, so it carries only non-sensitive columns.
  */
 export async function GET(request: NextRequest) {
   const adminEmail = await getAdminEmail();
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   const base = supabaseAdmin
     .from('audit_logs')
     .select(
-      'created_at, user_name, user_email, user_role, action, module, description, record_type, record_id, record_name, status, ip_address'
+      'created_at, user_name, user_email, user_role, action, module, description, record_type, record_id, record_name, status'
     )
     .order('created_at', { ascending: false })
     .limit(EXPORT_LIMIT);
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       [
         new Date(String(r.created_at)).toISOString(),
         r.user_name, r.user_email, r.user_role, r.action, r.module,
-        r.description, r.record_type, r.record_id, r.record_name, r.status, r.ip_address,
+        r.description, r.record_type, r.record_id, r.record_name, r.status,
       ]
         .map(csvCell)
         .join(',')
