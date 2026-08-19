@@ -76,7 +76,12 @@ export async function logAdminAction(
   action: string,
   entityType: string,
   entityId?: string,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
+  /**
+   * Set `mirrorToAuditLog: false` where the route already emits its own richer
+   * `createAuditLog` call — otherwise the same event is recorded twice.
+   */
+  options?: { mirrorToAuditLog?: boolean }
 ): Promise<void> {
   if (!supabaseAdmin) return;
 
@@ -100,6 +105,8 @@ export async function logAdminAction(
   } catch {
     // Legacy audit logging failure should not block the main action.
   }
+
+  if (options?.mirrorToAuditLog === false) return;
 
   const { action: auditAction, module } = classifyAdminAction(action, entityType);
 

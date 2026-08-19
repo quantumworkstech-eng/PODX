@@ -352,7 +352,7 @@ export async function PATCH(
       );
     }
 
-    await logAdminAction(email, `studio_${action}`, 'studio', id);
+    await logAdminAction(email, `studio_${action}`, 'studio', id, undefined, { mirrorToAuditLog: false });
     return NextResponse.json({ success: true });
   }
 

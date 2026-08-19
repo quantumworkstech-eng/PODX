@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest) {
     newValues: settings,
   });
 
-  await logAdminAction(email, 'update_settings', 'settings', undefined, { keys: Object.keys(settings) });
+  await logAdminAction(email, 'update_settings', 'settings', undefined, { keys: Object.keys(settings) }, { mirrorToAuditLog: false });
 
   return NextResponse.json({ success: true });
 }

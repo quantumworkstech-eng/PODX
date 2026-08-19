@@ -122,7 +122,7 @@ export async function PATCH(request: NextRequest) {
   await logAdminAction(adminEmail, 'update_mailer_settings', 'mailer_settings', undefined, {
     fields: Object.keys(input).filter((k) => input[k as keyof MailerSettingsInput] !== undefined),
     password_changed: Boolean(input.smtp_password),
-  });
+  }, { mirrorToAuditLog: false });
 
   return NextResponse.json({ success: true, settings: await getMailerSettingsForAdmin() });
 }

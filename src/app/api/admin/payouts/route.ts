@@ -140,7 +140,7 @@ export async function PATCH(req: NextRequest) {
     });
   }
 
-  await logAdminAction(adminEmail, `payout_${status}`, "payout", payout_id, { status });
+  await logAdminAction(adminEmail, `payout_${status}`, "payout", payout_id, { status }, { mirrorToAuditLog: false });
 
   return NextResponse.json({ payout });
 }

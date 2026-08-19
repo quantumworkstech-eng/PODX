@@ -33,6 +33,18 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (otpError || !otpRow) {
+    // No unused code on file — someone is submitting a stale or guessed code.
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      module: "Authentication",
+      description: `Verification attempted for ${email} with no valid outstanding code`,
+      actor: { email, name: email.split("@")[0], role: "user" },
+      status: "FAILED",
+      errorMessage: "No valid or unexpired verification code on file",
+      recordType: "user",
+      recordId: email,
+      request: requestContextFrom(request),
+    });
     return NextResponse.json({ error: "Invalid or expired code. Please request a new one." }, { status: 400 });
   }
 
@@ -41,6 +53,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (new Date(otpRow.expires_at) < new Date()) {
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      module: "Authentication",
+      description: `Expired verification code submitted for ${email}`,
+      actor: { email, name: email.split("@")[0], role: "user" },
+      status: "FAILED",
+      errorMessage: "Verification code expired",
+      recordType: "user",
+      recordId: email,
+      request: requestContextFrom(request),
+    });
     return NextResponse.json({ error: "This code has expired. Please request a new one." }, { status: 400 });
   }
 
