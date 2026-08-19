@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { checkStudioLimit } from '@/lib/subscription-gates';
 import { saveStudioPartnerInventory } from '@/lib/partner-studio-inventory';
 import { emitNotification } from '@/lib/notifications';
+import { createAuditLog, requestContextFrom } from '@/lib/audit';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -284,6 +285,19 @@ export async function POST(request: NextRequest) {
       } catch { /* table may not exist yet */ }
     }
   }
+
+  await createAuditLog({
+    action: saveAsDraft ? 'STUDIO_CREATED' : 'STUDIO_SUBMITTED',
+    module: 'Studios',
+    description: saveAsDraft
+      ? `Saved studio "${name}" as a draft`
+      : `Submitted studio "${name}" for review`,
+    recordType: 'studio',
+    recordId: studio.id,
+    recordName: name,
+    newValues: { name, city, address, is_draft: !!saveAsDraft },
+    request: requestContextFrom(request),
+  });
 
   // Notify admins only when the studio is submitted for review (not for drafts)
   if (!saveAsDraft) {

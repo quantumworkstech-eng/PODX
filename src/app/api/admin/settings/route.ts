@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET() {
   const email = await getAdminEmail();
@@ -38,11 +39,30 @@ export async function PATCH(request: NextRequest) {
     updated_by_email: email,
   }));
 
+  // Snapshot the previous values so the audit entry can show what changed.
+  const { data: previousRows } = await supabaseAdmin
+    .from('platform_settings')
+    .select('key, value')
+    .in('key', Object.keys(settings));
+  const previous: Record<string, string> = {};
+  for (const row of (previousRows || []) as { key: string; value: string }[]) {
+    previous[row.key] = row.value;
+  }
+
   const { error } = await supabaseAdmin
     .from('platform_settings')
     .upsert(upserts, { onConflict: 'key' });
 
   if (error) return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
+
+  await createAuditLog({
+    action: 'SETTINGS_UPDATED',
+    module: 'Settings',
+    description: `Updated ${Object.keys(settings).length} platform setting${Object.keys(settings).length === 1 ? '' : 's'}`,
+    recordType: 'platform_settings',
+    oldValues: previous,
+    newValues: settings,
+  });
 
   await logAdminAction(email, 'update_settings', 'settings', undefined, { keys: Object.keys(settings) });
 

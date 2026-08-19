@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createAuditLog, requestContextFrom } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -51,6 +52,17 @@ export async function POST(request: NextRequest) {
   const { data: { publicUrl } } = supabaseAdmin.storage
     .from('studio-images')
     .getPublicUrl(path);
+
+  await createAuditLog({
+    action: 'FILE_UPLOADED',
+    module: 'Files',
+    description: `Uploaded image ${filename}`,
+    recordType: 'file',
+    recordId: path,
+    recordName: filename,
+    metadata: { content_type: file.type, size_bytes: file.size, bucket: 'studio-images' },
+    request: requestContextFrom(request),
+  });
 
   return NextResponse.json({ url: publicUrl });
 }

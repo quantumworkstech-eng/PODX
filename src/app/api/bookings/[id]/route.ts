@@ -10,6 +10,7 @@ import {
   MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT,
 } from "@/lib/cancellationRefund";
 import { emitNotification } from "@/lib/notifications";
+import { createAuditLog, requestContextFrom } from "@/lib/audit";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (v: string) => UUID_RE.test(v);
@@ -157,6 +158,23 @@ export async function PATCH(
         }
       }
 
+      await createAuditLog({
+        action: "BOOKING_CANCELLED",
+        module: "Bookings",
+        description: `Booking ${booking.booking_number} cancelled by the customer`,
+        recordType: "booking",
+        recordId: booking.id,
+        recordName: booking.booking_number,
+        oldValues: { status: booking.status },
+        newValues: { status: "cancelled", cancellation_reason: "Cancelled by user" },
+        metadata: {
+          refund_percentage: refundPercentage,
+          refund_amount: breakdown.refundAmount,
+          hours_until_session: Math.round(hoursUntil),
+        },
+        request: requestContextFrom(request),
+      });
+
       // ── Transactional email — both sides of the booking, per §4 of the
       // notification matrix. Emitted after the cancellation is committed.
       await emitNotification("BOOKING_CANCELLED_BY_CLIENT", {
@@ -270,6 +288,18 @@ export async function PATCH(
           { status: 500 }
         );
       }
+
+      await createAuditLog({
+        action: "BOOKING_RESCHEDULED",
+        module: "Bookings",
+        description: `Booking ${booking.booking_number} rescheduled to ${dateYYYYMMDD} ${newTimeSlot}`,
+        recordType: "booking",
+        recordId: booking.id,
+        recordName: booking.booking_number,
+        oldValues: { start_time: previousStartTime, end_time: previousEndTime },
+        newValues: { start_time: newStart.toISOString(), end_time: newEnd.toISOString() },
+        request: requestContextFrom(request),
+      });
 
       await emitNotification("BOOKING_RESCHEDULED", {
         clientId: user.id,

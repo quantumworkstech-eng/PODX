@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { emitNotification } from "@/lib/notifications";
+import { createAuditLog, requestContextFrom } from "@/lib/audit";
 
 const supabaseAdmin =
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -67,6 +68,18 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  await createAuditLog({
+    action: "PASSWORD_RESET_REQUESTED",
+    module: "Authentication",
+    description: `Verification code requested for ${email}`,
+    actor: { email, name: email.split("@")[0], role: audience === "partner" ? "partner" : "user" },
+    recordType: "user",
+    recordId: email,
+    // The code itself is never logged.
+    metadata: { audience: audience === "partner" ? "partner" : "client" },
+    request: requestContextFrom(request),
+  });
 
   return NextResponse.json({ success: true });
 }

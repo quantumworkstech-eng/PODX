@@ -3,6 +3,7 @@ import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mergeAdminRoleSelection, parseRoleColumn, roleColumnHas } from '@/lib/user-role-column';
 import { emitNotification } from '@/lib/notifications';
+import { createAuditLog } from '@/lib/audit';
 
 export async function PATCH(
   request: NextRequest,
@@ -19,6 +20,17 @@ export async function PATCH(
   if (action === 'ban') {
     // We store ban state by updating a metadata field - for now mark as unverified
     await supabaseAdmin.from('users').update({ email_verified: false }).eq('id', id);
+
+    await createAuditLog({
+      action: 'USER_DEACTIVATED',
+      module: 'Users',
+      description: `Suspended account access for user ${id}`,
+      recordType: 'user',
+      recordId: id,
+      oldValues: { email_verified: true },
+      newValues: { email_verified: false },
+      metadata: reason ? { reason } : null,
+    });
 
     // Partners lose their listings, so they get the partner suspension notice;
     // for everyone else this is an account-access change.
@@ -38,6 +50,16 @@ export async function PATCH(
 
   if (action === 'unban') {
     await supabaseAdmin.from('users').update({ email_verified: true }).eq('id', id);
+
+    await createAuditLog({
+      action: 'USER_ACTIVATED',
+      module: 'Users',
+      description: `Restored account access for user ${id}`,
+      recordType: 'user',
+      recordId: id,
+      oldValues: { email_verified: false },
+      newValues: { email_verified: true },
+    });
 
     if (await isPartner(id)) {
       await emitNotification('PARTNER_REACTIVATED', { partnerId: id });
@@ -59,8 +81,19 @@ export async function PATCH(
     const decision = String(body.decision || '');
     if (decision === 'approve') {
       await emitNotification('PARTNER_APPROVED', { partnerId: id });
+      await createAuditLog({
+        action: 'PARTNER_APPROVED', module: 'Partners',
+        description: `Approved partner application for user ${id}`,
+        recordType: 'user', recordId: id,
+      });
     } else if (decision === 'reject') {
       await emitNotification('PARTNER_REJECTED', { partnerId: id, metadata: { reason: reason || null } });
+      await createAuditLog({
+        action: 'PARTNER_REJECTED', module: 'Partners',
+        description: `Rejected partner application for user ${id}`,
+        recordType: 'user', recordId: id,
+        metadata: reason ? { reason } : null,
+      });
     } else {
       return NextResponse.json({ error: 'decision must be approve or reject' }, { status: 400 });
     }
@@ -75,6 +108,17 @@ export async function PATCH(
     const nextRole = mergeAdminRoleSelection((row as { role?: string } | null)?.role ?? null, role);
 
     await supabaseAdmin.from('users').update({ role: nextRole }).eq('id', id);
+
+    await createAuditLog({
+      action: 'ROLE_CHANGED',
+      module: 'Users',
+      description: `Changed role for user ${id} to "${nextRole}"`,
+      recordType: 'user',
+      recordId: id,
+      oldValues: { role: (row as { role?: string } | null)?.role ?? null },
+      newValues: { role: nextRole },
+      metadata: { requested_role: role },
+    });
 
     if (role === 'partner' && roleColumnHas(nextRole, 'partner')) {
       const { data: partnerRole } = await supabaseAdmin.from('roles').select('id').eq('name', 'partner').maybeSingle();
@@ -97,12 +141,25 @@ export async function PATCH(
 
   if (action === 'update_profile') {
     const { full_name, phone } = body;
-    const { data: existing } = await supabaseAdmin.from('profiles').select('user_id').eq('user_id', id).maybeSingle();
+    const { data: existing } = await supabaseAdmin
+      .from('profiles').select('user_id, full_name, phone').eq('user_id', id).maybeSingle();
     if (existing) {
       await supabaseAdmin.from('profiles').update({ full_name: full_name ?? null, phone: phone ?? null }).eq('user_id', id);
     } else {
       await supabaseAdmin.from('profiles').insert({ user_id: id, full_name: full_name ?? null, phone: phone ?? null });
     }
+
+    await createAuditLog({
+      action: 'USER_UPDATED',
+      module: 'Users',
+      description: `Updated profile for user ${id}`,
+      recordType: 'user',
+      recordId: id,
+      recordName: full_name ?? null,
+      oldValues: existing ? { full_name: existing.full_name ?? null, phone: existing.phone ?? null } : null,
+      newValues: { full_name: full_name ?? null, phone: phone ?? null },
+    });
+
     return NextResponse.json({ success: true, message: 'Profile updated' });
   }
 

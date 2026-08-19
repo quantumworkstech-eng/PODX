@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mergeAdminRoleSelection } from '@/lib/user-role-column';
 import { emitNotification } from '@/lib/notifications';
+import { createAuditLog, requestContextFrom } from '@/lib/audit';
 import crypto from 'node:crypto';
 
 function hashPassword(password: string): string {
@@ -57,6 +58,28 @@ export async function POST(request: NextRequest) {
       full_name: name,
       business_name: businessName || null,
       phone: phone || null,
+    });
+
+    const context = requestContextFrom(request);
+    const actor = { id: user.id, email, name, role: 'partner' };
+
+    await createAuditLog({
+      action: 'USER_CREATED',
+      module: 'Users',
+      description: `Partner account created for ${email}`,
+      actor, recordType: 'user', recordId: user.id, recordName: name,
+      // The password hash is stripped by the redaction layer, but it is never
+      // passed in to begin with.
+      newValues: { email, auth_provider: 'credentials', role: 'partner' },
+      request: context,
+    });
+    await createAuditLog({
+      action: 'PARTNER_APPLIED',
+      module: 'Partners',
+      description: `${businessName || name} submitted a partner application`,
+      actor, recordType: 'user', recordId: user.id, recordName: businessName || name,
+      metadata: { business_name: businessName || null },
+      request: context,
     });
 
     // Acknowledge the application to the partner and alert the review team.

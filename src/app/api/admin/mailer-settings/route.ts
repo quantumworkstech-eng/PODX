@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
+import { createAuditLog, requestContextFrom } from '@/lib/audit';
 import {
   getMailerSettingsForAdmin,
   saveMailerSettings,
@@ -80,8 +81,42 @@ export async function PATCH(request: NextRequest) {
         : undefined,
   };
 
+  const before = await getMailerSettingsForAdmin();
   const result = await saveMailerSettings(input, adminEmail);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
+
+  if (!result.ok) {
+    await createAuditLog({
+      action: 'SETTINGS_UPDATED',
+      module: 'Settings',
+      description: 'Failed to update mailer settings',
+      actor: { email: adminEmail, name: adminEmail.split('@')[0], role: 'admin' },
+      recordType: 'mailer_settings',
+      status: 'FAILED',
+      errorMessage: result.error,
+      request: requestContextFrom(request),
+    });
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
+
+  const after = await getMailerSettingsForAdmin();
+  // Secrets are excluded from the diff entirely — only the fact that the
+  // password changed is recorded.
+  const strip = (v: Record<string, unknown>) => {
+    const { smtp_password_hint: _h, resend_api_key_hint: _r, ...rest } = v;
+    return rest as Record<string, unknown>;
+  };
+
+  await createAuditLog({
+    action: 'SETTINGS_UPDATED',
+    module: 'Settings',
+    description: 'Updated mailer settings',
+    actor: { email: adminEmail, name: adminEmail.split('@')[0], role: 'admin' },
+    recordType: 'mailer_settings',
+    oldValues: strip(before as unknown as Record<string, unknown>),
+    newValues: strip(after as unknown as Record<string, unknown>),
+    metadata: { password_changed: Boolean(input.smtp_password) },
+    request: requestContextFrom(request),
+  });
 
   // Log which fields changed, never the values.
   await logAdminAction(adminEmail, 'update_mailer_settings', 'mailer_settings', undefined, {

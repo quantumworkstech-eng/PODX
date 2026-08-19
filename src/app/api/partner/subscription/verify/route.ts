@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getPartnerSubscription } from '@/lib/subscription-gates';
 import crypto from 'crypto';
+import { createAuditLog, requestContextFrom } from '@/lib/audit';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -166,5 +167,18 @@ export async function POST(req: NextRequest) {
   }
 
   const fullSub = await getPartnerSubscription(partnerId);
+
+  await createAuditLog({
+    action: 'SUBSCRIPTION_CHANGED',
+    module: 'Billing',
+    description: `Subscription activated on the ${plan.name ?? plan.id} plan`,
+    recordType: 'subscription',
+    recordId: String((fullSub as { id?: string } | null)?.id ?? partnerId),
+    recordName: plan.name ?? null,
+    newValues: { plan: plan.name ?? plan.id, max_studios: plan.max_studios ?? null },
+    metadata: warning ? { downgrade_warning: warning } : null,
+    request: requestContextFrom(req),
+  });
+
   return NextResponse.json({ subscription: fullSub, warning: warning ?? null });
 }

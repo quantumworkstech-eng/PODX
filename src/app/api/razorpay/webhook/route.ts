@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { emitNotification } from '@/lib/notifications';
+import { createAuditLog, requestContextFrom } from '@/lib/audit';
 
 type RazorpayEntity = Record<string, unknown>;
 
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
   }
 
+  const auditContext = requestContextFrom(request);
   let body: WebhookBody;
   try {
     body = JSON.parse(rawBody) as WebhookBody;
@@ -93,6 +95,20 @@ export async function POST(request: NextRequest) {
 
         await supabaseAdmin.from('payments').update({ status: 'succeeded' }).eq('id', ctx.id);
 
+        await createAuditLog({
+          action: 'PAYMENT_CAPTURED',
+          module: 'Payments',
+          // Gateway-driven, so there is no signed-in actor.
+          actor: null,
+          description: `Payment captured for booking ${ctx.booking_id}`,
+          recordType: 'payment',
+          recordId: ctx.id,
+          oldValues: { status: ctx.status },
+          newValues: { status: 'succeeded' },
+          metadata: { provider_payment_id: payment?.id, amount: payment?.amount ? payment.amount / 100 : null },
+          request: auditContext,
+        });
+
         await emitNotification('PAYMENT_SUCCESS', {
           clientId: ctx.user_id,
           bookingId: ctx.booking_id,
@@ -108,6 +124,19 @@ export async function POST(request: NextRequest) {
         if (ctx) {
           await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('id', ctx.id);
         }
+
+        await createAuditLog({
+          action: 'PAYMENT_FAILED',
+          module: 'Payments',
+          actor: null,
+          description: `Payment failed${ctx?.booking_id ? ` for booking ${ctx.booking_id}` : ''}`,
+          recordType: 'payment',
+          recordId: ctx?.id ?? payment?.id ?? null,
+          status: 'FAILED',
+          errorMessage: payment?.error_description ?? 'Gateway reported payment.failed',
+          metadata: { provider_payment_id: payment?.id, amount: payment?.amount ? payment.amount / 100 : null },
+          request: auditContext,
+        });
 
         // A failed payment usually has no user row attached yet; Razorpay gives
         // us the payer's email on the entity, which is enough to notify them.
@@ -139,6 +168,18 @@ export async function POST(request: NextRequest) {
           await supabaseAdmin.from('payments').update({ status: 'refunded' }).eq('id', ctx.id);
         }
 
+        await createAuditLog({
+          action: 'REFUND_COMPLETED',
+          module: 'Payments',
+          actor: null,
+          description: `Refund of ${amount ?? 'unknown amount'} completed`,
+          recordType: 'refund',
+          recordId: refund?.id ?? null,
+          newValues: { status: 'succeeded', amount: amount ?? null },
+          metadata: { booking_id: ctx?.booking_id ?? null, payment_id: ctx?.id ?? null },
+          request: auditContext,
+        });
+
         await emitNotification('REFUND_COMPLETED', {
           clientId: ctx?.user_id,
           bookingId: ctx?.booking_id,
@@ -169,6 +210,19 @@ export async function POST(request: NextRequest) {
             .eq('payment_id', ctx.id)
             .neq('status', 'succeeded');
         }
+
+        await createAuditLog({
+          action: 'REFUND_FAILED',
+          module: 'Payments',
+          actor: null,
+          description: `Refund of ${amount ?? 'unknown amount'} failed and needs manual action`,
+          recordType: 'refund',
+          recordId: refund?.id ?? null,
+          status: 'FAILED',
+          errorMessage: 'Razorpay reported refund.failed',
+          metadata: { booking_id: ctx?.booking_id ?? null, payment_id: ctx?.id ?? null },
+          request: auditContext,
+        });
 
         await emitNotification('REFUND_FAILED', {
           clientId: ctx?.user_id,

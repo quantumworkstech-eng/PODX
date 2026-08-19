@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { createAuditLog, requestContextFrom } from "@/lib/audit";
 
 const supabaseAdmin =
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -44,6 +45,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (otpRow.code !== code) {
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      module: "Authentication",
+      description: `Incorrect verification code entered for ${email}`,
+      actor: { email, name: email.split("@")[0], role: "user" },
+      status: "FAILED",
+      errorMessage: "Incorrect verification code",
+      recordType: "user",
+      recordId: email,
+      request: requestContextFrom(request),
+    });
     return NextResponse.json({ error: "Incorrect code. Please try again." }, { status: 400 });
   }
 
@@ -90,6 +102,33 @@ export async function POST(request: NextRequest) {
       .update({ email_verified: true })
       .eq("id", user.id);
   }
+
+  const context = requestContextFrom(request);
+
+  if (isNewUser) {
+    await createAuditLog({
+      action: "USER_CREATED",
+      module: "Users",
+      description: `New account created for ${email} via email verification`,
+      actor: { id: user.id, email, name: email.split("@")[0], role: "user" },
+      recordType: "user",
+      recordId: user.id,
+      recordName: email,
+      newValues: { email, auth_provider: "email", email_verified: true },
+      request: context,
+    });
+  }
+
+  await createAuditLog({
+    action: "LOGIN",
+    module: "Authentication",
+    description: `${email} signed in with a verification code`,
+    actor: { id: user.id, email, name: email.split("@")[0], role: "user" },
+    recordType: "user",
+    recordId: user.id,
+    metadata: { method: "otp", new_account: isNewUser },
+    request: context,
+  });
 
   return NextResponse.json({
     verified: true,

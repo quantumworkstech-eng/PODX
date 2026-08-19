@@ -17,7 +17,8 @@
     "db:migrate-cms": "node --env-file-if-exists=.env.local scripts/run-sql-file.mjs src/db/cms_migration.sql",
     "db:migrate-email-notifications": "node --env-file-if-exists=.env.local scripts/run-sql-file.mjs src/db/email_notifications_migration.sql",
     "db:migrate-refund-booking-id": "node --env-file-if-exists=.env.local scripts/run-sql-file.mjs src/db/refunds_booking_id_migration.sql",
-    "db:migrate-mailer-settings": "node --env-file-if-exists=.env.local scripts/run-sql-file.mjs src/db/mailer_settings_migration.sql"
+    "db:migrate-mailer-settings": "node --env-file-if-exists=.env.local scripts/run-sql-file.mjs src/db/mailer_settings_migration.sql",
+    "db:migrate-audit-logs": "node --env-file-if-exists=.env.local scripts/run-sql-file.mjs src/db/audit_logs_migration.sql"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -64,6 +65,6 @@
     "typescript": "^5"
   },
   "overrides": {
-    "nodemailer": "^7.0.7"
+    "nodemailer": "$nodemailer"
   }
 }

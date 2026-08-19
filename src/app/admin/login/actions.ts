@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { createAuditLog } from "@/lib/audit";
 
 // Must match the resolution used to verify the admin_session cookie in
 // middleware.ts and admin/layout.tsx — NextAuth v5 uses AUTH_SECRET.
@@ -103,6 +104,16 @@ export async function adminSetPassword(email: string, password: string): Promise
     .eq("id", cred.id);
 
   if (updateErr) return { error: "Failed to save password." };
+
+  await createAuditLog({
+    action: "PASSWORD_CHANGED",
+    module: "Authentication",
+    description: `Admin ${admin.email} set their password`,
+    actor: { email: admin.email, name: admin.email.split("@")[0], role: "admin" },
+    recordType: "admin",
+    recordId: admin.email,
+  });
+
   return { success: true };
 }
 
@@ -134,7 +145,21 @@ export async function adminSignIn(email: string, password: string, rememberMe = 
   if (!cred.password_hash) return { error: "Please set your password first." };
 
   const valid = await bcrypt.compare(password, cred.password_hash);
-  if (!valid) return { error: "Incorrect password." };
+  if (!valid) {
+    // Failed sign-in attempts are recorded too — the actor is passed explicitly
+    // because there is no session to resolve one from.
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      module: "Authentication",
+      description: `Failed admin sign-in for ${admin.email}`,
+      actor: { email: admin.email, name: admin.email.split("@")[0], role: "admin" },
+      status: "FAILED",
+      errorMessage: "Incorrect password",
+      recordType: "admin",
+      recordId: admin.email,
+    });
+    return { error: "Incorrect password." };
+  }
 
   // Create signed JWT stored as httpOnly cookie (always 30-day session)
   const token = await new SignJWT({ email: admin.email, role: "admin" })
@@ -152,10 +177,28 @@ export async function adminSignIn(email: string, password: string, rememberMe = 
     path: "/",
   });
 
+  await createAuditLog({
+    action: "LOGIN",
+    module: "Authentication",
+    description: `Admin ${admin.email} signed in`,
+    actor: { email: admin.email, name: admin.email.split("@")[0], role: "admin" },
+    recordType: "admin",
+    recordId: admin.email,
+    metadata: { rememberMe },
+  });
+
   return { success: true };
 }
 
 export async function adminSignOut(): Promise<void> {
+  // Resolve the actor from the cookie before clearing it.
+  await createAuditLog({
+    action: "LOGOUT",
+    module: "Authentication",
+    description: "Admin signed out",
+    recordType: "admin",
+  });
+
   const cookieStore = await cookies();
   cookieStore.delete("admin_session");
   redirect("/admin/login");

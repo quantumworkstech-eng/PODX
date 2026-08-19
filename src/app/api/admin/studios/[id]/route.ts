@@ -3,6 +3,8 @@ import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { emitNotification } from '@/lib/notifications';
 import type { EventKey } from '@/lib/notifications';
+import { createAuditLog } from '@/lib/audit';
+import type { AuditAction } from '@/lib/audit';
 
 // GET full studio details for admin editing
 export async function GET(
@@ -324,6 +326,22 @@ export async function PATCH(
         metadata: { reason: reason || null },
       });
     }
+
+    const studioAuditAction: Record<string, AuditAction> = {
+      approve: 'STUDIO_APPROVED', activate: 'STUDIO_ACTIVATED',
+      reject: 'STUDIO_REJECTED', suspend: 'STUDIO_SUSPENDED',
+      pause: 'STUDIO_SUSPENDED', request_changes: 'STUDIO_UPDATED',
+    };
+    await createAuditLog({
+      action: studioAuditAction[action] ?? 'STUDIO_UPDATED',
+      module: 'Studios',
+      description: `Studio "${studio?.name ?? id}" — ${action.replace(/_/g, ' ')}`,
+      recordType: 'studio',
+      recordId: id,
+      recordName: studio?.name ?? null,
+      newValues: { review_status: updates.review_status, is_active: updates.is_active },
+      metadata: reason ? { reason } : null,
+    });
 
     // §4: a studio going unavailable must also reach the clients who already
     // hold bookings there.

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createAuditLog } from '@/lib/audit';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -38,6 +39,16 @@ export async function POST() {
   if (!sub) {
     return NextResponse.json({ error: 'No active subscription found' }, { status: 404 });
   }
+
+  await createAuditLog({
+    action: 'SUBSCRIPTION_CANCELLED',
+    module: 'Billing',
+    description: `Subscription cancelled; access remains until ${sub.current_period_end}`,
+    recordType: 'subscription',
+    recordId: String(sub.id),
+    oldValues: { status: 'active', cancel_at_period_end: false },
+    newValues: { cancel_at_period_end: true, ends_at: sub.current_period_end },
+  });
 
   return NextResponse.json({
     success: true,

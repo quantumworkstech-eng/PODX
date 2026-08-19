@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { createAuditLog, requestContextFrom } from "@/lib/audit";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (v: string) => UUID_RE.test(v);
@@ -88,6 +89,17 @@ export async function POST(
       return NextResponse.json({ error: "Failed to save participants" }, { status: 500 });
     }
   }
+
+  await createAuditLog({
+    action: "GUEST_CREATED",
+    module: "Guests",
+    description: `Added ${rows.length} guest${rows.length === 1 ? "" : "s"} to booking ${id}`,
+    recordType: "booking",
+    recordId: id,
+    // Guest contact details are personal data; only the count is recorded.
+    metadata: { guest_count: rows.length },
+    request: requestContextFrom(request),
+  });
 
   return NextResponse.json({ success: true, saved: rows.length });
 }

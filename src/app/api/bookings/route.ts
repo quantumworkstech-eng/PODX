@@ -8,6 +8,7 @@ import {
 import { isoToISTSlot } from "@/lib/bookingDisplay";
 import { emitNotification } from "@/lib/notifications";
 import { isPaymentCaptured } from "@/lib/razorpay";
+import { createAuditLog, requestContextFrom } from "@/lib/audit";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -527,6 +528,26 @@ export async function POST(request: NextRequest) {
       })
       .select("id")
       .single();
+
+    // Recorded only now that the booking and payment rows are committed.
+    await createAuditLog({
+      action: "BOOKING_CREATED",
+      module: "Bookings",
+      description: `Booking ${bookingNumber} created for ${duration}h starting ${startTime.toISOString()}`,
+      recordType: "booking",
+      recordId: booking.id,
+      recordName: bookingNumber,
+      newValues: {
+        booking_number: bookingNumber,
+        studio_id: studioId,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        status: "confirmed",
+        total_price: totalPrice,
+      },
+      metadata: { participants, booking_source: bookingSource || "marketplace" },
+      request: requestContextFrom(request),
+    });
 
     // ── Transactional email ───────────────────────────────────────────────────
     // Emitted only now that the booking and payment rows are committed. The

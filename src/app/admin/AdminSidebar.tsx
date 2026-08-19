@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Calendar, CreditCard,
   Star, UserCheck, BarChart3, Settings, LogOut, Menu, X, Shield, ChevronDown,
-  Package, Bell, ShieldCheck, Globe, Layout, ToggleLeft, Mail, Inbox,
+  Package, Bell, ShieldCheck, Globe, Layout, ToggleLeft, Mail, Inbox, ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminSignOut } from "./login/actions";
@@ -29,6 +29,7 @@ const menuItems = [
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard, href: "/admin/subscriptions" },
   { id: "whitelabel", label: "White-Label", icon: Globe, href: "/admin/whitelabel" },
   { id: "feature-access", label: "Feature Access", icon: ToggleLeft, href: "/admin/feature-access" },
+  { id: "audit-logs", label: "Audit Logs", icon: ScrollText, href: "/admin/audit-logs" },
   { id: "admins", label: "Admins", icon: ShieldCheck, href: "/admin/admins" },
   { id: "settings", label: "Settings", icon: Settings, href: "/admin/settings" },
 ];
