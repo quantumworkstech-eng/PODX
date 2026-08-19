@@ -17,6 +17,7 @@ import {
   noticeBox,
   paragraph,
   renderLayout,
+  setLayoutSupportEmail,
   statBlock,
 } from './layout';
 
@@ -644,5 +645,6 @@ const TEMPLATES: Record<EventKey, Renderer> = {
 };
 
 export function renderEmail(ctx: RenderContext): RenderedEmail {
+  setLayoutSupportEmail(ctx.supportEmail);
   return TEMPLATES[ctx.eventKey](ctx);
 }

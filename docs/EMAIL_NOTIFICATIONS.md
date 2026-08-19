@@ -21,7 +21,10 @@ frontend action → API route / webhook → validate → commit DB state
 | `src/lib/notifications/templates.ts` | One pure renderer per event key |
 | `src/lib/notifications/layout.ts` | Shared dark-theme HTML chrome and formatters |
 | `src/lib/notifications/mailer.ts` | The only code that talks to a mail provider (SES SMTP, Resend fallback) |
+| `src/lib/notifications/mailer-settings.ts` | Live config: `mailer_settings` row first, env per-field fallback |
+| `src/lib/notifications/secret-box.ts` | AES-256-GCM for credentials stored in the database |
 | `src/db/email_notifications_migration.sql` | Queue + idempotency + audit table |
+| `src/db/mailer_settings_migration.sql` | Admin-editable mailer configuration |
 
 ### Emitting an event
 
@@ -139,6 +142,44 @@ Recipients come from `ADMIN_ALERT_EMAILS` if set, otherwise every active row in
    npm run mail:verify                        # connect + authenticate
    npm run mail:verify -- you@example.com     # also send a real test email
    ```
+
+## Admin screens
+
+**`/admin/email` — Email Settings.** Edits the transport and sender identity
+without a redeploy: SES region, host, port, username, password, rate limit,
+from/reply-to/support addresses, admin alert recipients, and a master
+sending switch. "Test connection" authenticates against the server, and
+optionally sends a real test email; the result is stored and shown on the page.
+
+**`/admin/email-logs` — Email Logs.** Every message the system has recorded,
+with counts by status, filters (status, audience, event key, recipient/subject
+search), a rendered preview of the exact HTML that was sent, and a per-message
+resend for recovering individual failures.
+
+### Configuration precedence
+
+`mailer_settings` holds at most one row. Each field falls back to its
+environment variable **independently**, so an empty table behaves exactly like
+the previous env-only setup and a half-filled row degrades field by field. The
+screen shows which source is in effect.
+
+Secrets are encrypted with AES-256-GCM using a key derived from
+`MAILER_SECRET_KEY` (or `AUTH_SECRET`). They are never returned to the browser —
+the API sends a masked hint like `BIbG••••••••yLMh`, and a blank password field
+on save means "keep the stored one". **Rotating `AUTH_SECRET` makes stored
+secrets undecryptable**; the mailer logs this and falls back to env rather than
+authenticating with garbage. Set `MAILER_SECRET_KEY` explicitly if you expect to
+rotate `AUTH_SECRET`.
+
+To move the current `.env` credentials into the database:
+
+```bash
+npm run db:migrate-mailer-settings   # once
+npm run mail:seed                    # encrypts and stores what is in .env.local
+```
+
+Note `npm run mail:verify` tests the **environment** config, while the admin
+screen's Test connection button tests the **live resolved** config.
 
 ## Mail transport
 

@@ -72,6 +72,17 @@ export function noticeBox(text: string, tone: 'warn' | 'info' = 'info'): string 
   return `<div style="background:${bg};border:1px solid ${border};border-radius:12px;padding:16px 18px;margin:0 0 24px;color:${color};font-size:13px;line-height:20px;">${text}</div>`;
 }
 
+/**
+ * Support address used in the footer. Set by renderEmail() immediately before
+ * it calls a template; rendering is fully synchronous, so no other email can
+ * observe a value meant for a different one.
+ */
+let currentSupportEmail: string | null = null;
+
+export function setLayoutSupportEmail(email: string | null | undefined): void {
+  currentSupportEmail = email?.trim() || null;
+}
+
 export type LayoutOptions = {
   /** Short line under the wordmark, e.g. "Booking confirmed". */
   preheader: string;
@@ -82,7 +93,8 @@ export type LayoutOptions = {
 };
 
 export function renderLayout({ preheader, heading, body, footerNote }: LayoutOptions): string {
-  const supportEmail = process.env.SUPPORT_EMAIL || 'support@yanisastudios.com';
+  const supportEmail =
+    currentSupportEmail || process.env.SUPPORT_EMAIL || 'support@yanisastudios.com';
 
   return `<div style="background:${BG};padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
   <span style="display:none;font-size:1px;color:${BG};max-height:0;overflow:hidden;">${escapeHtml(preheader)}</span>

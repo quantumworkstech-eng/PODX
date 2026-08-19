@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Calendar, CreditCard,
   Star, UserCheck, BarChart3, Settings, LogOut, Menu, X, Shield, ChevronDown,
-  Package, Bell, ShieldCheck, Globe, Layout, ToggleLeft,
+  Package, Bell, ShieldCheck, Globe, Layout, ToggleLeft, Mail, Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminSignOut } from "./login/actions";
@@ -24,6 +24,8 @@ const menuItems = [
   { id: "landing", label: "Landing Pages", icon: Layout, href: "/admin/landing" },
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { id: "notifications", label: "Notifications", icon: Bell, href: "/admin/notifications" },
+  { id: "email", label: "Email Settings", icon: Mail, href: "/admin/email" },
+  { id: "email-logs", label: "Email Logs", icon: Inbox, href: "/admin/email-logs" },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard, href: "/admin/subscriptions" },
   { id: "whitelabel", label: "White-Label", icon: Globe, href: "/admin/whitelabel" },
   { id: "feature-access", label: "Feature Access", icon: ToggleLeft, href: "/admin/feature-access" },
@@ -47,9 +49,12 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const currentPage = menuItems.find((m) =>
-    m.href === "/admin" ? pathname === "/admin" : pathname.startsWith(m.href)
-  );
+  const isActive = (href: string) => {
+    if (href === "/admin") return pathname === "/admin";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const currentPage = menuItems.find((m) => isActive(m.href));
 
   return (
     <div className="flex min-h-screen w-full">
@@ -90,7 +95,7 @@ export function AdminSidebar({ email, name, children }: { email: string; name: s
           <nav className="flex-1 p-3 overflow-y-auto">
             <ul className="space-y-1">
               {menuItems.map((item) => {
-                const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+                const active = isActive(item.href);
                 return (
                   <li key={item.id}>
                     <Link

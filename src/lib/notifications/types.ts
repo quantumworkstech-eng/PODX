@@ -79,6 +79,8 @@ export type RenderContext = {
   partner?: PartyInfo | null;
   metadata: Record<string, unknown>;
   appUrl: string;
+  /** Configured support address for the footer; falls back to env when absent. */
+  supportEmail?: string | null;
 };
 
 export type RenderedEmail = {

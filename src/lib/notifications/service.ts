@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { EVENT_DEFINITIONS, type EventKey } from './event-keys';
 import { sendMail } from './mailer';
+import { resolveMailerConfig } from './mailer-settings';
 import { renderEmail } from './templates';
 import type {
   BookingInfo,
@@ -132,11 +133,8 @@ async function loadParty(userId: string | null | undefined): Promise<PartyInfo |
  * every active row in `admins` plus anyone holding the admin role.
  */
 async function loadAdminRecipients(): Promise<PartyInfo[]> {
-  const configured = (process.env.ADMIN_ALERT_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
-  if (configured.length > 0) return configured.map((email) => ({ email }));
+  const { adminAlertEmails } = await resolveMailerConfig();
+  if (adminAlertEmails.length > 0) return adminAlertEmails.map((email) => ({ email }));
 
   if (!supabaseAdmin) return [];
 
@@ -323,6 +321,7 @@ async function emitInternal(
   }
 
   // ── render + queue + send ──────────────────────────────────────────────────
+  const mailerConfig = await resolveMailerConfig();
   const results: EmitResult[] = [];
 
   for (const recipient of recipients) {
@@ -337,6 +336,7 @@ async function emitInternal(
       partner,
       metadata: ctx.metadata || {},
       appUrl: appUrl(),
+      supportEmail: mailerConfig.supportEmail,
     };
 
     const { subject, html } = renderEmail(renderCtx);

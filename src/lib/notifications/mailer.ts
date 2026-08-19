@@ -5,9 +5,14 @@
  * falls back to the Resend HTTP API, and if neither is configured the message is
  * logged to the console and reported as sent — so the whole notification
  * pipeline stays exercisable in local dev and CI without credentials.
+ *
+ * Configuration comes from `mailer_settings` in the database (editable at
+ * /admin/email) with environment variables as the per-field fallback — see
+ * ./mailer-settings.ts.
  */
 
 import nodemailer, { type Transporter } from 'nodemailer';
+import { resolveMailerConfig, type ResolvedMailerConfig } from './mailer-settings';
 
 export type MailResult = {
   ok: boolean;
@@ -26,44 +31,7 @@ export type MailRequest = {
   replyTo?: string;
 };
 
-const PLACEHOLDER_RE = /^re_\.{3}$|\.{3}$|^your_/i;
-
-function envValue(name: string): string | null {
-  const raw = process.env[name]?.trim();
-  if (!raw || PLACEHOLDER_RE.test(raw)) return null;
-  return raw;
-}
-
-// ── SMTP (Amazon SES) ────────────────────────────────────────────────────────
-
-type SmtpConfig = {
-  host: string;
-  port: number;
-  secure: boolean;
-  user: string;
-  pass: string;
-};
-
-function smtpConfig(): SmtpConfig | null {
-  const user = envValue('SMTP_USER');
-  const pass = envValue('SMTP_PASSWORD');
-  if (!user || !pass) return null;
-
-  // SES endpoints are regional. SES_REGION wins so the mail region can differ
-  // from the region used for S3 and the rest of the stack.
-  const region = envValue('SES_REGION') || envValue('AWS_REGION') || 'ap-south-1';
-  const host = envValue('SMTP_HOST') || `email-smtp.${region}.amazonaws.com`;
-  const port = Number(envValue('SMTP_PORT') || 587);
-
-  return {
-    host,
-    port,
-    // 465 is implicit TLS; 587 and 2587 negotiate STARTTLS, which SES requires.
-    secure: envValue('SMTP_SECURE') === 'true' || port === 465,
-    user,
-    pass,
-  };
-}
+type SmtpConfig = ResolvedMailerConfig['smtp'];
 
 /**
  * One pooled transporter per process. The app runs as a long-lived Node server
@@ -73,7 +41,7 @@ function smtpConfig(): SmtpConfig | null {
 let transporter: Transporter | null = null;
 let transporterKey = '';
 
-function getTransporter(config: SmtpConfig): Transporter {
+function getTransporter(config: NonNullable<SmtpConfig>): Transporter {
   const key = `${config.host}:${config.port}:${config.user}`;
   if (transporter && transporterKey === key) return transporter;
 
@@ -84,12 +52,12 @@ function getTransporter(config: SmtpConfig): Transporter {
     secure: config.secure,
     auth: { user: config.user, pass: config.pass },
     pool: true,
-    maxConnections: Number(envValue('SMTP_MAX_CONNECTIONS') || 5),
+    maxConnections: config.maxConnections,
     maxMessages: 100,
     // Stay under the SES send rate. The sandbox allows 1/sec; production
-    // accounts start at 14/sec — SMTP_RATE_LIMIT should match the real quota.
+    // accounts start at 14/sec — the configured rate limit should match the quota.
     rateDelta: 1000,
-    rateLimit: Number(envValue('SMTP_RATE_LIMIT') || 10),
+    rateLimit: config.rateLimit,
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 20_000,
@@ -106,62 +74,94 @@ function parseSesMessageId(response: string | undefined, fallback: string | unde
 
 // ── public API ───────────────────────────────────────────────────────────────
 
-export function mailerIsConfigured(): boolean {
-  return smtpConfig() !== null || envValue('RESEND_API_KEY') !== null;
+export async function mailerIsConfigured(): Promise<boolean> {
+  const config = await resolveMailerConfig();
+  return config.smtp !== null || config.resendApiKey !== null;
 }
 
 /** Which transport a send would use right now. Handy for health checks. */
-export function activeTransport(): MailResult['transport'] {
-  if (smtpConfig()) return 'smtp';
-  if (envValue('RESEND_API_KEY')) return 'resend';
+export async function activeTransport(): Promise<MailResult['transport']> {
+  const config = await resolveMailerConfig();
+  if (!config.enabled) return 'console';
+  if (config.smtp) return 'smtp';
+  if (config.resendApiKey) return 'resend';
   return 'console';
 }
 
-export function fromAddress(): string {
-  const email = envValue('EMAIL_FROM') || envValue('SUPPORT_EMAIL') || 'onboarding@resend.dev';
-  // Allow EMAIL_FROM to already carry a display name ("Yanisa <x@y.com>").
-  if (email.includes('<')) return email;
-  const name = envValue('EMAIL_FROM_NAME') || 'Yanisa Studios';
-  return `${name} <${email}>`;
+export async function fromAddress(): Promise<string> {
+  const config = await resolveMailerConfig();
+  // Allow the configured address to already carry a display name.
+  if (config.fromEmail.includes('<')) return config.fromEmail;
+  return `${config.fromName} <${config.fromEmail}>`;
 }
 
 /**
  * Open a connection and authenticate without sending anything. Used by
- * `npm run mail:verify` to prove credentials and region are right.
+ * `npm run mail:verify` and the admin screen's "Test connection" button.
  */
-export async function verifyTransport(): Promise<{ ok: boolean; transport: MailResult['transport']; host?: string; error?: string }> {
-  const config = smtpConfig();
-  if (!config) {
-    return { ok: activeTransport() !== 'console', transport: activeTransport() };
+export async function verifyTransport(): Promise<{
+  ok: boolean;
+  transport: MailResult['transport'];
+  host?: string;
+  error?: string;
+}> {
+  const config = await resolveMailerConfig();
+
+  if (!config.smtp) {
+    const transport = await activeTransport();
+    return {
+      ok: transport !== 'console',
+      transport,
+      error: transport === 'console' ? 'No SMTP credentials or Resend key configured' : undefined,
+    };
   }
+
   try {
-    await getTransporter(config).verify();
-    return { ok: true, transport: 'smtp', host: config.host };
+    await getTransporter(config.smtp).verify();
+    return { ok: true, transport: 'smtp', host: config.smtp.host };
   } catch (err) {
     return {
       ok: false,
       transport: 'smtp',
-      host: config.host,
+      host: config.smtp.host,
       error: err instanceof Error ? err.message : String(err),
     };
   }
 }
 
 export async function sendMail({ to, subject, html, replyTo }: MailRequest): Promise<MailResult> {
-  const config = smtpConfig();
-  if (config) return sendViaSmtp(config, { to, subject, html, replyTo });
+  const config = await resolveMailerConfig();
 
-  const resendKey = envValue('RESEND_API_KEY');
-  if (resendKey) return sendViaResend(resendKey, { to, subject, html, replyTo });
+  // Master switch: rows are still recorded, but nothing leaves the building.
+  if (!config.enabled) {
+    console.log(`[mailer] sending is disabled — skipped "${subject}" to ${to}`);
+    return { ok: true, simulated: true, transport: 'console' };
+  }
+
+  const from = config.fromEmail.includes('<')
+    ? config.fromEmail
+    : `${config.fromName} <${config.fromEmail}>`;
+  const effectiveReplyTo = replyTo || config.replyTo || undefined;
+
+  if (config.smtp) {
+    return sendViaSmtp(config.smtp, from, { to, subject, html, replyTo: effectiveReplyTo });
+  }
+  if (config.resendApiKey) {
+    return sendViaResend(config.resendApiKey, from, { to, subject, html, replyTo: effectiveReplyTo });
+  }
 
   console.log(`\n[DEV] ✉️  ${subject}\n      → ${to}\n`);
   return { ok: true, simulated: true, transport: 'console' };
 }
 
-async function sendViaSmtp(config: SmtpConfig, mail: MailRequest): Promise<MailResult> {
+async function sendViaSmtp(
+  config: NonNullable<SmtpConfig>,
+  from: string,
+  mail: MailRequest
+): Promise<MailResult> {
   try {
     const info = await getTransporter(config).sendMail({
-      from: fromAddress(),
+      from,
       to: mail.to,
       subject: mail.subject,
       html: mail.html,
@@ -175,7 +175,7 @@ async function sendViaSmtp(config: SmtpConfig, mail: MailRequest): Promise<MailR
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // SES rejects unverified senders/recipients with 554 while the account is
-    // still in the sandbox — a config problem, not a transient failure, so say so.
+    // still in the sandbox — a config problem, not a transient failure.
     const hint = /Email address is not verified/i.test(message)
       ? ' (SES sandbox: verify the sender and recipient identities, or request production access)'
       : '';
@@ -183,13 +183,13 @@ async function sendViaSmtp(config: SmtpConfig, mail: MailRequest): Promise<MailR
   }
 }
 
-async function sendViaResend(apiKey: string, mail: MailRequest): Promise<MailResult> {
+async function sendViaResend(apiKey: string, from: string, mail: MailRequest): Promise<MailResult> {
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: fromAddress(),
+        from,
         to: [mail.to],
         subject: mail.subject,
         html: mail.html,
