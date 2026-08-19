@@ -74,11 +74,20 @@ SUPABASE_SERVICE_ROLE_KEY=<SERVICE_SUPABASESERVICE_KEY>
 GOOGLE_CLIENT_ID=<google-oauth-client-id>
 GOOGLE_CLIENT_SECRET=<google-oauth-client-secret>
 
-RESEND_API_KEY=<resend-api-key>
+SES_REGION=ap-south-1
+SMTP_USER=<ses-smtp-username>
+SMTP_PASSWORD=<ses-smtp-password>
+SMTP_PORT=587
+SMTP_RATE_LIMIT=10
+EMAIL_FROM=noreply@example.com
+EMAIL_FROM_NAME=Yanisa Studios
 SUPPORT_EMAIL=support@example.com
+ADMIN_ALERT_EMAILS=ops@example.com
+CRON_SECRET=<long-random-string>
 
 RAZORPAY_KEY_ID=<razorpay-key-id>
 RAZORPAY_KEY_SECRET=<razorpay-key-secret>
+RAZORPAY_WEBHOOK_SECRET=<razorpay-webhook-secret>
 NEXT_PUBLIC_RAZORPAY_KEY_ID=<razorpay-key-id>
 
 NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=<browser-maps-key>

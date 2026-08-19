@@ -9,6 +9,7 @@ import {
   computeCancellationRefundBreakdown,
   MANDATORY_CANCELLATION_FEE_ON_REFUND_PERCENT,
 } from "@/lib/cancellationRefund";
+import { emitNotification } from "@/lib/notifications";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (v: string) => UUID_RE.test(v);
@@ -124,6 +125,57 @@ export async function PATCH(
         refundPercentage
       );
 
+      // Record the refund request so REFUND_INITIATED below is backed by real
+      // state, and so the Razorpay webhook has a row to settle when the gateway
+      // confirms (or rejects) it.
+      let refundPaymentId: string | null = null;
+      if (breakdown.refundAmount > 0) {
+        const { data: payment } = await supabaseAdmin
+          .from("payments")
+          .select("id")
+          .eq("booking_id", booking.id)
+          .eq("status", "succeeded")
+          .maybeSingle();
+
+        if (payment) {
+          refundPaymentId = payment.id;
+          const { error: refundErr } = await supabaseAdmin.from("refunds").insert({
+            payment_id: payment.id,
+            booking_id: booking.id,
+            amount: breakdown.refundAmount,
+            reason: `Cancelled by customer (${refundPercentage}% policy refund)`,
+            status: "pending",
+          });
+          // The cancellation itself already succeeded, so don't fail the request
+          // — but a refund that was never recorded must not stay invisible.
+          if (refundErr) {
+            console.error(
+              `Failed to record refund for booking ${booking.booking_number}:`,
+              refundErr.message
+            );
+          }
+        }
+      }
+
+      // ── Transactional email — both sides of the booking, per §4 of the
+      // notification matrix. Emitted after the cancellation is committed.
+      await emitNotification("BOOKING_CANCELLED_BY_CLIENT", {
+        clientId: user.id,
+        bookingId: booking.id,
+        metadata: { refundAmount: breakdown.refundAmount },
+      });
+      await emitNotification("PARTNER_BOOKING_CANCELLED_BY_CLIENT", {
+        bookingId: booking.id,
+      });
+      if (breakdown.refundAmount > 0) {
+        await emitNotification("REFUND_INITIATED", {
+          clientId: user.id,
+          bookingId: booking.id,
+          paymentId: refundPaymentId,
+          metadata: { refundAmount: breakdown.refundAmount },
+        });
+      }
+
       return NextResponse.json({
         success: true,
         refundPercentage,
@@ -200,6 +252,9 @@ export async function PATCH(
         );
       }
 
+      const previousStartTime = booking.start_time;
+      const previousEndTime = booking.end_time;
+
       const { error } = await supabaseAdmin
         .from("bookings")
         .update({
@@ -215,6 +270,16 @@ export async function PATCH(
           { status: 500 }
         );
       }
+
+      await emitNotification("BOOKING_RESCHEDULED", {
+        clientId: user.id,
+        bookingId: booking.id,
+        metadata: { rescheduledBy: "client", previousStartTime, previousEndTime },
+      });
+      await emitNotification("PARTNER_BOOKING_RESCHEDULED", {
+        bookingId: booking.id,
+        metadata: { rescheduledBy: "the client", previousStartTime, previousEndTime },
+      });
 
       return NextResponse.json({ success: true });
     }

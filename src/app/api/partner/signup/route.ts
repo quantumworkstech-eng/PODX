@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mergeAdminRoleSelection } from '@/lib/user-role-column';
+import { emitNotification } from '@/lib/notifications';
 import crypto from 'node:crypto';
 
 function hashPassword(password: string): string {
@@ -56,6 +57,22 @@ export async function POST(request: NextRequest) {
       full_name: name,
       business_name: businessName || null,
       phone: phone || null,
+    });
+
+    // Acknowledge the application to the partner and alert the review team.
+    await emitNotification('PARTNER_APPLICATION_RECEIVED', {
+      partnerId: user.id,
+      metadata: { businessName: businessName || null, phone: phone || null },
+    });
+    await emitNotification('ADMIN_NEW_PARTNER_APPLICATION', {
+      partnerId: user.id,
+      idempotencyKey: user.id,
+      metadata: {
+        businessName: businessName || null,
+        contactName: name,
+        partnerEmail: email,
+        phone: phone || null,
+      },
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

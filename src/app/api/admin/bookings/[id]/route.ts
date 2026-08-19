@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calendarDateInIST, startEndFromCalendarAndSlot } from '@/lib/bookingTime';
+import { emitNotification } from '@/lib/notifications';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (v: string) => UUID_RE.test(v);
@@ -153,6 +154,18 @@ export async function PATCH(
       });
     }
 
+    // The client is told an admin cancelled on the studio's behalf; the partner
+    // sees the slot freed. §4: cancellation notifies both sides.
+    await emitNotification('BOOKING_CANCELLED_BY_PARTNER', {
+      clientId: booking.user_id,
+      bookingId: booking.id,
+      metadata: { reason: body.reason || null },
+    });
+    await emitNotification('PARTNER_BOOKING_CANCELLED_BY_CLIENT', {
+      bookingId: booking.id,
+      idempotencyKey: `${booking.id}:admin-cancel`,
+    });
+
     await logAdminAction(email, 'booking_force_cancel', 'booking', id);
     return NextResponse.json({ success: true });
   }
@@ -185,6 +198,18 @@ export async function PATCH(
 
     await supabaseAdmin.from('payments').update({ status: 'refunded' }).eq('id', payment.id);
     await supabaseAdmin.from('bookings').update({ status: 'cancelled' }).eq('id', realId);
+
+    // REFUND_COMPLETED / REFUND_FAILED follow later from the Razorpay webhook.
+    await emitNotification('REFUND_INITIATED', {
+      bookingId: realId,
+      paymentId: payment.id,
+      metadata: { refundAmount: Number(payment.amount) || 0 },
+    });
+    await emitNotification('PARTNER_REFUND_ADJUSTMENT', {
+      bookingId: realId,
+      idempotencyKey: `${payment.id}:admin-refund`,
+      metadata: { refundAmount: Number(payment.amount) || 0, reason: 'Admin-issued refund' },
+    });
 
     await logAdminAction(email, 'booking_force_refund', 'booking', id);
     return NextResponse.json({ success: true, message: 'Refund initiated' });
@@ -275,6 +300,24 @@ export async function PATCH(
       } catch { /* ignore notification errors */ }
     }
 
+    await emitNotification('BOOKING_RESCHEDULED', {
+      clientId: booking.user_id,
+      bookingId: booking.id,
+      metadata: {
+        rescheduledBy: 'admin',
+        previousStartTime: booking.start_time,
+        previousEndTime: booking.end_time,
+      },
+    });
+    await emitNotification('PARTNER_BOOKING_RESCHEDULED', {
+      bookingId: booking.id,
+      metadata: {
+        rescheduledBy: 'the Yanisa Studios team',
+        previousStartTime: booking.start_time,
+        previousEndTime: booking.end_time,
+      },
+    });
+
     await logAdminAction(email, 'booking_reschedule', 'booking', id, { newDate, newTimeSlot });
     return NextResponse.json({ success: true });
   }
@@ -315,6 +358,21 @@ export async function PATCH(
       } catch { /* non-blocking */ }
     }
 
+    // Only price/status/cancellation edits are material enough to email about;
+    // an internal notes tweak stays in-app (matrix §6: no mail for routine edits).
+    const materialFields = Object.keys(bookingFields).filter((k) =>
+      ['status', 'total_price', 'cancellation_reason'].includes(k)
+    );
+    if (materialFields.length > 0) {
+      await emitNotification('BOOKING_CRITICAL_UPDATE', {
+        clientId: bookingMeta?.user_id,
+        bookingId: id,
+        metadata: {
+          changeSummary: `An administrator updated your booking (${materialFields.join(', ')}).`,
+        },
+      });
+    }
+
     await logAdminAction(email, 'booking_edit', 'booking', id, { fields: Object.keys(bookingFields) });
     return NextResponse.json({ success: true });
   }
@@ -339,6 +397,23 @@ export async function PATCH(
           action_url: '/dashboard',
         });
       } catch { /* non-blocking */ }
+    }
+
+    if (status === 'cancelled') {
+      await emitNotification('BOOKING_CANCELLED_BY_PARTNER', {
+        clientId: bookingMeta?.user_id,
+        bookingId: id,
+      });
+      await emitNotification('PARTNER_BOOKING_CANCELLED_BY_CLIENT', {
+        bookingId: id,
+        idempotencyKey: `${id}:admin-status-cancel`,
+      });
+    } else {
+      await emitNotification('BOOKING_CRITICAL_UPDATE', {
+        clientId: bookingMeta?.user_id,
+        bookingId: id,
+        metadata: { changeSummary: `Your booking status was changed to "${status}".` },
+      });
     }
 
     await logAdminAction(email, 'booking_status_change', 'booking', id, { status });

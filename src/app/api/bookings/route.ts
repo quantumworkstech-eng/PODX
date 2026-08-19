@@ -6,6 +6,8 @@ import {
   startEndFromCalendarAndSlot,
 } from "@/lib/bookingTime";
 import { isoToISTSlot } from "@/lib/bookingDisplay";
+import { emitNotification } from "@/lib/notifications";
+import { isPaymentCaptured } from "@/lib/razorpay";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -511,16 +513,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Create payment record
-    await supabaseAdmin.from("payments").insert({
-      booking_id: booking.id,
-      user_id: user.id,
-      provider: "razorpay",
-      provider_payment_id: paymentId,
-      amount: totalPrice,
-      currency: "INR",
-      status: "succeeded",
-      metadata: { order_id: orderId, subtotal, tax },
+    const { data: paymentRow } = await supabaseAdmin
+      .from("payments")
+      .insert({
+        booking_id: booking.id,
+        user_id: user.id,
+        provider: "razorpay",
+        provider_payment_id: paymentId,
+        amount: totalPrice,
+        currency: "INR",
+        status: "succeeded",
+        metadata: { order_id: orderId, subtotal, tax },
+      })
+      .select("id")
+      .single();
+
+    // ── Transactional email ───────────────────────────────────────────────────
+    // Emitted only now that the booking and payment rows are committed. The
+    // receipt additionally waits on Razorpay's own view of the payment — the
+    // frontend success screen is never treated as proof of capture. The webhook
+    // at /api/razorpay/webhook emits the same events with the same idempotency
+    // keys, so whichever arrives first wins and the other is a no-op.
+    const captured = await isPaymentCaptured(String(paymentId || ""));
+
+    await emitNotification("BOOKING_CONFIRMED", {
+      clientId: user.id,
+      bookingId: booking.id,
+      paymentId: paymentRow?.id,
     });
+    await emitNotification("NEW_BOOKING_RECEIVED", {
+      bookingId: booking.id,
+    });
+    if (captured) {
+      await emitNotification("PAYMENT_SUCCESS", {
+        clientId: user.id,
+        bookingId: booking.id,
+        paymentId: paymentRow?.id,
+        idempotencyKey: String(paymentId),
+      });
+    }
 
     return NextResponse.json(
       { bookingId: booking.id, bookingNumber },

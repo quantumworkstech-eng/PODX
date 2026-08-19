@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mergeAdminRoleSelection, parseRoleColumn, roleColumnHas } from '@/lib/user-role-column';
+import { emitNotification } from '@/lib/notifications';
 
 export async function PATCH(
   request: NextRequest,
@@ -13,17 +14,57 @@ export async function PATCH(
   if (!supabaseAdmin) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
 
   const body = await request.json();
-  const { action, role } = body;
+  const { action, role, reason } = body;
 
   if (action === 'ban') {
     // We store ban state by updating a metadata field - for now mark as unverified
     await supabaseAdmin.from('users').update({ email_verified: false }).eq('id', id);
+
+    // Partners lose their listings, so they get the partner suspension notice;
+    // for everyone else this is an account-access change.
+    if (await isPartner(id)) {
+      await emitNotification('PARTNER_SUSPENDED', { partnerId: id, metadata: { reason: reason || null } });
+    } else {
+      await emitNotification('CLIENT_SECURITY_UPDATE', {
+        clientId: id,
+        metadata: {
+          changeSummary: 'Your account access has been suspended by our team.',
+          occurredAt: new Date().toISOString(),
+        },
+      });
+    }
     return NextResponse.json({ success: true, message: 'User banned' });
   }
 
   if (action === 'unban') {
     await supabaseAdmin.from('users').update({ email_verified: true }).eq('id', id);
+
+    if (await isPartner(id)) {
+      await emitNotification('PARTNER_REACTIVATED', { partnerId: id });
+    } else {
+      await emitNotification('CLIENT_SECURITY_UPDATE', {
+        clientId: id,
+        metadata: {
+          changeSummary: 'Your account access has been restored.',
+          occurredAt: new Date().toISOString(),
+        },
+      });
+    }
     return NextResponse.json({ success: true, message: 'User unbanned' });
+  }
+
+  // Partner application decisions. Kept separate from `change_role` so an
+  // admin can reject an application without touching roles.
+  if (action === 'partner_decision') {
+    const decision = String(body.decision || '');
+    if (decision === 'approve') {
+      await emitNotification('PARTNER_APPROVED', { partnerId: id });
+    } else if (decision === 'reject') {
+      await emitNotification('PARTNER_REJECTED', { partnerId: id, metadata: { reason: reason || null } });
+    } else {
+      return NextResponse.json({ error: 'decision must be approve or reject' }, { status: 400 });
+    }
+    return NextResponse.json({ success: true, message: `Partner ${decision}d` });
   }
 
   if (action === 'change_role' && role) {
@@ -40,6 +81,8 @@ export async function PATCH(
       if (partnerRole?.id) {
         await supabaseAdmin.from('user_roles').upsert({ user_id: id, role_id: partnerRole.id });
       }
+      // Granting the partner role is how an application gets approved today.
+      await emitNotification('PARTNER_APPROVED', { partnerId: id });
     }
 
     if (role === 'user') {
@@ -105,4 +148,24 @@ export async function GET(
     },
     bookings: bookings || [],
   });
+}
+
+/** Does this user hold the partner role (role column, user_roles, or owned studios)? */
+async function isPartner(userId: string): Promise<boolean> {
+  if (!supabaseAdmin) return false;
+
+  const { data: user } = await supabaseAdmin
+    .from('users')
+    .select('role, user_roles(roles(name)), studios!studios_owner_id_fkey(id)')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!user) return false;
+
+  if (parseRoleColumn((user as { role?: string }).role).includes('partner')) return true;
+  const roleNames = ((user as { user_roles?: { roles?: { name?: string } }[] }).user_roles || [])
+    .map((ur) => ur.roles?.name)
+    .filter(Boolean);
+  if (roleNames.includes('partner')) return true;
+
+  return (((user as { studios?: unknown[] }).studios) || []).length > 0;
 }

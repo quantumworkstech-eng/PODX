@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminEmail, logAdminAction } from "@/lib/admin-auth";
 import { createClient } from "@supabase/supabase-js";
+import { emitNotification } from "@/lib/notifications";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,6 +99,30 @@ export async function PATCH(req: NextRequest) {
       .update({ payout_status: "pending" })
       .eq("partner_id", payout.partner_id)
       .eq("payout_status", "processing");
+  }
+
+  // ── Transactional email — emitted after the payout state is committed ─────
+  if (status === "paid") {
+    await emitNotification("PAYOUT_COMPLETED", {
+      partnerId: payout.partner_id,
+      payoutId: payout.id,
+    });
+  } else if (status === "failed") {
+    const { data: partner } = await supabase
+      .from("users")
+      .select("email")
+      .eq("id", payout.partner_id)
+      .maybeSingle();
+
+    await emitNotification("PAYOUT_FAILED", {
+      partnerId: payout.partner_id,
+      payoutId: payout.id,
+    });
+    await emitNotification("ADMIN_PAYOUT_FAILED", {
+      partnerId: payout.partner_id,
+      payoutId: payout.id,
+      metadata: { partnerEmail: partner?.email || null },
+    });
   }
 
   await logAdminAction(adminEmail, `payout_${status}`, "payout", payout_id, { status });

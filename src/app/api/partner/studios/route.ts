@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkStudioLimit } from '@/lib/subscription-gates';
 import { saveStudioPartnerInventory } from '@/lib/partner-studio-inventory';
+import { emitNotification } from '@/lib/notifications';
 
 async function getPartnerId(email: string): Promise<string | null> {
   const { data } = await supabaseAdmin!
@@ -301,6 +302,19 @@ export async function POST(request: NextRequest) {
       }));
       await supabaseAdmin.from('notifications').insert(notifications);
     }
+
+    // Confirm the submission to the partner and put it on the admin queue.
+    await emitNotification('STUDIO_SUBMITTED', {
+      partnerId,
+      studioId: studio.id,
+      idempotencyKey: studio.id,
+    });
+    await emitNotification('ADMIN_STUDIO_REVIEW_REQUIRED', {
+      partnerId,
+      studioId: studio.id,
+      idempotencyKey: studio.id,
+      metadata: { partnerEmail: session.user.email },
+    });
   }
 
   return NextResponse.json({ studioId: studio.id, isDraft: !!saveAsDraft }, { status: 201 });

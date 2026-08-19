@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { emitNotification } from '@/lib/notifications';
+import type { EventKey } from '@/lib/notifications';
 
 // GET full studio details for admin editing
 export async function GET(
@@ -260,7 +262,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { action } = body;
+  const { action, reason } = body;
 
   // Status actions
   if (action) {
@@ -270,6 +272,8 @@ export async function PATCH(
       suspend: { review_status: 'suspended', is_active: false },
       pause: { review_status: 'paused', is_active: false },
       activate: { review_status: 'approved', is_active: true },
+      // Returns the listing to the partner for mandatory corrections.
+      request_changes: { review_status: 'changes_required', is_active: false },
     };
 
     const updates = statusMap[action];
@@ -301,6 +305,33 @@ export async function PATCH(
           user_id: studio.owner_id, type: msg.type, title: msg.title, content: msg.content, action_url: '/partner/studios',
         });
       }
+    }
+
+    // ── Transactional email to the partner ──────────────────────────────────
+    const studioEmailEvent: Record<string, EventKey> = {
+      approve: 'STUDIO_APPROVED',
+      activate: 'STUDIO_APPROVED',
+      reject: 'STUDIO_REJECTED',
+      suspend: 'STUDIO_DEACTIVATED',
+      pause: 'STUDIO_DEACTIVATED',
+      request_changes: 'STUDIO_CHANGES_REQUIRED',
+    };
+    const eventKey = studioEmailEvent[action];
+    if (eventKey) {
+      await emitNotification(eventKey, {
+        partnerId: studio?.owner_id,
+        studioId: id,
+        metadata: { reason: reason || null },
+      });
+    }
+
+    // §4: a studio going unavailable must also reach the clients who already
+    // hold bookings there.
+    if (!statusMap[action].is_active) {
+      await notifyUpcomingBookingClients(
+        id,
+        `${studio?.name || 'The studio'} is temporarily unavailable on our platform. Our team will contact you about your booking.`
+      );
     }
 
     await logAdminAction(email, `studio_${action}`, 'studio', id);
@@ -472,6 +503,45 @@ export async function DELETE(
     });
   }
 
+  await emitNotification('STUDIO_DEACTIVATED', {
+    partnerId: studio.owner_id,
+    studioId: id,
+    metadata: { reason: 'The listing has been removed from the platform by an administrator.' },
+  });
+  await notifyUpcomingBookingClients(
+    id,
+    `${studio.name} is no longer available on our platform. Our team will contact you about your booking.`
+  );
+
   await logAdminAction(email, 'studio_delete', 'studio', id, { name: studio.name });
   return NextResponse.json({ success: true });
+}
+
+/**
+ * Tell every client with a live upcoming booking that the studio they booked
+ * has become unavailable. Matrix §4: "studio becomes unavailable for an
+ * existing booking" must notify both sides — the partner is emailed separately
+ * by the caller.
+ */
+async function notifyUpcomingBookingClients(studioId: string, changeSummary: string): Promise<void> {
+  if (!supabaseAdmin) return;
+
+  const { data: bookings } = await supabaseAdmin
+    .from('bookings')
+    .select('id, user_id')
+    .eq('studio_id', studioId)
+    .in('status', ['confirmed', 'rescheduled'])
+    .gte('start_time', new Date().toISOString());
+
+  for (const booking of bookings || []) {
+    await emitNotification('BOOKING_CRITICAL_UPDATE', {
+      clientId: booking.user_id,
+      bookingId: booking.id,
+      studioId,
+      // One notice per (booking, change) — a repeated admin action on the same
+      // studio does not re-mail the same clients.
+      idempotencyKey: `${booking.id}:${changeSummary}`,
+      metadata: { changeSummary },
+    });
+  }
 }

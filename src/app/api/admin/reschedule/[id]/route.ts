@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminEmail, logAdminAction } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { emitNotification } from '@/lib/notifications';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const email = await getAdminEmail();
@@ -65,6 +66,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         action_url: '/dashboard',
       });
     }
+
+    // The booking really moved, so both sides get the new details.
+    await emitNotification('BOOKING_RESCHEDULED', {
+      clientId: req.requested_by,
+      bookingId: req.booking_id,
+      metadata: { rescheduledBy: 'admin' },
+    });
+    await emitNotification('PARTNER_BOOKING_RESCHEDULED', {
+      bookingId: req.booking_id,
+      metadata: { rescheduledBy: 'the Yanisa Studios team' },
+    });
   } else {
     // Notify rejection
     if (req.requested_by) {

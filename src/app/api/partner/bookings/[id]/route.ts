@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calendarDateInIST, startEndFromCalendarAndSlot } from '@/lib/bookingTime';
+import { emitNotification } from '@/lib/notifications';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (v: string) => UUID_RE.test(v);
@@ -146,6 +147,27 @@ export async function PATCH(
             });
         } catch { /* non-blocking */ }
     }
+
+    // Both sides of the booking are emailed — the client because their session
+    // moved, the partner as a written record of the change they just made.
+    await emitNotification('BOOKING_RESCHEDULED', {
+        clientId: fullBooking?.user_id,
+        bookingId: booking.id,
+        metadata: {
+            rescheduledBy: 'partner',
+            previousStartTime: booking.start_time,
+            previousEndTime: booking.end_time,
+        },
+    });
+    await emitNotification('PARTNER_BOOKING_RESCHEDULED', {
+        partnerId: partnerUser.id,
+        bookingId: booking.id,
+        metadata: {
+            rescheduledBy: 'you',
+            previousStartTime: booking.start_time,
+            previousEndTime: booking.end_time,
+        },
+    });
 
     return NextResponse.json({ success: true });
 }

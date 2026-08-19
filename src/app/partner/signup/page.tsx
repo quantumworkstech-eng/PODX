@@ -60,7 +60,7 @@ function PartnerSignupContent() {
     const res = await fetch("/api/auth/send-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, audience: "partner" }),
     });
     const data = await res.json();
     setIsLoading(false);

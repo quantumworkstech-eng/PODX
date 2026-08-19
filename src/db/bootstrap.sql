@@ -332,6 +332,7 @@ CREATE TABLE payments (
 CREATE TABLE refunds (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     payment_id UUID REFERENCES payments(id),
+    booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
     provider_refund_id TEXT,
     amount NUMERIC(10, 2) NOT NULL,
     reason TEXT,
